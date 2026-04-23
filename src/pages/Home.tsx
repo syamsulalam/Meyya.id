@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { Heart } from 'lucide-react';
+import CatalogProductCard from '../components/CatalogProductCard';
 
 export default function Home() {
   const [searchParams] = useSearchParams();
   const category = searchParams.get('kategori');
-  const { wishlist, toggleWishlist } = useStore();
+  const { cart } = useStore();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch('/api/products')
@@ -91,33 +92,21 @@ export default function Home() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-              {displayedProducts.map(product => (
-                <Link key={product.id} to={`/produk/${product.slug}`} className="group flex flex-col cursor-pointer">
-                  <div className="aspect-[3/4] rounded-2xl glass-panel relative mb-6 overflow-hidden bg-white/40">
-                    <img 
-                      src={product.image_url} 
-                      alt={product.name} 
-                      className="w-full h-full object-cover mix-blend-multiply opacity-90 transition-transform duration-700 ease-out group-hover:scale-110"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500"></div>
-                    
-                    {/* Add to wishlist icon button */}
-                    <button 
-                      onClick={(e) => { e.preventDefault(); toggleWishlist(product.id); }}
-                      className="absolute top-4 right-4 z-20 p-2 md:p-3 rounded-full bg-white/60 backdrop-blur shadow-sm hover:scale-110 transition-all border border-black/5"
-                    >
-                      <Heart size={18} strokeWidth={1.5} className={wishlist.includes(product.id) ? 'fill-red-500 stroke-red-500' : 'stroke-gray-600'} />
-                    </button>
-                  </div>
-                  {/* Product Meta */}
-                  <div className="text-center">
-                    <h3 className="font-light text-xl text-ink mb-2 group-hover:opacity-70 transition-opacity">{product.name}</h3>
-                    <p className="text-sm opacity-60 tracking-wider">Rp {product.base_price.toLocaleString('id-ID')}</p>
-                  </div>
-                </Link>
-              ))}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-12">
+              {displayedProducts.map(product => {
+                // Calculate total quantity of this product in cart across all variations
+                const cartItemsForProduct = cart.filter(c => c.product_id === product.id);
+                const totalQuantityInCart = cartItemsForProduct.reduce((acc, curr) => acc + curr.quantity, 0);
+
+                return (
+                  <CatalogProductCard 
+                    key={product.id} 
+                    product={product} 
+                    totalQuantityInCart={totalQuantityInCart} 
+                    cartItemsForProduct={cartItemsForProduct}
+                  />
+                );
+              })}
               {products.length === 0 && (
                 <div className="col-span-full py-32 flex flex-col items-center justify-center text-center glass-panel rounded-[40px] px-4">
                   <div className="w-20 h-20 bg-black/5 rounded-full flex items-center justify-center mb-6">

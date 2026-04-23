@@ -16,6 +16,7 @@ interface AppState {
   wishlist: number[];
   user: { id: string; role: 'customer' | 'admin'; name?: string; email?: string } | null;
   addToCart: (item: CartItem) => void;
+  decreaseQuantity: (index: number) => void;
   removeFromCart: (index: number) => void;
   clearCart: () => void;
   toggleWishlist: (product_id: number) => void;
@@ -40,6 +41,16 @@ export const useStore = create<AppState>()(
             return { cart: newCart };
           }
           return { cart: [...state.cart, item] };
+        }),
+      decreaseQuantity: (index) =>
+        set((state) => {
+          const newCart = [...state.cart];
+          if (newCart[index].quantity > 1) {
+            newCart[index].quantity -= 1;
+          } else {
+            newCart.splice(index, 1);
+          }
+          return { cart: newCart };
         }),
       removeFromCart: (index) =>
         set((state) => ({

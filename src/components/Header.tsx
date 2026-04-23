@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Search, Heart, ShoppingBag, User, LayoutGrid, LogIn, LogOut, Menu } from 'lucide-react';
 import { useStore } from '../store';
 import { Show, SignOutButton } from '@clerk/react';
+import CartPreviewDropdown from './CartPreviewDropdown';
 
 export default function Header() {
   const { cart, user } = useStore();
@@ -48,14 +49,7 @@ export default function Header() {
 
           {/* Right Icons - DESKTOP */}
           <div className="hidden sm:flex items-center gap-4 flex-1 justify-end">
-            <Link to="/cart" className="p-2 hover:bg-black/5 rounded-full transition-colors relative" title="Keranjang Belanja (Cart)">
-              <ShoppingBag size={20} strokeWidth={1.5} />
-              {cartCount > 0 && (
-                <span className="absolute top-0 right-0 bg-black text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
+            <CartPreviewDropdown />
 
             <Link to={user?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors" title={user?.role === 'admin' ? "Admin Dashboard" : "Profil Akun"}>
               <User size={20} strokeWidth={1.5} />
