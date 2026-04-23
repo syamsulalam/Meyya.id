@@ -3,77 +3,61 @@
 ## 1. Status Proyek Saat Ini (Progress Report)
 
 ### ✅ Fitur yang Selesai & Terintegrasi
-- **UI/UX Global**: Antarmuka modern dengan gaya *Glassmorphism*, typography elegan yang diatur secara konsisten, responsif, dan error-boundary global untuk kenyamanan (*Better UX* saat error). Scrollbar juga sudah disembunyikan menggunakan CSS agar terlihat mulus.
-- **State Management (Zustand)**: **Iya, Zustand sudah terinstall dan aktif digunakan**. File `/src/store.ts` menangani data keranjang belanja (cart), wishlist, autentikasi user saat ini, dan fungsi logout.
+- **UI/UX Global**: Antarmuka modern dengan gaya *Glassmorphism*, typography elegan yang diatur secara konsisten, responsif, dan error-boundary global untuk kenyamanan (*Better UX* saat error). Scrollbar disembunyikan menggunakan CSS agar terlihat mulus.
+- **State Management (Zustand)**: File `/src/store.ts` menangani data keranjang belanja (cart), wishlist, autentikasi user saat ini, dan fungsi logout.
 - **Halaman Katalog & Beranda**: Pagination, filter kategori produk, efek add to wishlist, display harga produk (*mock* data).
-- **Halaman Profil User**: Sistem multi-step form cerdas dengan auto-suggest untuk Provinsi, Kota, Kecamatan, dan Kelurahan menggunakan data konkrit (file `json` secara dinamis). Disertai peringatan (*useBlocker*) jika mencoba berpindah halaman tanpa menyimpan data form.
-- **Dashboard Admin**: Layout *unified* dengan metrik statis, manajemen produk lengkap dengan **kalkulator HPP & Laba Bersih otomatis**, serta pengaturan Kategori produk (Taxonomy).
+- **Halaman Profil User**: Sistem multi-step form cerdas dengan auto-suggest untuk Provinsi, Kota, Kecamatan, dan Kelurahan menggunakan data konkrit. Disertai peringatan (*useBlocker*) jika mencoba berpindah halaman tanpa menyimpan data form.
+- **Dashboard Admin**: Layout *unified* dengan metrik statis, manajemen produk lengkap dengan kalkulator HPP & Laba Bersih otomatis, serta pengaturan Kategori produk.
+- **Autentikasi Produksi (Clerk)**: **[BARU!]** Proyek telah sepenuhnya mengadopsi `@clerk/react` secara *headless*. Logika pendaftaran email, validasi SSO Google, nomor Whatsapp, dan pengiriman kode verifikasi Email OTP bawaan Clerk bekerja menggunakan UI Kustom (*Glassmorphism*) asli rancangan kita!
 
 ### ⏳ Fitur yang Belum Selesai (Membutuhkan Backend/Pihak Ketiga)
-Saat ini proyek berbentuk *Static Single Page Application (SPA)*. Data yang Anda ubah di form profil/admin akan hilang jika Anda melakukan muat ulang (*Refresh*), karena belum dihubungkan dengan database permanen server sungguhan.
-- **Login Autentikasi Asli**: Saat ini form login/daftar hanya menggunakan *mock* dummy tanpa ada proteksi server.
+Saat ini proyek masih berbentuk *Static Front-End* sebagian.
 - **Database Inventori & Profil Real**: Rekaman *Cart*, *Order*, *Produk Baru*, *Kategori* dan *Alamat Form* belum disimpan permanen ke server.
-- **Payment Gateway Midtrans/Stripe**: Sistem pembayaran masih belum dapat digunakan.
+- **Payment Gateway Midtrans/Stripe**: Sistem check-out pembayaran masih belum tersambung ke rekening aslinya.
 
 ---
 
 ## 2. Environment Variables & Rahasia (Secrets)
-Jika Anda menggunakan **Cloudflare Pages**, Anda benar. Semua variabel bersifat rahasia harus disimpan pada menu **Settings > Environment Variables** (klik *Encrypt* bila ada opsi tersebut) di dashboard proyek Cloudflare Anda. Secara umum, variabel yang akan Anda butuhkan nanti adalah:
 
-- `VITE_CLERK_PUBLISHABLE_KEY`: Key publish publik dari sistem Clerk.
-- `CLERK_SECRET_KEY`: Jangan pernah diberikan ke sisi *frontend/client*. Hanya digunakan jika proyek diakses via Workers/Backend.
-- (Dan jika Anda membuat D1 via binding, Anda tidak butuh URL rahasia, melainkan Cloudflare otomatis mendeteksi binding dengan alias seperti `DB`).
+Di **Cloudflare Pages**, seluruh variabel rahasia wajib diunggah pada dashboard **Settings > Environment Variables**.
+*Penting: Setiap kali Anda menambahkan/mengubah nilai Environment Variable di Cloudflare, proyek WAJIB DI-*REDEPLOY* agar mesin *build* Vite dapat menyuntikkannya ke dalam kode Frontend.*
+
+- `VITE_CLERK_PUBLISHABLE_KEY`: Key publik Clerk (awalan `pk_test_...` atau `pk_live_...`). Ini variabel paling krusial di Frontend.
+- `CLERK_SECRET_KEY`: Variabel ini **jaga kerahasiaannya**. Hanya diperlukan kelak saat merakit server / *Cloudflare Workers* / *Backend API*.
 
 ---
 
-## 3. Panduan Pemula Integrasi Clerk (Autentikasi)
+## 3. Panduan Autentikasi dengan Clerk SDK (*Headless* & Kustom)
 
-[Clerk](https://clerk.com/) merupakan penyedia layanan autentikasi (login Google, email, dan input no WA) yang paling ramah pemula dan gratis untuk tahap awal. Karena Anda memakai React/Vite, langkahnya sangat padat:
+Aplikasi kita menolak memakai kotak *widget* bawaan Clerk UI yang dapat mencederai desain, sehingga kita memakai arsitektur **Clerk Headless React Hooks**!
 
-> **Catatan:** Karena *Google AI Studio Agent* ini berfokus pada mode sandbox tanpa backend node eksklusif, proses ini harus Anda inisiasi saat mengunduh (*Export*) kodenya atau menggunakan *Dev Tools* Anda sendiri.
+Semua pengaturan terkait Clerk terletak di file `src/main.tsx` dan antarmuka interaksinya di `src/pages/Auth.tsx`.
 
-**Langkah 1: Daftar dan Buat Proyek di Clerk**
-1. Masuk ke dashboard Clerk, buat aplikasi baru.
-2. Saat ditanya mekanisme apa, centang Email, Google, dan Phone Number (jika ingin fitur WA).
-3. Salin kunci: `VITE_CLERK_PUBLISHABLE_KEY` dan taruh pada file `.env` lokal Anda (atau *Environment Variables* di Cloudflare).
+### 1. Fitur OTP Email (Kata Sandi Sekali Pakai)
+Kita mengimplementasikan fitur OTP langsung melalui metode email. 
+- Saat pelanggan `Daftar`, sistem menyerap Nama, Email, Password, dan no WA.
+- Sistem menggunakan fungsi lanjutan `signUp.prepareEmailAddressVerification` untuk memaksa OTP ke email pelanggan.
+- Jendela Form login berubah manis menampilkan Kotak **"Kode OTP"** tanpa memuat halaman baru.
+- Sistem menggunakan `signUp.attemptEmailAddressVerification` dan pengguna akan divalidasi dengan aman.
 
-**Langkah 2: Instalasi & Penyiapan Kode**
-1. Buka terminal Anda dan jalankan perintah: `npm install @clerk/clerk-react`
-2. Di file `src/main.tsx` Anda, bungkus `<App />` dengan `<ClerkProvider>`:
-
-```tsx
-import { ClerkProvider } from '@clerk/clerk-react';
-
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Publishable Key")
-}
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <App />
-    </ClerkProvider>
-  </StrictMode>,
-);
+### 2. Format *Country Code* (+62) WhatsApp ke dalam Unsafe-Metadata
+Untuk menyimpan **No WhatsApp**, clerk bawaan hanya mengenal mekanisme SMS standar. Karena kita hanya sebatas butuh mengumpulkan nomor WA sebagai perantara *customer service*, form merapikan masukan dari pelanggan (menghilangkan awalan `0` atau `62`), menyisipkan `+62` sebagai *country_code*, lalu menyetorkannya ke Clerk *Cloud* menggunakan fitur `unsafeMetadata`:
+```typescript
+unsafeMetadata: { whatsapp: "+6281234567890" }
 ```
+Data ini akan tersimpan permanen di riwayat rekam tiap pengguna pada Dashboard Clerk Anda.
 
-**Langkah 3: Menggunakan Tombol Sakti Clerk**
-Anda bebas dari membuat logika login. Tinggal ganti komponen Auth di sistem Anda:
-```tsx
-import { SignIn, SignUp, SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
+### 3. SSO Cepat (Google)
+Kolom masuk juga dibumbui oleh klik tunggal via fungsi `signIn.authenticateWithRedirect({ strategy: "oauth_google" })`.
 
-// Taruh <SignIn /> di halaman /login Anda
-// Taruh <UserButton /> di Navbar untuk auto-logout menu
-```
-*Clerk otomatis menyimpan dan memanajemen basis data akun user di panel Clerk Anda!*
+### ⚠️ PERBAIKAN UMUM YANG SERING DITANYAKAN:
+* "Kok Klik Tombol tidak terjadi apa-apa?" -> Kunci rahasia publik belum termuat. Anda harus menyetel Variabel Cloudflare (`VITE_CLERK_PUBLISHABLE_KEY`) lalu melakukan *Retry Deployment*.
 
 ---
 
 ## 4. Panduan Pemula Integrasi Cloudflare D1 (Database SQL Serverless)
 
-Cloudflare D1 adalah *Database SQL* yang dihosting langsung di Cloudflare edge secara gratis tingkat awal. Karena proyek Anda dideploy di **Cloudflare Pages**, mereka dapat diikat (binding) secara langsung dengan performa kilat.
+Cloudflare D1 adalah *Database SQL* serverless berkinerja tinggi yang berada satu atap dengan Cloudflare Pages Anda.
 
 **Langkah 1: Membuat Database D1**
 1. Buka dashboard Cloudflare, buka menu **Workers & Pages > D1 SQL Database**.
@@ -83,22 +67,20 @@ Cloudflare D1 adalah *Database SQL* yang dihosting langsung di Cloudflare edge s
 1. Pada proyek Cloudflare Pages Anda > masuk ke **Settings > Functions**.
 2. Gulir ke bagian **D1 database bindings**.
 3. *Variable name*: MEYYA_DB
-4. *D1 Database*: (Pilih nama DB yang baru saja Anda buat `meyya_db`).
+4. *D1 Database*: (Pilih nama DB `meyya_db`).
 
 **Langkah 3: Membuat Tabel (Schema)**
-Di dashboard Cloudflare (atau terminal lokal via wrangler), Anda bisa eksekusi kode SQL untuk membuat tabel, misalnya untuk Manajemen Kategori:
+Di dashboard Cloudflare (atau terminal lokal via wrangler), Anda bisa mengeksekusi kode SQL pembuatan tabel:
 ```sql
 CREATE TABLE categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
-  slug TEXT UNIQUE NOT NULL,
-  count INTEGER DEFAULT 0
+  slug TEXT UNIQUE NOT NULL
 );
 ```
 
 **Langkah 4: Menangkap Data Melalui Pages Functions (Backend Minimalis)**
-Karena React tidak bisa nge-PING ke SQL secara langsung (masalah sekuritas), Anda harus membuat folder bernama `/functions` persis di sebelah luar *root* aplikasi Vite Anda (setara `/src`).
-Misalnya `/functions/api/categories.ts`:
+Uraikan batas *fontend* Anda dengan membakar API sederhana dalam map bernamakan `/functions` (harus di area *root*, sejajar dengan `package.json` Anda). Misalnya `functions/api/categories.ts`:
 
 ```typescript
 export async function onRequestGet(context) {
@@ -110,9 +92,7 @@ export async function onRequestGet(context) {
   return Response.json(results);
 }
 ```
-Lalu dari `/src/components/admin/AdminCategoryManager.tsx` Anda tidak menggunakan state *mock* `useState` lagi! Anda meng-fetch API secara langsung layaknya:
+Lalu dari komponen React Admin Anda, ganti status penampungan *mock data* dengan proses ambil (*fetch*):
 ```typescript
 fetch('/api/categories').then(res => res.json()).then(data => setCategories(data));
 ```
-
-Dengan alur ini, Anda sepenuhnya mengubah prototipe ini menjadi sistem rapi dan fungsional penuh!
