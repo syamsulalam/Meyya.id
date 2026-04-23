@@ -304,6 +304,7 @@ async function startServer() {
   });
 
   // Keep old endpoint for orders with modified payload
+  app.post('/api/orders', (req, res) => {
     try {
       const { user_id, address_snapshot, items, shipping_cost } = req.body;
       const unique_code = Math.floor(Math.random() * 900) + 100; // 100-999
