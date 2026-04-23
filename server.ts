@@ -23,9 +23,8 @@ async function startServer() {
     DROP TABLE IF EXISTS product_colors;
     DROP TABLE IF EXISTS product_sizes;
     DROP TABLE IF EXISTS shipping_costs;
-  `);
-
-  db.exec(`
+    DROP TABLE IF EXISTS shipping_settings;
+    
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT,
@@ -39,19 +38,24 @@ async function startServer() {
       user_id TEXT,
       recipient_name TEXT,
       recipient_phone TEXT,
-      province TEXT,
-      city TEXT,
-      district TEXT,
-      subdistrict TEXT,
+      province_code TEXT,
+      province_name TEXT,
+      regency_code TEXT,
+      regency_name TEXT,
+      district_code TEXT,
+      district_name TEXT,
+      village_code TEXT,
+      village_name TEXT,
       postal_code TEXT,
       street_address TEXT,
       is_default INTEGER
     );
 
-    CREATE TABLE IF NOT EXISTS shipping_costs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      destination_city TEXT,
-      cost INTEGER
+    CREATE TABLE IF NOT EXISTS shipping_settings (
+      id INTEGER PRIMARY KEY,
+      origin_village_code TEXT,
+      origin_village_name TEXT,
+      active_couriers TEXT
     );
 
     CREATE TABLE IF NOT EXISTS categories (
@@ -69,6 +73,7 @@ async function startServer() {
       image_url TEXT,
       base_price INTEGER,
       production_cost INTEGER,
+      weight INTEGER DEFAULT 250,
       is_active INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -144,9 +149,12 @@ async function startServer() {
       INSERT INTO categories (slug, name) VALUES ('inner', 'Inner');
       INSERT INTO categories (slug, name) VALUES ('aksesoris', 'Aksesoris');
 
+      INSERT INTO shipping_settings (id, origin_village_code, origin_village_name, active_couriers) 
+      VALUES (1, '3174050001', 'GROGOL UTARA', '["JNE", "SiCepat", "JT", "paxel"]');
+
       /* Product 1: Pashmina Silk */
-      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active)
-      VALUES (1, 'Pashmina Silk Premium', 'pashmina-silk-premium', 'Pashmina silk premium dengan drape yang indah dan sentuhan mewah (luxurious feel). Material dingin dan mudah dibentuk.', 'https://images.unsplash.com/photo-1584273143981-41c073dfe8f8?auto=format&fit=crop&q=80&w=600', 150000, 80000, 1);
+      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+      VALUES (1, 'Pashmina Silk Premium', 'pashmina-silk-premium', 'Pashmina silk premium dengan drape yang indah dan sentuhan mewah (luxurious feel).', 'https://images.unsplash.com/photo-1584273143981-41c073dfe8f8?auto=format&fit=crop&q=80&w=600', 150000, 80000, 1, 150);
       
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (1, 'Dusty Pink', '#DCAE96');
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (1, 'Olive Green', '#808000');
@@ -154,8 +162,8 @@ async function startServer() {
       INSERT INTO product_sizes (product_id, size_name) VALUES (1, 'All Size');
 
       /* Product 2: Classic Abaya */
-      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active)
-      VALUES (2, 'Abaya Noir Classic', 'abaya-noir-classic', 'Abaya berpotongan klasik (classic cut) yang elegan. Cocok untuk acara formal maupun gaya kasual harian (daily wear).', 'https://images.unsplash.com/photo-1610486808796-039c36ec3b2a?auto=format&fit=crop&q=80&w=600', 450000, 200000, 1);
+      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+      VALUES (2, 'Abaya Noir Classic', 'abaya-noir-classic', 'Abaya berpotongan klasik (classic cut) yang elegan.', 'https://images.unsplash.com/photo-1610486808796-039c36ec3b2a?auto=format&fit=crop&q=80&w=600', 450000, 200000, 1, 600);
       
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (2, 'Midnight Black', '#1a1a1a');
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (2, 'Maroon', '#800000');
@@ -165,8 +173,8 @@ async function startServer() {
       INSERT INTO product_sizes (product_id, size_name) VALUES (2, 'XL');
 
       /* Product 3: Flowy Khimar */
-      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active)
-      VALUES (3, 'Khimar Flowy Voile', 'khimar-flowy-voile', 'Khimar layer ganda yang sangat jatuh (flowy). Dibuat dari kain voile lembut yang breathable dan tidak gerah.', 'https://images.unsplash.com/photo-1594911772125-07fc7a2d8d9f?q=80&w=600&auto=format&fit=crop', 220000, 110000, 1);
+      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+      VALUES (3, 'Khimar Flowy Voile', 'khimar-flowy-voile', 'Khimar layer ganda yang sangat jatuh (flowy).', 'https://images.unsplash.com/photo-1594911772125-07fc7a2d8d9f?q=80&w=600&auto=format&fit=crop', 220000, 110000, 1, 300);
       
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (3, 'Soft Charcoal', '#36454F');
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (3, 'Warm Sand', '#E0C5A0');
@@ -175,16 +183,16 @@ async function startServer() {
       INSERT INTO product_sizes (product_id, size_name) VALUES (3, 'Jumbo');
 
       /* Product 4: Abaya Outer */
-      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active)
-      VALUES (2, 'Abaya Outer Signature', 'abaya-outer-signature', 'Outer abaya dengan detail bordir (embroidery) premium. Berfungsi ganda sebagai outer atau dress tertutup.', 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=600&auto=format&fit=crop', 600000, 250000, 1);
+      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+      VALUES (2, 'Abaya Outer Signature', 'abaya-outer-signature', 'Outer abaya dengan detail bordir (embroidery) premium.', 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=600&auto=format&fit=crop', 600000, 250000, 1, 450);
       
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (4, 'Emerald', '#50C878');
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (4, 'Taupe', '#483C32');
       INSERT INTO product_sizes (product_id, size_name) VALUES (4, 'All Size');
 
       /* Product 5: Inner Rajut */
-      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active)
-      VALUES (4, 'Inner Ninja Premium', 'inner-ninja-premium', 'Ciput ninja rajut anti pusing. Fleksibel, menyerap keringat, dan memastikan hijab tetap (stay in place) sepanjang hari.', 'https://images.unsplash.com/photo-1574682701768-fa24597b4a2c?q=80&w=600&auto=format&fit=crop', 50000, 20000, 1);
+      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+      VALUES (4, 'Inner Ninja Premium', 'inner-ninja-premium', 'Ciput ninja rajut anti pusing. Fleksibel, menyerap keringat.', 'https://images.unsplash.com/photo-1574682701768-fa24597b4a2c?q=80&w=600&auto=format&fit=crop', 50000, 20000, 1, 80);
       
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (5, 'Black', '#000000');
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (5, 'Nude', '#E3BC9A');
@@ -192,19 +200,12 @@ async function startServer() {
       INSERT INTO product_sizes (product_id, size_name) VALUES (5, 'All Size');
 
       /* Product 6: Aksesoris Brooch */
-      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active)
-      VALUES (5, 'Vintage Pearl Brooch', 'vintage-pearl-brooch', 'Bros mutiara elegan (elegant pearl brooch) untuk mempercantik tampilan hijab atau dress Anda.', 'https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?q=80&w=600&auto=format&fit=crop', 120000, 50000, 1);
+      INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+      VALUES (5, 'Vintage Pearl Brooch', 'vintage-pearl-brooch', 'Bros mutiara elegan (elegant pearl brooch) untuk mempercantik tampilan hijab atau dress Anda.', 'https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?q=80&w=600&auto=format&fit=crop', 120000, 50000, 1, 50);
       
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (6, 'Gold/Pearl', '#FFD700');
       INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (6, 'Silver/Pearl', '#C0C0C0');
       INSERT INTO product_sizes (product_id, size_name) VALUES (6, 'All Fit');
-
-      /* Shipping Costs */
-      INSERT INTO shipping_costs (destination_city, cost) VALUES ('Jakarta', 10000);
-      INSERT INTO shipping_costs (destination_city, cost) VALUES ('Bandung', 15000);
-      INSERT INTO shipping_costs (destination_city, cost) VALUES ('Surabaya', 20000);
-      INSERT INTO shipping_costs (destination_city, cost) VALUES ('Medan', 35000);
-      INSERT INTO shipping_costs (destination_city, cost) VALUES ('Makassar', 40000);
     `);
   }
 
@@ -235,11 +236,6 @@ async function startServer() {
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
-  });
-
-  app.get('/api/shipping-costs', (req, res) => {
-    const costs = db.prepare('SELECT * FROM shipping_costs').all();
-    res.json(costs);
   });
 
   const API_KEY = process.env['API.CO.ID_API'] || 'sk-test';
@@ -277,7 +273,10 @@ async function startServer() {
   app.post('/api/shipping/calculate', async (req, res) => {
     try {
       const { destination_village_code, weight } = req.body;
-      const origin_village_code = "3174050001"; // Grogol utara default origin from db
+      
+      const settings = db.prepare('SELECT * FROM shipping_settings LIMIT 1').get() as any;
+      const origin_village_code = settings?.origin_village_code || "3174050001";
+      const active_couriers = settings?.active_couriers ? JSON.parse(settings.active_couriers) : ["JNE", "SiCepat", "JT", "paxel"];
 
       const params = new URLSearchParams({
         origin_village_code,
@@ -290,6 +289,14 @@ async function startServer() {
       });
       
       const data = await response.json();
+      
+      // Filter the api.co.id results based on active couriers and valid prices
+      if (data.status === 'success' && data.result) {
+        data.result = data.result.filter((r: any) => 
+          r.price > 0 && active_couriers.includes(r.courier_code)
+        );
+      }
+      
       res.json(data);
     } catch (e: any) {
       res.status(500).json({ error: e.message });
