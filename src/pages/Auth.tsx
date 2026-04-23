@@ -30,7 +30,11 @@ export default function Auth() {
 
     try {
       if (activeTab === 'login') {
-        if (!isSignInLoaded) return;
+        if (!isSignInLoaded) {
+          setErrorMsg('Sistem belum siap. Pastikan Kunci Publishable Clerk (VITE_CLERK_PUBLISHABLE_KEY) disetel di Environment Cloudflare Pages.');
+          setIsLoading(false);
+          return;
+        }
         const result = await signIn.create({
           identifier: email,
           password,
@@ -46,11 +50,21 @@ export default function Auth() {
         }
 
       } else {
-        if (!isSignUpLoaded) return;
+        if (!isSignUpLoaded) {
+          setErrorMsg('Sistem belum siap. Pastikan Kunci Publishable Clerk (VITE_CLERK_PUBLISHABLE_KEY) disetel di Environment Cloudflare Pages.');
+          setIsLoading(false);
+          return;
+        }
+
+        const formattedPhone = '+62' + phone;
+
         const result = await signUp.create({
           emailAddress: email,
           password,
           firstName: name || undefined,
+          unsafeMetadata: {
+            whatsapp: formattedPhone
+          }
         });
 
         if (result.status === "complete") {
@@ -98,7 +112,10 @@ export default function Auth() {
   };
 
   const handleGoogleLogin = async () => {
-     if (!isSignInLoaded) return;
+     if (!isSignInLoaded) {
+       setErrorMsg('Sistem SSO belum siap. Pastikan Kunci Publishable Clerk telah dikonfigurasi.');
+       return;
+     }
      signIn.authenticateWithRedirect({
        strategy: "oauth_google",
        redirectUrl: "/sso-callback",
@@ -188,13 +205,21 @@ export default function Auth() {
                       className="w-full bg-white/50 border border-black/10 rounded-full py-3 px-6 focus:outline-none focus:border-black/50 transition-colors placeholder:font-light"
                     />
                   </div>
-                  <div>
+                  <div className="flex bg-white/50 border border-black/10 rounded-full focus-within:border-black/50 transition-colors overflow-hidden">
+                    <div className="bg-black/5 border-r border-black/10 flex items-center justify-center px-4 font-medium text-sm text-gray-600">
+                      +62
+                    </div>
                     <input 
                       type="tel" 
                       value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      placeholder="No. WhatsApp Valid (Mis: 08123...)" 
-                      className="w-full bg-white/50 border border-black/10 rounded-full py-3 px-6 focus:outline-none focus:border-black/50 transition-colors placeholder:font-light"
+                      onChange={e => {
+                        // Hanya ambil angka. Hapus 0 atau 62 di depan secara cerdas.
+                        const val = e.target.value.replace(/\D/g, ''); 
+                        setPhone(val.startsWith('62') ? val.substring(2) : (val.startsWith('0') ? val.substring(1) : val));
+                      }}
+                      placeholder="81234567890 (No. WhatsApp)" 
+                      required
+                      className="w-full bg-transparent py-3 px-4 focus:outline-none placeholder:font-light"
                     />
                   </div>
                 </>
