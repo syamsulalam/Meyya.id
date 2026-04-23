@@ -242,7 +242,61 @@ async function startServer() {
     res.json(costs);
   });
 
-  app.post('/api/orders', (req, res) => {
+  const API_KEY = process.env['API.CO.ID_API'] || 'sk-test';
+
+  // API Proxy for api.co.id regions
+  app.get('/api/regions/:type', async (req, res) => {
+    try {
+      const { type } = req.params;
+      const queryParams = new URLSearchParams(req.query as any).toString();
+      const response = await fetch(`https://use.api.co.id/regional/indonesia/${type}?${queryParams}`, {
+        headers: { 'x-api-co-id': API_KEY }
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/regions/:type/:code/:subtype', async (req, res) => {
+    try {
+      const { type, code, subtype } = req.params;
+      const queryParams = new URLSearchParams(req.query as any).toString();
+      const response = await fetch(`https://use.api.co.id/regional/indonesia/${type}/${code}/${subtype}?${queryParams}`, {
+        headers: { 'x-api-co-id': API_KEY }
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // API Proxy for shipping cost
+  app.post('/api/shipping/calculate', async (req, res) => {
+    try {
+      const { destination_village_code, weight } = req.body;
+      const origin_village_code = "3174050001"; // Grogol utara default origin from db
+
+      const params = new URLSearchParams({
+        origin_village_code,
+        destination_village_code,
+        weight: weight.toString()
+      });
+
+      const response = await fetch(`https://use.api.co.id/expedition/shipping-cost?${params.toString()}`, {
+        headers: { 'x-api-co-id': API_KEY }
+      });
+      
+      const data = await response.json();
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Keep old endpoint for orders with modified payload
     try {
       const { user_id, address_snapshot, items, shipping_cost } = req.body;
       const unique_code = Math.floor(Math.random() * 900) + 100; // 100-999

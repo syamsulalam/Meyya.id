@@ -128,7 +128,7 @@ export default function CartPreviewDropdown() {
                           <h4 className="text-xs font-medium line-clamp-1 pr-2">{product.product_name}</h4>
                           <span className="text-[10px] font-semibold bg-black text-white px-2 py-0.5 rounded-full flex-shrink-0">{product.total_quantity}</span>
                         </div>
-                        <span className="text-[10px] font-semibold mt-1">Rp {product.price.toLocaleString('id-ID')}</span>
+                        <span className="text-[10px] font-semibold mt-1">Rp {(product.price * product.total_quantity).toLocaleString('id-ID')}</span>
                         
                         {/* Variations map */}
                         <div className="mt-2 space-y-1">
@@ -195,10 +195,19 @@ export default function CartPreviewDropdown() {
           )}
 
           {groupedCart.length > 0 && (
-            <div className="p-3">
-              <Link to="/cart" className="block w-full text-center py-2.5 bg-ink text-white rounded-full text-[10px] uppercase tracking-widest hover:bg-black/80 transition-colors">
-                Lanjut ke Keranjang
-              </Link>
+            <div className="bg-white/50 border-t border-black/5">
+              <div className="p-3 pb-1 flex justify-between items-center text-xs">
+                <span className="font-light text-gray-500">Estimasi Total</span>
+                <span className="font-semibold text-sm">Rp {cart.reduce((sum, item) => sum + (item.price * item.quantity), 0).toLocaleString('id-ID')}</span>
+              </div>
+              <div className="p-3 pt-2 grid grid-cols-2 gap-2">
+                <Link to="/cart" className="block w-full text-center py-2.5 bg-black/5 text-ink rounded-full text-[10px] uppercase font-semibold tracking-widest hover:bg-black/10 transition-colors">
+                  Keranjang
+                </Link>
+                <Link to="/checkout" className="block w-full text-center py-2.5 bg-ink text-white rounded-full text-[10px] uppercase font-semibold tracking-widest hover:bg-black/80 transition-colors">
+                  Checkout
+                </Link>
+              </div>
             </div>
           )}
         </div>
