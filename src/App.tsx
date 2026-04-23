@@ -13,6 +13,7 @@ import ScrollToTop from './components/ScrollToTop';
 import Profile from './pages/Profile';
 import Auth from './pages/Auth';
 import SearchPage from './pages/SearchPage';
+import ErrorBoundaryPage from './pages/ErrorBoundaryPage';
 
 const Layout = () => (
   <div className="min-h-screen flex flex-col">
@@ -28,6 +29,7 @@ const Layout = () => (
 const router = createBrowserRouter([
   {
     element: <Layout />,
+    errorElement: <ErrorBoundaryPage />,
     children: [
       { path: "/", element: <Home /> },
       { path: "/produk/:slug", element: <ProductDetail /> },

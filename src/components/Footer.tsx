@@ -3,8 +3,8 @@ import { Instagram, Twitter, Facebook, ArrowRight, HelpCircle, MapPin, FileText,
 
 export default function Footer() {
   return (
-    <footer className="mt-16 border-t border-black/10 pt-16 pb-8 px-4 bg-transparent text-ink">
-      <div className="max-w-7xl mx-auto">
+    <footer className="mt-16 pb-8 px-4 sm:px-6 lg:px-8 bg-transparent text-ink">
+      <div className="max-w-7xl mx-auto border-t border-black/10 pt-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           {/* Brand Info */}
           <div className="col-span-1 md:col-span-1">
@@ -60,15 +60,15 @@ export default function Footer() {
             <p className="text-sm opacity-70 mb-4 font-light">
               Berlangganan <i>newsletter</i> kami untuk informasi rilis eksklusif, akses awal promo diskon (<i>sales</i>), dan katalog busana editorial kami.
             </p>
-            <form className="flex border border-black/20 rounded-full p-1 focus-within:border-black/50 transition-colors">
+            <form className="flex w-full border border-black/20 rounded-full p-1 focus-within:border-black/50 transition-colors">
               <input 
                 type="email" 
                 placeholder="Alamat email Anda..." 
-                className="bg-transparent flex-1 px-4 py-2 text-sm focus:outline-none placeholder:text-black/40"
+                className="bg-transparent flex-1 min-w-0 w-full px-4 py-2 text-sm focus:outline-none placeholder:text-black/40"
               />
               <button 
                 type="submit" 
-                className="bg-ink text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/80 transition-colors"
+                className="bg-ink text-white w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 hover:bg-black/80 transition-colors"
                 aria-label="Berlangganan"
               >
                 <ArrowRight size={16} />

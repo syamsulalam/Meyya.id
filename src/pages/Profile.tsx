@@ -2,6 +2,7 @@ import { User, MapPin, Phone, Mail, CheckCircle2, Package, History, Eye, Ticket,
 import { useStore } from '../store';
 import { Navigate, Link, useBlocker } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
+import Tooltip from '../components/Tooltip';
 
 const COUNTRY_CODES = [
   { code: '+62', flag: '🇮🇩', label: 'ID' },
@@ -226,48 +227,38 @@ export default function Profile() {
 
       <h1 className="text-3xl font-light font-heading mb-12 text-center text-ink">Profil (<i>Account</i>)</h1>
       
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="glass-panel p-2 md:p-4 rounded-[32px] md:rounded-[48px] flex flex-col lg:flex-row gap-2 md:gap-4 shadow-xl border border-white/40">
         
         {/* Sidebar Menu */}
-        <div className="w-full lg:w-64 flex-shrink-0">
-          <div className="glass-panel p-6 rounded-3xl sticky top-24">
-            <div className="flex items-center gap-4 mb-8 pb-6 border-b border-black/10">
-              <div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
-                <User size={20} className="opacity-50" />
-              </div>
-              <div className="overflow-hidden">
-                <h2 className="text-lg font-medium truncate">{user.name}</h2>
-                <p className="opacity-60 text-xs tracking-widest uppercase truncate">{user.role}</p>
-              </div>
-            </div>
-            
-            <nav className="flex flex-row overflow-x-auto lg:flex-col gap-2 pb-4 lg:pb-0 scrollbar-hide">
-              {tabs.map((tab) => (
+        <div className="w-full lg:w-24 bg-white/40 rounded-[24px] md:rounded-[36px] p-4 flex flex-col items-center flex-shrink-0 border border-black/5">
+          <nav className="flex flex-row lg:flex-col gap-4 overflow-x-auto scrollbar-hide justify-center items-center w-full sticky lg:top-28">
+            {tabs.map((tab) => (
+              <Tooltip key={tab.id} content={tab.label} position="right">
                 <button
-                  key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-left text-sm transition-all whitespace-nowrap ${
+                  className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
                     activeTab === tab.id 
-                      ? 'bg-ink text-white font-medium shadow-md' 
-                      : 'text-gray-600 hover:bg-black/5'
+                      ? 'bg-ink text-white shadow-md scale-110' 
+                      : 'text-gray-600 hover:bg-black/5 hover:scale-110'
                   }`}
                 >
                   {tab.icon}
-                  {tab.label}
                 </button>
-              ))}
-            </nav>
-          </div>
+              </Tooltip>
+            ))}
+          </nav>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1">
-          <div className="glass-panel p-8 md:p-12 rounded-[40px] min-h-[500px]">
+        <div className="flex-1 min-w-0">
+          <div className="bg-white/60 rounded-[24px] md:rounded-[36px] p-6 lg:p-12 border border-black/5 min-h-[500px]">
             
             {activeTab === 'akun' && (
               <form className="space-y-12">
                 <div className="space-y-6">
-                  <h3 className="text-sm uppercase tracking-widest font-semibold pb-2 border-b border-black/10">Data Pribadi</h3>
+                  <h3 className="text-sm uppercase tracking-widest font-semibold pb-2 border-b border-black/10 flex items-center gap-2">
+                     <User size={16} /> Data Pribadi
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Nama Lengkap</label>
