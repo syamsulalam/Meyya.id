@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Search, Heart, ShoppingBag, User, LayoutGrid, LogIn, LogOut } from 'lucide-react';
 import { useStore } from '../store';
+import { Show, SignOutButton } from '@clerk/react';
 
 export default function Header() {
-  const { cart, user, logout } = useStore();
+  const { cart, user } = useStore();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
@@ -48,15 +49,20 @@ export default function Header() {
               <User size={20} strokeWidth={1.5} />
             </Link>
 
-            {user ? (
-               <button onClick={() => logout()} className="p-2 hover:bg-black/5 rounded-full transition-colors text-red-500" title="Keluar (Log Out)">
-                 <LogOut size={20} strokeWidth={1.5} />
-               </button>
-            ) : (
+            {/* CLERK SDK IMPLEMENTATION */}
+            <Show when="signed-in">
+              <SignOutButton>
+                <button className="p-2 hover:bg-black/5 rounded-full transition-colors text-red-500" title="Keluar (Log Out)">
+                  <LogOut size={20} strokeWidth={1.5} />
+                </button>
+              </SignOutButton>
+            </Show>
+            
+            <Show when="signed-out">
                <Link to="/login" className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Masuk / Daftar">
                  <LogIn size={20} strokeWidth={1.5} />
                </Link>
-            )}
+            </Show>
           </div>
         </div>
 
