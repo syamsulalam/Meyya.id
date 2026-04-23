@@ -10,7 +10,7 @@ export default function Auth() {
   const handleAuth = (e: React.FormEvent, role: 'customer' | 'admin') => {
     e.preventDefault();
     login(role);
-    navigate('/');
+    navigate(role === 'admin' ? '/admin' : '/');
   };
 
   return (

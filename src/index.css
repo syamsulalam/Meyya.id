@@ -16,7 +16,10 @@
     min-height: 100vh;
   }
   
-  h1, h2, h3, h4, h5, h6 {
+  h1 {
+    @apply font-heading font-light tracking-[-0.02em] text-center;
+  }
+  h2, h3, h4, h5, h6 {
     @apply font-heading font-light tracking-[-0.02em];
   }
 }

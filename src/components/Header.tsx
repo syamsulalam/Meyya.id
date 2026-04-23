@@ -44,7 +44,7 @@ export default function Header() {
               )}
             </Link>
 
-            <Link to="/profil" className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Profil Akun">
+            <Link to={user?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors" title={user?.role === 'admin' ? "Admin Dashboard" : "Profil Akun"}>
               <User size={20} strokeWidth={1.5} />
             </Link>
 
