@@ -9,8 +9,8 @@ export default function Auth() {
   const navigate = useNavigate();
 
   // Clerk Headless Hooks
-  const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn();
-  const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp();
+  const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn() as any;
+  const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp() as any;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +31,7 @@ export default function Auth() {
     try {
       if (activeTab === 'login') {
         if (!isSignInLoaded || !signIn) {
-           setErrorMsg('Koneksi ke Clerk belum siap atau terblokir browser (third-party cookies disabled). Coba gunakan tombol Bypass atau matikan Ad-Blocker.');
+           setErrorMsg('Koneksi ke Clerk belum siap atau terblokir browser.');
            setIsLoading(false);
            return;
         }
@@ -42,8 +42,9 @@ export default function Auth() {
         });
 
         if (result.status === "complete") {
-          await setSignInActive({ session: result.createdSessionId });
-          login('customer'); // sync local store
+          if (setSignInActive) {
+            await setSignInActive({ session: result.createdSessionId });
+          }
           navigate('/');
         } else {
            console.log("Needs further verification steps:", result);
@@ -52,7 +53,7 @@ export default function Auth() {
 
       } else {
         if (!isSignUpLoaded || !signUp) {
-           setErrorMsg('Koneksi ke Clerk belum siap atau terblokir browser (third-party cookies disabled). Coba gunakan tombol Bypass atau matikan Ad-Blocker.');
+           setErrorMsg('Koneksi ke Clerk belum siap atau terblokir browser.');
            setIsLoading(false);
            return;
         }
@@ -69,11 +70,12 @@ export default function Auth() {
         });
 
         if (result.status === "complete") {
-          await setSignUpActive({ session: result.createdSessionId });
-          login('customer');
+          if (setSignUpActive) {
+            await setSignUpActive({ session: result.createdSessionId });
+          }
           navigate('/');
         } else {
-           // Standard config usually requires verify email OTP if missing_requirements / unverified
+           // Standard config usually requires verify email OTP
            await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
            setPendingVerification(true);
         }
@@ -88,7 +90,7 @@ export default function Auth() {
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSignUpLoaded) return;
+    if (!isSignUpLoaded || !signUp) return;
     setIsLoading(true);
     setErrorMsg('');
 
@@ -98,8 +100,9 @@ export default function Auth() {
       });
 
       if (completeSignUp.status === "complete") {
-        await setSignUpActive({ session: completeSignUp.createdSessionId });
-        login('customer');
+        if (setSignUpActive) {
+          await setSignUpActive({ session: completeSignUp.createdSessionId });
+        }
         navigate('/');
       } else {
         setErrorMsg('Data profil masih kurang lengkap. Silakan cek dashboard Clerk.');
@@ -118,11 +121,13 @@ export default function Auth() {
        return;
      }
      
-     signIn.authenticateWithRedirect({
-       strategy: "oauth_google",
-       redirectUrl: "/sso-callback",
-       redirectUrlComplete: "/"
-     });
+     if (signIn.authenticateWithRedirect) {
+       signIn.authenticateWithRedirect({
+         strategy: "oauth_google",
+         redirectUrl: "/sso-callback",
+         redirectUrlComplete: "/"
+       });
+     }
   };
 
   const handleMockAuth = (e: React.FormEvent, role: 'customer' | 'admin') => {
@@ -171,7 +176,6 @@ export default function Auth() {
           </form>
         ) : (
           <>
-            {/* Tab Navigation */}
             <div className="flex mb-8 pb-4 border-b border-black/10 relative">
               <button 
                 type="button"
@@ -187,7 +191,6 @@ export default function Auth() {
               >
                 Daftar
               </button>
-              {/* Animated Tab Indicator */}
               <div 
                 className="absolute bottom-0 left-0 h-[2px] bg-ink transition-transform duration-300 w-1/2"
                 style={{ transform: activeTab === 'login' ? 'translateX(0)' : 'translateX(100%)' }}
@@ -215,7 +218,6 @@ export default function Auth() {
                       type="tel" 
                       value={phone}
                       onChange={e => {
-                        // Hanya ambil angka. Hapus 0 atau 62 di depan secara cerdas.
                         const val = e.target.value.replace(/\D/g, ''); 
                         setPhone(val.startsWith('62') ? val.substring(2) : (val.startsWith('0') ? val.substring(1) : val));
                       }}
@@ -282,7 +284,6 @@ export default function Auth() {
               <span className="text-sm font-medium">Google</span>
             </button>
 
-            {/* MOCK LOGIN OPTIONS FOR TESTING */}
             <div className="pt-6 border-t border-black/10">
               <p className="text-xs uppercase tracking-widest text-center opacity-40 mb-4">Mode Simulasi (Local Testing)</p>
               <div className="flex gap-2">

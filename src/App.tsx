@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
+import { useUser, AuthenticateWithRedirectCallback } from '@clerk/react';
+import { useStore } from './store';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -15,8 +18,31 @@ import Auth from './pages/Auth';
 import SearchPage from './pages/SearchPage';
 import ErrorBoundaryPage from './pages/ErrorBoundaryPage';
 
+const AuthSync = () => {
+  const { isLoaded, isSignedIn, user } = useUser();
+  const setAuth = useStore(state => state.setAuth);
+
+  useEffect(() => {
+    if (isLoaded) {
+      if (isSignedIn && user) {
+        setAuth({
+          id: user.id,
+          role: (user.publicMetadata?.role as 'customer' | 'admin') || 'customer',
+          name: user.fullName || undefined,
+          email: user.primaryEmailAddress?.emailAddress
+        });
+      } else {
+        setAuth(null);
+      }
+    }
+  }, [isLoaded, isSignedIn, user, setAuth]);
+
+  return null;
+};
+
 const Layout = () => (
   <div className="min-h-screen flex flex-col">
+    <AuthSync />
     <ScrollToTop />
     <Header />
     <main className="flex-1 flex flex-col pt-8">
@@ -39,6 +65,7 @@ const router = createBrowserRouter([
       { path: "/wishlist", element: <Wishlist /> },
       { path: "/profil", element: <Profile /> },
       { path: "/login", element: <Auth /> },
+      { path: "/sso-callback", element: <AuthenticateWithRedirectCallback /> },
       { path: "/search", element: <SearchPage /> },
       { path: "/faq", element: <FaqPage /> },
       { path: "/tentang-kami", element: (
