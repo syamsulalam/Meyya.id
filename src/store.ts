@@ -20,7 +20,6 @@ interface AppState {
   removeFromCart: (index: number) => void;
   clearCart: () => void;
   toggleWishlist: (product_id: number) => void;
-  setAuth: (user: AppState['user']) => void;
   login: (role: 'customer' | 'admin') => void;
   logout: () => void;
 }
@@ -64,7 +63,6 @@ export const useStore = create<AppState>()(
             ? state.wishlist.filter((wId) => wId !== id)
             : [...state.wishlist, id],
         })),
-      setAuth: (user) => set({ user }),
       login: (role) => set({ user: { id: 'user-123', role, name: 'Guest User', email: 'guest@example.com' } }),
       logout: () => set({ user: null }),
     }),

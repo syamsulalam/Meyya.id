@@ -410,4 +410,3 @@ export default function Example() {
   return <div>Hello {user.id}!</div>
 }
 ```
-
