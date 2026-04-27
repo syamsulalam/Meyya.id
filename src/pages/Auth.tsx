@@ -40,7 +40,7 @@ export default function Auth() {
     try {
       if (activeTab === 'login') {
         if (!isSignInLoaded || !signIn) {
-           setErrorMsg('Koneksi ke Clerk belum siap atau terblokir browser (third-party cookies disabled). Coba gunakan tombol Bypass atau matikan Ad-Blocker.');
+           setErrorMsg('Sedang memuat Clerk (atau terhalang karena Ad-Blocker).');
            setIsLoading(false);
            return;
         }
@@ -61,7 +61,7 @@ export default function Auth() {
 
       } else {
         if (!isSignUpLoaded || !signUp) {
-           setErrorMsg('Koneksi ke Clerk belum siap atau terblokir browser (third-party cookies disabled). Coba gunakan tombol Bypass atau matikan Ad-Blocker.');
+           setErrorMsg('Sedang memuat Clerk (atau terhalang karena Ad-Blocker).');
            setIsLoading(false);
            return;
         }
@@ -211,6 +211,8 @@ export default function Auth() {
                     <input 
                       type="text" 
                       value={name}
+                      autoComplete="off"
+                      data-1p-ignore="true"
                       onChange={e => setName(e.target.value)}
                       placeholder="Nama Lengkap" 
                       required
@@ -224,6 +226,8 @@ export default function Auth() {
                     <input 
                       type="tel" 
                       value={phone}
+                      autoComplete="off"
+                      data-1p-ignore="true"
                       onChange={e => {
                         // Hanya ambil angka. Hapus 0 atau 62 di depan secara cerdas.
                         const val = e.target.value.replace(/\D/g, ''); 
@@ -243,6 +247,7 @@ export default function Auth() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="Alamat Email" 
+                  autoComplete="email"
                   required
                   className="w-full bg-white/50 border border-black/10 rounded-full py-3 px-6 focus:outline-none focus:border-black/50 transition-colors placeholder:font-light"
                 />
@@ -253,6 +258,7 @@ export default function Auth() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Kata Sandi (Password)" 
+                  autoComplete="current-password"
                   required
                   className="w-full bg-white/50 border border-black/10 rounded-full py-3 px-6 focus:outline-none focus:border-black/50 transition-colors placeholder:font-light"
                 />
