@@ -32,6 +32,19 @@ export default function Auth() {
     }
   }, [errorMsg]);
 
+  const checkClerkEnv = () => {
+    const pubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+    if (!pubKey) {
+       return "VITE_CLERK_PUBLISHABLE_KEY belum diset. Aplikasi menggunakan kunci default/fallback, yang mana mungkin telah kedaluwarsa atau diblokir. Silakan atur VITE_CLERK_PUBLISHABLE_KEY di Settings/Secrets.";
+    }
+    if (!pubKey.startsWith("pk_")) {
+       return "VITE_CLERK_PUBLISHABLE_KEY tidak valid (harus dimulai dengan pk_).";
+    }
+    return null;
+  };
+
+  const envWarning = checkClerkEnv();
+
   const handleClerkAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -146,6 +159,13 @@ export default function Auth() {
         <h1 className="text-3xl font-light mb-8 font-heading text-center">
           {pendingVerification ? 'Verifikasi' : (activeTab === 'login' ? 'Selamat Datang' : 'Buat Akun')}
         </h1>
+
+        {envWarning && (
+          <div className="mb-6 p-4 rounded-xl bg-orange-50 text-orange-700 text-xs text-center border border-orange-200 flex flex-col gap-2">
+             <span className="font-semibold uppercase tracking-widest">Peringatan Konfigurasi</span>
+             <span>{envWarning}</span>
+          </div>
+        )}
 
         {errorMsg && (
           <div ref={errorRef} className="mb-6 p-4 rounded-xl bg-red-50 text-red-600 text-xs text-center border border-red-100 flex flex-col gap-2">
