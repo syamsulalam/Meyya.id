@@ -1,7 +1,7 @@
 import { User, Package, History, Eye, Ticket, HelpCircle, Heart } from 'lucide-react';
 import { useStore } from '../store';
 import { Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Tooltip from '../components/Tooltip';
 
 import ProfileAccount from '../components/profile/ProfileAccount';
@@ -42,22 +42,24 @@ export default function Profile() {
         <div className="w-full lg:w-28 bg-white/40 rounded-[24px] md:rounded-[36px] p-4 md:p-6 flex flex-col items-center flex-shrink-0 border border-black/5">
           <nav className="flex flex-row lg:flex-col gap-4 overflow-x-auto lg:overflow-visible scrollbar-hide justify-start md:justify-center items-center w-full sticky lg:top-28">
             {tabs.map((tab) => (
-              <Tooltip key={tab.id} content={tab.label} position="right">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isBlockerOpen) return; // Prevent tab change if unsaved
-                    setActiveTab(tab.id as any);
-                  }}
-                  className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
-                    activeTab === tab.id 
-                      ? 'bg-ink text-white shadow-md scale-110' 
-                      : 'text-gray-600 hover:bg-black/5 hover:scale-110'
-                  } ${isBlockerOpen ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {tab.icon}
-                </button>
-              </Tooltip>
+              <React.Fragment key={tab.id}>
+                <Tooltip content={tab.label} position="right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isBlockerOpen) return; // Prevent tab change if unsaved
+                      setActiveTab(tab.id as any);
+                    }}
+                    className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
+                      activeTab === tab.id 
+                        ? 'bg-ink text-white shadow-md scale-110' 
+                        : 'text-gray-600 hover:bg-black/5 hover:scale-110'
+                    } ${isBlockerOpen ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {tab.icon}
+                  </button>
+                </Tooltip>
+              </React.Fragment>
             ))}
           </nav>
         </div>

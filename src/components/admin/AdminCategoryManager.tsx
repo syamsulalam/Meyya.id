@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Plus, Trash2, Tag } from 'lucide-react';
 
 export default function AdminCategoryManager() {

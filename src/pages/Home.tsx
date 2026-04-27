@@ -99,12 +99,13 @@ export default function Home() {
                 const totalQuantityInCart = cartItemsForProduct.reduce((acc, curr) => acc + curr.quantity, 0);
 
                 return (
-                  <CatalogProductCard 
-                    key={product.id} 
-                    product={product} 
-                    totalQuantityInCart={totalQuantityInCart} 
-                    cartItemsForProduct={cartItemsForProduct}
-                  />
+                  <div key={product.id}>
+                    <CatalogProductCard 
+                      product={product} 
+                      totalQuantityInCart={totalQuantityInCart} 
+                      cartItemsForProduct={cartItemsForProduct}
+                    />
+                  </div>
                 );
               })}
               {products.length === 0 && (
