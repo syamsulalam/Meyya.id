@@ -269,6 +269,89 @@ async function startServer() {
     }
   });
 
+  // Profile route
+  app.get('/api/user/profile/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Ensure user exists
+      let user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+      if (!user) {
+        db.prepare(`
+          INSERT INTO users (id, email, phone_wa, role) 
+          VALUES (?, 'guest@example.com', '', 'customer')
+        `).run(id);
+        user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+      }
+      
+      // Get address
+      let address = db.prepare('SELECT * FROM user_addresses WHERE user_id = ? ORDER BY is_default DESC LIMIT 1').get(id) as any;
+      
+      res.json({
+        user,
+        address: address || null
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put('/api/user/profile/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const { phone_wa, name, address } = req.body;
+      
+      // We don't have a name column in users table by default, but we can store it in address's recipient_name
+      db.prepare('UPDATE users SET phone_wa = ? WHERE id = ?').run(phone_wa || '', id);
+      
+      if (address) {
+        const existing = db.prepare('SELECT id FROM user_addresses WHERE user_id = ? LIMIT 1').get(id) as any;
+        if (existing) {
+          db.prepare(`
+            UPDATE user_addresses 
+            SET recipient_name = ?, recipient_phone = ?, 
+                province_code = ?, province_name = ?, 
+                regency_code = ?, regency_name = ?, 
+                district_code = ?, district_name = ?, 
+                village_code = ?, village_name = ?, 
+                postal_code = '', street_address = ?
+            WHERE user_id = ?
+          `).run(
+            name || '', phone_wa || '',
+            address.province_code, address.province_name,
+            address.regency_code, address.regency_name,
+            address.district_code, address.district_name,
+            address.village_code, address.village_name,
+            address.street_address,
+            id
+          );
+        } else {
+          db.prepare(`
+            INSERT INTO user_addresses (
+              user_id, recipient_name, recipient_phone, 
+              province_code, province_name, 
+              regency_code, regency_name, 
+              district_code, district_name, 
+              village_code, village_name, 
+              postal_code, street_address, is_default
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 1)
+          `).run(
+            id, name || '', phone_wa || '',
+            address.province_code, address.province_name,
+            address.regency_code, address.regency_name,
+            address.district_code, address.district_name,
+            address.village_code, address.village_name,
+            address.street_address
+          );
+        }
+      }
+      
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // API Proxy for shipping cost
   app.post('/api/shipping/calculate', async (req, res) => {
     try {
