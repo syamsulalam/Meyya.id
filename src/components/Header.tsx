@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Heart, ShoppingBag, User, LayoutGrid, LogIn, LogOut, Menu, X, ChevronDown } from 'lucide-react';
+import { Search, Heart, ShoppingBag, User, LayoutGrid, LogIn, LogOut, Menu, X, ChevronDown, Package, Ticket, History } from 'lucide-react';
 import { useStore } from '../store';
 import { Show, SignOutButton, useUser, UserButton } from '@clerk/react';
 import CartPreviewDropdown from './CartPreviewDropdown';
@@ -97,22 +97,37 @@ export default function Header() {
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors text-xs font-medium">
+                        <Link to={localUser?.role === 'admin' ? "/admin" : "/profil?tab=akun"} className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors text-xs font-medium">
                           <User size={16} strokeWidth={1.5} />
-                          {localUser?.role === 'admin' ? "Admin Dashboard" : "Profil Akun"}
+                          {localUser?.role === 'admin' ? "Admin Dashboard" : "Akun Saya"}
                         </Link>
-                        
-                        <SignOutButton>
-                          <button className="flex w-full items-center gap-3 p-2 hover:bg-red-50 rounded-xl transition-colors text-red-500 text-left text-xs font-medium">
-                            <LogOut size={16} strokeWidth={1.5} />
-                            Keluar
-                          </button>
-                        </SignOutButton>
+                        {localUser?.role !== 'admin' && (
+                          <>
+                            <Link to="/profil?tab=status" className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors text-xs font-medium">
+                              <Package size={16} strokeWidth={1.5} />
+                              Status Pesanan
+                            </Link>
+                            <Link to="/profil?tab=voucher" className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors text-xs font-medium">
+                              <Ticket size={16} strokeWidth={1.5} />
+                              Voucher
+                            </Link>
+                            <Link to="/profil?tab=riwayat" className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors text-xs font-medium">
+                              <History size={16} strokeWidth={1.5} />
+                              Riwayat Pesanan
+                            </Link>
+                          </>
+                        )}
                       </div>
 
                     </div>
                  </div>
                </div>
+
+               <SignOutButton>
+                 <button className="p-2 hover:bg-red-50 rounded-full transition-colors text-red-500" title="Keluar">
+                   <LogOut size={20} strokeWidth={1.5} />
+                 </button>
+               </SignOutButton>
             </Show>
             
             <Show when="signed-out">

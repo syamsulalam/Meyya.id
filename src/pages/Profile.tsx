@@ -1,7 +1,7 @@
 import { User, Package, History, Eye, Ticket, HelpCircle, Heart, LogIn } from 'lucide-react';
 import { useStore } from '../store';
-import { Link, Navigate } from 'react-router-dom';
-import React, { useState } from 'react';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import Tooltip from '../components/Tooltip';
 import { useUser, SignInButton } from '@clerk/react';
 
@@ -16,7 +16,23 @@ import ProfileRecommendations from '../components/profile/ProfileRecommendations
 export default function Profile() {
   const { user: localUser } = useStore();
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
-  const [activeTab, setActiveTab] = useState<'akun' | 'status' | 'riwayat' | 'terakhir' | 'voucher' | 'bantuan' | 'rekomendasi'>('akun');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  type TabType = 'akun' | 'status' | 'riwayat' | 'terakhir' | 'voucher' | 'bantuan' | 'rekomendasi';
+  
+  const tabFromUrl = searchParams.get('tab') as TabType | null;
+  const [activeTab, setActiveTabState] = useState<TabType>(tabFromUrl || 'akun');
+
+  useEffect(() => {
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTabState(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  const setActiveTab = (tab: TabType) => {
+    setActiveTabState(tab);
+    setSearchParams({ tab });
+  };
   const [isBlockerOpen, setIsBlockerOpen] = useState(false);
 
   if (!isLoaded) {
@@ -40,12 +56,10 @@ export default function Profile() {
           Silakan masuk atau daftar terlebih dahulu untuk mengakses profil Anda, melihat riwayat pesanan, menyimpan wishlist, dan menikmati fitur MEYYA.ID lainnya.
         </p>
         
-        <SignInButton mode="modal">
-          <button className="flex items-center gap-3 bg-ink text-white px-8 py-4 rounded-full font-medium tracking-wide uppercase text-sm hover:bg-black/80 transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200">
-            <LogIn size={18} />
-            Masuk / Daftar Sekarang
-          </button>
-        </SignInButton>
+        <Link to="/login" className="flex items-center gap-3 bg-ink text-white px-8 py-4 rounded-full font-medium tracking-wide uppercase text-sm hover:bg-black/80 transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200">
+          <LogIn size={18} />
+          Masuk / Daftar Sekarang
+        </Link>
       </div>
     );
   }

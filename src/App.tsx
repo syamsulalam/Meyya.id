@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import Auth from './pages/Auth';
 import SearchPage from './pages/SearchPage';
 import ErrorBoundaryPage from './pages/ErrorBoundaryPage';
+import { AuthenticateWithRedirectCallback } from '@clerk/react';
 
 const Layout = () => (
   <div className="min-h-screen flex flex-col">
@@ -39,6 +40,7 @@ const router = createBrowserRouter([
       { path: "/wishlist", element: <Wishlist /> },
       { path: "/profil", element: <Profile /> },
       { path: "/login", element: <Auth /> },
+      { path: "/sso-callback", element: <AuthenticateWithRedirectCallback /> },
       { path: "/search", element: <SearchPage /> },
       { path: "/faq", element: <FaqPage /> },
       { path: "/tentang-kami", element: (
