@@ -12,6 +12,11 @@ Berikut panduan langkah demi langkah untuk mengonfigurasi proyek Clerk ke mode *
 4. Setelah menjadi *Production Mode*, Clerk akan memberikan sepasang kunci baru khusus produksi: `Publishable Key` dan `Secret Key`. Catat `Publishable Key` yang baru, berawalan `pk_live_` (bukan `pk_test_`).
 5. Perbarui variabel lingkungan di hosting/deployment Anda (misal Vercel, Cloudflare Pages, dsb):
    `VITE_CLERK_PUBLISHABLE_KEY=pk_live_xxxxxxxxx` (Ganti dengan kunci produksi Anda).
+   Pastikan Anda juga mengatur URL berikut di environment variabel Cloudflare Secret Anda:
+   - `VITE_CLERK_SIGN_IN_URL=/login?tab=login`
+   - `VITE_CLERK_SIGN_UP_URL=/login?tab=register`
+   - `VITE_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/`
+   - `VITE_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/`
 
 ## 2. Setup DNS Domain Anda
 

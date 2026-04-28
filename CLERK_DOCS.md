@@ -346,6 +346,467 @@ To set up a single sign-in-or-up page, follow the [`custom sign-in-or-up page gu
 
    Visit your new custom page locally at [localhost:5173/sign-up](http://localhost:5173/sign-up).
 
+# Appearance prop
+
+Customizing the appearance of Clerk components is a powerful way to make your application look and feel unique. Clerk provides a way to customize the appearance of its components using the `appearance` prop.
+
+The `appearance` prop can be used to share styles across every component, or applied individually to any of the Clerk components. When using it for global styling, the prop is available wherever you initialize the Clerk integration. For most SDKs, this means applying it to the [`<ClerkProvider>`](https://clerk.com/docs/react/reference/components/clerk-provider.md) component, while in others, it's configured through the SDK's Clerk integration or plugin.
+
+This applies to all of the React-based packages, like [`Next.js`](https://clerk.com/docs/nextjs/getting-started/quickstart.md), as well as [`the pure JavaScript ClerkJS package`](https://clerk.com/docs/reference/javascript/overview.md).
+
+## Properties
+
+The `appearance` prop accepts the following properties:
+
+| Name          | Type                      | Description                                                                                                                                                                                                                                                                                        |
+| ------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| theme?        | BaseTheme | BaseTheme[] | A theme used as the base theme for the components. For more information, see Themes.                                                                                                                                                                                                               |
+| options?      | Options                   | Configuration options that affect the layout of the components, allowing customizations that are hard to implement with just CSS. For more information, see Options.                                                                                                                               |
+| variables?    | Variables                 | General theme overrides. This styles will be merged with our base theme. Can override global styles like colors, fonts, etc. For more information, see Variables.                                                                                                                                  |
+| elements?     | Elements                  | Fine-grained theme overrides. Useful when you want to style specific elements or elements that are under a specific state. For more information, see the Customize elements of a Clerk component section.                                                                                          |
+| captcha?      | Captcha                   | Configuration options that affect the appearance of the CAPTCHA widget. For more information, see the dedicated guide.                                                                                                                                                                             |
+| cssLayerName? | string                    | The name of the CSS layer for Clerk component styles. This is useful for advanced CSS customization, allowing you to control the cascade and prevent style conflicts by isolating Clerk's styles within a specific layer. For more information on CSS layers, see the MDN documentation on @layer. |
+
+## Using a prebuilt theme
+
+Clerk offers a set of prebuilt themes that can be used to quickly style Clerk components. See the [`Themes`](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/themes.md) docs for more information.
+
+## Customize the layout
+
+The `options` property is used to adjust the layout of the [`<SignIn/>`](https://clerk.com/docs/react/reference/components/authentication/sign-in.md) and [`<SignUp/>`](https://clerk.com/docs/react/reference/components/authentication/sign-up.md) components, as well as set important links to your support, terms, and privacy pages. See the [`Options`](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/options.md) docs for more information.
+
+## Customize the base theme
+
+The `variables` property is used to adjust the general styles of a component's base theme, like colors, backgrounds, and typography. See the [`Variables`](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/variables.md) docs for more information.
+
+## Customize elements of a Clerk component
+
+The `elements` property lets you apply custom styles to the underlying DOM elements of Clerk's prebuilt components. See the [`Bring your own CSS`](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/bring-your-own-css.md) docs for more information.
+
+## Next steps
+
+Here are a few resources you can utilize to customize your Clerk components further:
+
+- [Localization](https://clerk.com/docs/guides/customizing-clerk/localization.md): Learn how to localize your Clerk components.
+- [Customize layouts](https://clerk.com/docs/guides/customizing-clerk/appearance-prop/options.md): Learn how to change the layout and links of your&#x20;
+
+# Component Reference
+
+Clerk offers a comprehensive suite of components designed to seamlessly integrate authentication and multi-tenancy into your application. With Clerk components, you can easily customize the appearance of authentication components and pages, manage the entire authentication flow to suit your specific needs, and even build robust SaaS applications.
+
+## Authentication components
+
+- [`<SignIn />`](https://clerk.com/docs/react/reference/components/authentication/sign-in.md)
+- [`<SignUp />`](https://clerk.com/docs/react/reference/components/authentication/sign-up.md)
+- [`<GoogleOneTap />`](https://clerk.com/docs/react/reference/components/authentication/google-one-tap.md)
+- [`<TaskChooseOrganization />`](https://clerk.com/docs/react/reference/components/authentication/task-choose-organization.md)
+- [`<TaskResetPassword />`](https://clerk.com/docs/react/reference/components/authentication/task-reset-password.md)
+- [`<TaskSetupMFA />`](https://clerk.com/docs/react/reference/components/authentication/task-setup-mfa.md)
+- [`<Waitlist />`](https://clerk.com/docs/react/reference/components/authentication/waitlist.md)
+
+## User components
+
+- [`<UserAvatar />`](https://clerk.com/docs/react/reference/components/user/user-avatar.md)
+- [`<UserButton />`](https://clerk.com/docs/react/reference/components/user/user-button.md)
+- [`<UserProfile />`](https://clerk.com/docs/react/reference/components/user/user-profile.md)
+
+## Organization components
+
+- [`<CreateOrganization />`](https://clerk.com/docs/react/reference/components/organization/create-organization.md)
+- [`<OrganizationProfile />`](https://clerk.com/docs/react/reference/components/organization/organization-profile.md)
+- [`<OrganizationSwitcher />`](https://clerk.com/docs/react/reference/components/organization/organization-switcher.md)
+- [`<OrganizationList />`](https://clerk.com/docs/react/reference/components/organization/organization-list.md)
+
+## Billing components
+
+- [`<PricingTable />`](https://clerk.com/docs/react/reference/components/billing/pricing-table.md)
+- [`<CheckoutButton />`](https://clerk.com/docs/react/reference/components/billing/checkout-button.md)
+- [`<PlanDetailsButton />`](https://clerk.com/docs/react/reference/components/billing/plan-details-button.md)
+- [`<SubscriptionDetailsButton />`](https://clerk.com/docs/react/reference/components/billing/subscription-details-button.md)
+
+## Control components
+
+Control components manage authentication-related behaviors in your application. They handle tasks such as controlling content visibility based on user authentication status, managing loading states during authentication processes, and redirecting users to appropriate pages. Control components render at `<Loading />` and `<Loaded />` states for assertions on the [`Clerk object`](https://clerk.com/docs/react/reference/objects/clerk.md). A common example is the [`<Show />`](https://clerk.com/docs/react/reference/components/control/show.md) component, which allows you to conditionally render content based on authentication and authorization state.
+
+- [`<AuthenticateWithRedirectCallback />`](https://clerk.com/docs/react/reference/components/control/authenticate-with-redirect-callback.md)
+- [`<ClerkDegraded />`](https://clerk.com/docs/react/reference/components/control/clerk-degraded.md)
+- [`<ClerkFailed />`](https://clerk.com/docs/react/reference/components/control/clerk-failed.md)
+- [`<ClerkLoaded />`](https://clerk.com/docs/react/reference/components/control/clerk-loaded.md)
+- [`<ClerkLoading />`](https://clerk.com/docs/react/reference/components/control/clerk-loading.md)
+- [`<RedirectToCreateOrganization />`](https://clerk.com/docs/react/reference/components/control/redirect-to-create-organization.md)
+- [`<RedirectToOrganizationProfile />`](https://clerk.com/docs/react/reference/components/control/redirect-to-organization-profile.md)
+- [`<RedirectToSignIn />`](https://clerk.com/docs/react/reference/components/control/redirect-to-sign-in.md)
+- [`<RedirectToSignUp />`](https://clerk.com/docs/react/reference/components/control/redirect-to-sign-up.md)
+- [`<RedirectToTasks />`](https://clerk.com/docs/react/reference/components/control/redirect-to-tasks.md)
+- [`<RedirectToUserProfile />`](https://clerk.com/docs/react/reference/components/control/redirect-to-user-profile.md)
+- [`<Show />`](https://clerk.com/docs/react/reference/components/control/show.md)
+
+## Unstyled components
+
+- [`<SignInButton />`](https://clerk.com/docs/react/reference/components/unstyled/sign-in-button.md)
+- [`<SignInWithMetamaskButton />`](https://clerk.com/docs/react/reference/components/unstyled/sign-in-with-metamask.md)
+- [`<SignUpButton />`](https://clerk.com/docs/react/reference/components/unstyled/sign-up-button.md)
+- [`<SignOutButton />`](https://clerk.com/docs/react/reference/components/unstyled/sign-out-button.md)
+
+## Utilities components
+
+- [`<UNSAFE_PortalProvider />`](https://clerk.com/docs/react/reference/components/utilities/portal-provider.md)
+
+## Customization guides
+
+- [`Customize components with the appearance prop`](https://clerk.com/docs/react/guides/customizing-clerk/appearance-prop/overview.md)
+- [Localize components with the `localization` prop (experimental)](https://clerk.com/docs/guides/customizing-clerk/localization.md)
+- [`Add pages to the <UserProfile /> component`](https://clerk.com/docs/react/guides/customizing-clerk/adding-items/user-profile.md)
+- [`Add pages to the <OrganizationProfile /> component`](https://clerk.com/docs/react/guides/customizing-clerk/adding-items/organization-profile.md)
+
+### Secured by Clerk branding
+
+> This feature requires a [paid plan](https://clerk.com/pricing){{ target: '_blank' }} for production use, but all features are free to use in development mode so that you can try out what works for you. See the [pricing](https://clerk.com/pricing){{ target: '_blank' }} page for more information.
+
+By default, Clerk displays a **Secured by Clerk** badge on Clerk components. You can remove this branding by following these steps:
+
+1. In the Clerk Dashboard, navigate to your application's [**Settings**](https://dashboard.clerk.com/~/settings).
+2. Under **Branding**, toggle on the **Remove "Secured by Clerk" branding** option.
+
+- [Join our Discord](https://clerk.com/discord): Join our official Discord server to chat with us directly and become a part of the Clerk community.
+- [Need help?](https://clerk.com/support): Contact us through Discord, Twitter, or email to receive answers to your questions and learn more about Clerk.
+
+# Build your own UI (custom flows)
+
+A **custom flow** refers to a user interface built entirely from scratch using the Clerk API.
+
+Custom flows are considered **advanced** and are generally not recommended for most use cases. They require more development effort and are not as easy to maintain as the prebuilt components. However, if [`prebuilt components`](https://clerk.com/docs/react/reference/components/overview.md) don't meet your specific needs or if you require more control over the logic, you can rebuild the existing Clerk flows using the Clerk API.
+
+**If you choose this approach, the Clerk support team will do their best to assist you, but they cannot guarantee a resolution due to the highly customized nature of custom flows.**
+
+The custom flow guide that you need will depend on the settings you've configured in the Clerk Dashboard. For example, if you've enabled email and password, then you'd choose the [custom flow for email and password](https://clerk.com/docs/guides/development/custom-flows/authentication/email-password.md?sdk=react). It's likely you'll need to combine many of the guides to build out your application.
+
+**To get started, choose the guide that best fits your needs from the navigation on the left.**
+
+---
+
+## Sitemap
+
+[Overview of all docs pages](https://clerk.com/docs/llms.txt)
+
+# Build a custom email/password authentication flow
+
+> This guide is for users who want to build a custom flow. To use a _prebuilt_ UI, use the [Account Portal pages](https://clerk.com/docs/guides/account-portal/overview.md?sdk=react) or [`prebuilt components`](https://clerk.com/docs/react/reference/components/overview.md).
+
+> This guide applies to the following Clerk SDKs:
+>
+> - `@clerk/react` v6 or higher
+> - `@clerk/nextjs` v7 or higher
+> - `@clerk/expo` v3 or higher
+> - `@clerk/react-router` v3 or higher
+> - `@clerk/tanstack-react-start` v0.26.0 or higher
+>
+> If you're using an older version of one of these SDKs, or are using the legacy API, refer to the [legacy API documentation](https://clerk.com/docs/guides/development/custom-flows/authentication/legacy/email-password.md?sdk=react).
+
+This guide demonstrates how to build a custom user interface for signing up and signing in using email and password.
+
+1. ## Enable email and password authentication
+
+   To follow this guide, you first need to ensure email and password are enabled for your application.
+
+   1. In the Clerk Dashboard, navigate to the [**User & authentication**](https://dashboard.clerk.com/~/user-authentication/user-and-authentication) page.
+   2. Enable **Sign-up with email**.
+      - **Require email address** should be enabled.
+      - For **Verify at sign-up**, **Email verification code** is enabled by default, and is used for this guide. If you'd like to use **Email verification link** instead, see the [`dedicated custom flow`](https://clerk.com/docs/react/guides/development/custom-flows/authentication/email-links.md).
+   3. Enable **Sign in with email**.
+      - This guide supports password authentication. If you'd like to build a custom flow that allows users to sign in passwordlessly, see the [email code custom flow](https://clerk.com/docs/guides/development/custom-flows/authentication/email-sms-otp.md?sdk=react) or the [`email links custom flow`](https://clerk.com/docs/react/guides/development/custom-flows/authentication/email-links.md).
+   4. Select the **Password** tab and enable **Sign-up with password**.
+      - [**Client Trust**](https://clerk.com/docs/guides/secure/client-trust.md?sdk=react) is enabled by default. The sign-in example supports it using email verification codes because it's the default second factor strategy.
+2. ## Sign-up flow
+
+   > Examples for this SDK aren't available yet. For now, try adapting the  available example to fit your SDK.
+
+   First, understand that the `useSignUp()` hook returns an object with the following properties:
+
+   - `signUp`: The [`SignUpFuture`](https://clerk.com/docs/react/reference/objects/sign-up-future.md) object. Use this to initiate the sign-up process and check the current state of the sign-up attempt.
+   - `errors`: The [`Errors`](https://clerk.com/docs/react/reference/types/errors.md) object that contains the errors that occurred during the last API request. You can use this to display errors to the user in your custom UI.
+   - `fetchStatus`: The fetch status of the underlying [`SignUpFuture`](https://clerk.com/docs/react/reference/objects/sign-up-future.md) resource. You can use this to display a loading state or disable buttons while the request is in progress.
+
+   Then, to sign up a user using their email and password, and verify their sign-up with an email verification code, you must:
+
+   1. Initiate the sign-up process by collecting the user's email address and password with the [`signUp.password()`](https://clerk.com/docs/react/reference/objects/sign-up-future.md#password) method.
+   2. Send a one-time code to the provided email address with the [`signUp.verifications.sendEmailCode()`](https://clerk.com/docs/react/reference/objects/sign-up-future.md#verifications-send-email-code) method.
+   3. Collect the user's one-time code and verify it with the [`signUp.verifications.verifyEmailCode()`](https://clerk.com/docs/react/reference/objects/sign-up-future.md#verifications-verify-email-code) method.
+   4. If the email address verification is successful, the `signUp.status` will be `complete`, and you can finish the sign-up flow with the [`signUp.finalize()`](https://clerk.com/docs/react/reference/objects/sign-up-future.md#finalize) method to set the newly created session as the active session.
+
+   ```tsx {{ filename: 'app/sign-up/page.tsx', collapsible: true }}
+   'use client'
+
+   import { useAuth, useSignUp } from '@clerk/nextjs'
+   import { useRouter } from 'next/navigation'
+
+   export default function Page() {
+     const { signUp, errors, fetchStatus } = useSignUp()
+     const { isSignedIn } = useAuth()
+     const router = useRouter()
+
+     const handleSubmit = async (formData: FormData) => {
+       const emailAddress = formData.get('email') as string
+       const password = formData.get('password') as string
+
+       const { error } = await signUp.password({
+         emailAddress,
+         password,
+       })
+       if (error) {
+         // See https://clerk.com/docs/guides/development/custom-flows/error-handling
+         // for more info on error handling
+         console.error(JSON.stringify(error, null, 2))
+         return
+       }
+
+       if (!error) await signUp.verifications.sendEmailCode()
+     }
+
+     const handleVerify = async (formData: FormData) => {
+       const code = formData.get('code') as string
+
+       await signUp.verifications.verifyEmailCode({
+         code,
+       })
+       if (signUp.status === 'complete') {
+         await signUp.finalize({
+           // Redirect the user to the home page after signing up
+           navigate: ({ session, decorateUrl }) => {
+             // Handle session tasks
+             // See https://clerk.com/docs/guides/development/custom-flows/authentication/session-tasks
+             if (session?.currentTask) {
+               console.log(session?.currentTask)
+               return
+             }
+
+             // If no session tasks, navigate the signed-in user to the home page
+             const url = decorateUrl('/')
+             if (url.startsWith('http')) {
+               window.location.href = url
+             } else {
+               router.push(url)
+             }
+           },
+         })
+       } else {
+         // Check why the sign-up is not complete
+         console.error('Sign-up attempt not complete:', signUp)
+       }
+     }
+
+     if (signUp.status === 'complete' || isSignedIn) {
+       return null
+     }
+
+     if (
+       signUp.status === 'missing_requirements' &&
+       signUp.unverifiedFields.includes('email_address') &&
+       signUp.missingFields.length === 0
+     ) {
+       return (
+         <>
+           <h1>Verify your account</h1>
+           <form action={handleVerify}>
+             <div>
+               <label htmlFor="code">Code</label>
+               <input id="code" name="code" type="text" />
+             </div>
+             {errors.fields.code && <p>{errors.fields.code.message}</p>}
+             <button type="submit" disabled={fetchStatus === 'fetching'}>
+               Verify
+             </button>
+           </form>
+           <button onClick={() => signUp.verifications.sendEmailCode()}>I need a new code</button>
+         </>
+       )
+     }
+
+     return (
+       <>
+         <h1>Sign up</h1>
+         <form action={handleSubmit}>
+           <div>
+             <label htmlFor="email">Enter email address</label>
+             <input id="email" type="email" name="email" />
+             {errors.fields.emailAddress && <p>{errors.fields.emailAddress.message}</p>}
+           </div>
+           <div>
+             <label htmlFor="password">Enter password</label>
+             <input id="password" type="password" name="password" />
+             {errors.fields.password && <p>{errors.fields.password.message}</p>}
+           </div>
+           <button type="submit" disabled={fetchStatus === 'fetching'}>
+             Continue
+           </button>
+         </form>
+         {/* For your debugging purposes. You can just console.log errors, but we put them in the UI for convenience */}
+         {errors && <p>{JSON.stringify(errors, null, 2)}</p>}
+
+         {/* Required for sign-up flows. Clerk's bot sign-up protection is enabled by default */}
+         <div id="clerk-captcha" />
+       </>
+     )
+   }
+   ```
+3. ## Sign-in flow
+
+   > Examples for this SDK aren't available yet. For now, try adapting the  available example to fit your SDK.
+
+   First, understand that the `useSignIn()` hook returns an object with the following properties:
+
+   - `signIn`: The [`SignInFuture`](https://clerk.com/docs/react/reference/objects/sign-in-future.md) object. Use this to initiate the sign-in process and check the current state of the sign-in attempt.
+   - `errors`: The [`Errors`](https://clerk.com/docs/react/reference/types/errors.md) object that contains the errors that occurred during the last API request. You can use this to display errors to the user in your custom UI.
+   - `fetchStatus`: The fetch status of the underlying [`SignInFuture`](https://clerk.com/docs/react/reference/objects/sign-in-future.md) resource. You can use this to display a loading state or disable buttons while the request is in progress.
+
+   Then, to sign in a user using their email and password, you must:
+
+   1. Initiate the sign-in process by collecting the user's email address and password with the [`signIn.password()`](https://clerk.com/docs/react/reference/objects/sign-in-future.md#password) method.
+   2. If the `signIn.status` is `'needs_second_factor'`, the user has MFA enabled. See the [MFA custom flow guide](https://clerk.com/docs/guides/development/custom-flows/authentication/multi-factor-authentication.md?sdk=react) for how to handle this status. If the status is `'needs_client_trust'`, see the [Client Trust custom flow guide](https://clerk.com/docs/guides/development/custom-flows/authentication/client-trust.md?sdk=react).
+   3. If the `signIn.status` is `'complete'`, finish the sign-in flow with the [`signIn.finalize()`](https://clerk.com/docs/react/reference/objects/sign-in-future.md#finalize) method to set the newly created session as the active session.
+
+   ```tsx {{ filename: 'app/sign-in/page.tsx', collapsible: true }}
+   'use client'
+
+   import { useSignIn } from '@clerk/nextjs'
+   import { useRouter } from 'next/navigation'
+
+   export default function Page() {
+     const { signIn, errors, fetchStatus } = useSignIn()
+     const router = useRouter()
+
+     const handleSubmit = async (formData: FormData) => {
+       const emailAddress = formData.get('email') as string
+       const password = formData.get('password') as string
+
+       const { error } = await signIn.password({
+         emailAddress,
+         password,
+       })
+       if (error) {
+         console.error(JSON.stringify(error, null, 2))
+         return
+       }
+
+       if (signIn.status === 'complete') {
+         await signIn.finalize({
+           navigate: ({ session, decorateUrl }) => {
+             // Handle session tasks
+             // See https://clerk.com/docs/guides/development/custom-flows/authentication/session-tasks
+             if (session?.currentTask) {
+               console.log(session?.currentTask)
+               return
+             }
+
+             // If no session tasks, navigate the signed-in user to the home page
+             const url = decorateUrl('/')
+             if (url.startsWith('http')) {
+               window.location.href = url
+             } else {
+               router.push(url)
+             }
+           },
+         })
+       } else if (signIn.status === 'needs_second_factor') {
+         // See https://clerk.com/docs/guides/development/custom-flows/authentication/multi-factor-authentication
+       } else if (signIn.status === 'needs_client_trust') {
+         // For other second factor strategies,
+         // see https://clerk.com/docs/guides/development/custom-flows/authentication/client-trust
+         const emailCodeFactor = signIn.supportedSecondFactors.find(
+           (factor) => factor.strategy === 'email_code',
+         )
+
+         if (emailCodeFactor) {
+           await signIn.mfa.sendEmailCode()
+         }
+       } else {
+         // Check why the sign-in is not complete
+         console.error('Sign-in attempt not complete:', signIn)
+       }
+     }
+
+     const handleVerify = async (formData: FormData) => {
+       const code = formData.get('code') as string
+
+       await signIn.mfa.verifyEmailCode({ code })
+
+       if (signIn.status === 'complete') {
+         await signIn.finalize({
+           navigate: ({ session, decorateUrl }) => {
+             // Handle session tasks
+             // See https://clerk.com/docs/guides/development/custom-flows/authentication/session-tasks
+             if (session?.currentTask) {
+               console.log(session?.currentTask)
+               return
+             }
+
+             // If no session tasks, navigate the signed-in user to the home page
+             const url = decorateUrl('/')
+             if (url.startsWith('http')) {
+               window.location.href = url
+             } else {
+               router.push(url)
+             }
+           },
+         })
+       } else {
+         // Check why the sign-in is not complete
+         console.error('Sign-in attempt not complete:', signIn)
+       }
+     }
+
+     if (signIn.status === 'needs_client_trust') {
+       return (
+         <>
+           <h1>Verify your account</h1>
+           <form action={handleVerify}>
+             <div>
+               <label htmlFor="code">Code</label>
+               <input id="code" name="code" type="text" />
+               {errors.fields.code && <p>{errors.fields.code.message}</p>}
+             </div>
+             <button type="submit" disabled={fetchStatus === 'fetching'}>
+               Verify
+             </button>
+           </form>
+           <button onClick={() => signIn.mfa.sendEmailCode()}>I need a new code</button>
+           <button onClick={() => signIn.reset()}>Start over</button>
+         </>
+       )
+     }
+
+     return (
+       <>
+         <h1>Sign in</h1>
+         <form action={handleSubmit}>
+           <div>
+             <label htmlFor="email">Enter email address</label>
+             <input id="email" name="email" type="email" />
+             {errors.fields.identifier && <p>{errors.fields.identifier.message}</p>}
+           </div>
+           <div>
+             <label htmlFor="password">Enter password</label>
+             <input id="password" name="password" type="password" />
+             {errors.fields.password && <p>{errors.fields.password.message}</p>}
+           </div>
+           <button type="submit" disabled={fetchStatus === 'fetching'}>
+             Continue
+           </button>
+         </form>
+         {/* For your debugging purposes. You can just console.log errors, but we put them in the UI for convenience */}
+         {errors && <p>{JSON.stringify(errors, null, 2)}</p>}
+       </>
+     )
+   }
+   ```
+
+---
+
+## Sitemap
+
+[Overview of all docs pages](https://clerk.com/docs/llms.txt)
+
+
 # Protect content and read user data
 
 Clerk provides a set of [`hooks`](https://clerk.com/docs/react/reference/hooks/overview.md) that you can use to protect content and read user data in your React application. Here are examples of how to use these hooks to get you started.
