@@ -83,7 +83,7 @@ export default function CartPreviewDropdown() {
             {cartCount}
           </span>
         )}
-        <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover/cart:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50">Keranjang</span>
+        <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover/cart:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">Keranjang</span>
       </Link>
 
       {/* Panel Mengambang (Hover Dropdown) */}

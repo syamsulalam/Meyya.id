@@ -41,15 +41,15 @@ export default function Header() {
           <div className="hidden sm:flex items-center gap-4 flex-1 justify-start">
             <a href="/#katalog" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
               <LayoutGrid size={20} strokeWidth={1.5} />
-              <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap">Katalog</span>
+              <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap pointer-events-none">Katalog</span>
             </a>
             <Link to="/search" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
               <Search size={20} strokeWidth={1.5} />
-              <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap">Cari</span>
+              <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap pointer-events-none">Cari</span>
             </Link>
             <Link to="/wishlist" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
               <Heart size={20} strokeWidth={1.5} />
-              <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap">Wishlist</span>
+              <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap pointer-events-none">Wishlist</span>
             </Link>
           </div>
 
@@ -82,10 +82,10 @@ export default function Header() {
                <div className="relative group">
                  <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group/tooltip">
                     <User size={20} strokeWidth={1.5} />
-                    <span className="absolute top-0 right-0 mt-[2px] mr-[2px] bg-black text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full border border-white font-bold uppercase">
+                    <span className="absolute top-0 right-0 bg-black text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white font-bold uppercase">
                       {clerkUser?.firstName?.charAt(0) || clerkUser?.emailAddresses[0]?.emailAddress?.charAt(0) || '@'}
                     </span>
-                    <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover/tooltip:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap">Profil</span>
+                    <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover/tooltip:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">Profil</span>
                  </Link>
 
                  {/* Hover Dropdown / Tooltip */}
@@ -129,8 +129,8 @@ export default function Header() {
 
                <SignOutButton>
                  <button className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
-                   <LogOut size={20} strokeWidth={1.5} />
-                   <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50">Keluar</span>
+                   <LogOut size={20} className="text-red-500" strokeWidth={1.5} />
+                   <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">Keluar</span>
                  </button>
                </SignOutButton>
             </Show>
@@ -138,11 +138,11 @@ export default function Header() {
             <Show when="signed-out">
                <Link to="/profil" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
                  <User size={20} strokeWidth={1.5} />
-                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50">Profil</span>
+                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">Profil</span>
                </Link>
                <Link to="/login" className="p-2 hover:bg-black/5 rounded-full transition-colors flex flex-col items-center relative group">
                  <LogIn size={20} strokeWidth={1.5} />
-                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50">Masuk</span>
+                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">Masuk</span>
                </Link>
             </Show>
           </div>
@@ -197,7 +197,7 @@ export default function Header() {
 
                 <Show when="signed-in">
                   <SignOutButton>
-                    <button className="flex w-full items-center gap-3 p-3 hover:bg-red-50 rounded-xl transition-colors text-red-500 text-left">
+                    <button className="flex w-full items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors text-red-500 text-left">
                       <LogOut size={18} strokeWidth={1.5} />
                       <span className="text-xs uppercase tracking-widest font-medium">Keluar</span>
                     </button>

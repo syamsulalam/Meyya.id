@@ -54,13 +54,24 @@
     border: none !important;
   }
   /* The internal box containing shadows/borders */
-  .cl-internal-1h6fgzy {
+  .cl-internal-1h6fgzy,
+  .cl-internal-vvtys3,
+  .cl-internal-twlk36,
+  .cl-internal-kpc0nc,
+  .cl-internal-ovdovs {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
+  }
+  .cl-internal-1h6fgzy {
     width: auto !important;     /* let it expand */
     max-width: none !important;
+  }
+  
+  /* Hide Secured by Clerk logo block */
+  .cl-internal-1dauvpw {
+    display: none !important;
   }
 
   .glass-panel {
