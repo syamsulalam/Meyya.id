@@ -1,12 +1,34 @@
-import { Link } from 'react-router-dom';
-import { Search, Heart, ShoppingBag, User, LayoutGrid, LogIn, LogOut, Menu } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Search, Heart, ShoppingBag, User, LayoutGrid, LogIn, LogOut, Menu, X, ChevronDown } from 'lucide-react';
 import { useStore } from '../store';
-import { Show, SignOutButton } from '@clerk/react';
+import { Show, SignOutButton, useUser, UserButton } from '@clerk/react';
 import CartPreviewDropdown from './CartPreviewDropdown';
 
 export default function Header() {
-  const { cart, user } = useStore();
+  const { cart, user: localUser } = useStore();
+  const { user: clerkUser, isLoaded } = useUser();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const location = useLocation();
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close mobile menu on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname, location.search]);
 
   return (
     <header className="sticky top-0 z-50 px-4 py-4 border-b border-white/20 bg-white/40 backdrop-blur-md">
@@ -51,36 +73,83 @@ export default function Header() {
           <div className="hidden sm:flex items-center gap-4 flex-1 justify-end">
             <CartPreviewDropdown />
 
-            <Link to={user?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors" title={user?.role === 'admin' ? "Admin Dashboard" : "Profil Akun"}>
-              <User size={20} strokeWidth={1.5} />
-            </Link>
-
             {/* CLERK SDK IMPLEMENTATION */}
             <Show when="signed-in">
-              <SignOutButton>
-                <button className="p-2 hover:bg-black/5 rounded-full transition-colors text-red-500" title="Keluar (Log Out)">
-                  <LogOut size={20} strokeWidth={1.5} />
-                </button>
-              </SignOutButton>
+               {/* Custom Profile Indicator & Dropdown on Hover */}
+               <div className="relative group">
+                 <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="flex gap-2 items-center p-1.5 hover:bg-black/5 rounded-full transition-colors" title="Profil Akun">
+                    <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-xs font-medium uppercase">
+                      {clerkUser?.firstName?.charAt(0) || clerkUser?.emailAddresses[0]?.emailAddress?.charAt(0) || 'U'}
+                    </div>
+                    <ChevronDown size={14} className="text-black/50 mr-1 opacity-50 group-hover:opacity-100 transition-opacity" />
+                 </Link>
+
+                 {/* Hover Dropdown / Tooltip */}
+                 <div className="absolute top-full right-0 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300">
+                    <div className="bg-white/95 backdrop-blur-xl border border-black/10 shadow-2xl rounded-2xl p-4 w-56 flex flex-col gap-3">
+                      
+                      {/* Greeting Header */}
+                      <div className="flex flex-col items-center text-center pb-3 border-b border-black/5">
+                        <span className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Signed in as</span>
+                        <span className="text-sm font-medium truncate w-full px-2" title={clerkUser?.fullName || clerkUser?.primaryEmailAddress?.emailAddress}>
+                          {clerkUser?.fullName || clerkUser?.primaryEmailAddress?.emailAddress || 'User'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors text-xs font-medium">
+                          <User size={16} strokeWidth={1.5} />
+                          {localUser?.role === 'admin' ? "Admin Dashboard" : "Profil Akun"}
+                        </Link>
+                        
+                        <SignOutButton>
+                          <button className="flex w-full items-center gap-3 p-2 hover:bg-red-50 rounded-xl transition-colors text-red-500 text-left text-xs font-medium">
+                            <LogOut size={16} strokeWidth={1.5} />
+                            Keluar
+                          </button>
+                        </SignOutButton>
+                      </div>
+
+                    </div>
+                 </div>
+               </div>
             </Show>
             
             <Show when="signed-out">
-               <Link to="/login" className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Masuk / Daftar">
+               <Link to="/login" className="p-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 group" title="Masuk / Daftar">
                  <LogIn size={20} strokeWidth={1.5} />
+                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute right-12 w-16 text-right">Masuk</span>
                </Link>
             </Show>
           </div>
 
-          {/* Right Icons - MOBILE (Burger Menu with Hover Group) */}
-          <div className="flex sm:hidden flex-1 justify-end items-center group relative z-20">
-            <button className="p-2 hover:bg-black/5 rounded-full transition-colors relative" title="Menu">
-              <Menu size={24} strokeWidth={1.5} />
+          {/* Right Icons - MOBILE (Burger Menu with Click State) */}
+          <div className="flex sm:hidden flex-1 justify-end items-center relative z-20" ref={menuRef}>
+            <button 
+              className={`p-2 rounded-full transition-colors relative ${isMobileMenuOpen ? 'bg-black/5' : 'hover:bg-black/5'}`}
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              title="Menu"
+            >
+              {isMobileMenuOpen ? <X size={24} strokeWidth={1.5} /> : <Menu size={24} strokeWidth={1.5} />}
             </button>
 
-            {/* Dropdown Mengambang saat di-hover/tap */}
-            <div className="absolute top-full right-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300">
-              <div className="bg-white/90 backdrop-blur-xl border border-white/40 shadow-2xl rounded-2xl p-2 flex flex-col gap-1 w-48">
+            {/* Dropdown Mengambang (Toggle by Click) */}
+            <div className={`absolute top-full right-0 mt-2 transition-all duration-300 origin-top-right ${isMobileMenuOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}>
+              <div className="bg-white/95 backdrop-blur-xl border border-black/10 shadow-2xl rounded-2xl p-2 flex flex-col gap-1 w-56">
                 
+                {/* User Greeting di Mobile saat Login */}
+                <Show when="signed-in">
+                  <div className="p-3 mb-1 bg-black/5 rounded-xl flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-black text-white flex shrink-0 items-center justify-center text-xs font-medium uppercase">
+                        {clerkUser?.firstName?.charAt(0) || clerkUser?.emailAddresses[0]?.emailAddress?.charAt(0) || 'U'}
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-[9px] uppercase tracking-widest text-black/50">Halo,</span>
+                      <span className="text-xs font-medium truncate">{clerkUser?.firstName || 'User'}</span>
+                    </div>
+                  </div>
+                </Show>
+
                 <a href="/#katalog" className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors" title="Katalog Produk">
                   <LayoutGrid size={18} strokeWidth={1.5} />
                   <span className="text-xs uppercase tracking-widest font-medium">Katalog</span>
@@ -96,9 +165,9 @@ export default function Header() {
                   <span className="text-xs uppercase tracking-widest font-medium">Wishlist</span>
                 </Link>
 
-                <div className="h-px bg-black/10 my-1"></div>
+                <div className="h-px bg-black/10 my-1 mx-2"></div>
 
-                <Link to={user?.role === 'admin' ? "/admin" : "/profil"} className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors" title="Profil Akun">
+                <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors" title="Profil Akun">
                   <User size={18} strokeWidth={1.5} />
                   <span className="text-xs uppercase tracking-widest font-medium">Akun Saya</span>
                 </Link>
