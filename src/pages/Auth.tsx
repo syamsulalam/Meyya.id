@@ -41,14 +41,14 @@ export default function Auth() {
       card: "shadow-none p-0 bg-transparent rounded-none w-full border-none m-0",
       headerTitle: "hidden", // We hide their title and use our own via Tabs
       headerSubtitle: "hidden", // Hide their subtitle
-      formButtonPrimary: "px-6 py-4 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors w-full mt-4 font-medium shadow-none border-none outline-none focus:ring-2 focus:ring-ink/20",
-      formFieldInput: "w-full bg-white/50 border border-black/10 rounded-full py-4 px-6 focus:outline-none focus:border-black/50 transition-colors font-sans text-ink text-sm",
+      formButtonPrimary: "px-6 py-3 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors w-full mt-4 font-medium shadow-none border-none outline-none focus:ring-2 focus:ring-ink/20",
+      formFieldInput: "w-full bg-white/50 border border-black/10 rounded-full py-3 px-6 focus:outline-none focus:border-black/50 transition-colors font-sans text-ink text-sm placeholder:font-light",
       formFieldLabelRow: "hidden", // Hide labels so placeholders do the work, matching meyya
       footerActionText: "text-gray-500 font-light text-sm text-center",
       footerActionLink: "text-ink font-medium hover:underline text-sm",
       dividerLine: "bg-black/10",
       dividerText: "text-gray-500 font-light text-xs px-4 bg-transparent uppercase tracking-widest",
-      socialButtonsBlockButton: "w-full flex items-center justify-center gap-3 bg-white border border-black/10 py-4 px-6 rounded-full hover:bg-black/5 transition-colors text-sm font-medium text-ink shadow-none",
+      socialButtonsBlockButton: "w-full flex items-center justify-center gap-3 bg-white border border-black/10 py-3 px-6 rounded-full hover:bg-black/5 transition-colors text-sm font-medium text-ink shadow-none",
       socialButtonsBlockButtonText: "font-medium text-ink",
       identityPreviewEditButton: "text-ink hover:underline",
       formFieldSuccessText: "text-sm text-green-600",
@@ -56,7 +56,7 @@ export default function Auth() {
       alertText: "text-xs text-red-600",
       alert: "mb-6 p-4 rounded-xl bg-red-50 border border-red-100",
       socialButtons: "flex flex-col gap-3",
-      form: "flex flex-col gap-4 w-full",
+      form: "flex flex-col gap-5 w-full", // Matching the native space-y-5
       phoneInputBox: "w-full bg-white/50 border border-black/10 rounded-full focus-within:border-black/50 transition-colors font-sans text-ink text-sm overflow-hidden",
       footer: "hidden", // Hide their native footer if we want, or keep it. Let's keep it but styled
     }

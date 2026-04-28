@@ -71,8 +71,7 @@
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    /* Removed width: 100% to let flex parents handle sizing naturally */
   }
   .cl-internal-1h6fgzy {
     width: 100% !important;     /* let it expand */
