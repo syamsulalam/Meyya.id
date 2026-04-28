@@ -116,9 +116,12 @@ export default function Header() {
             </Show>
             
             <Show when="signed-out">
-               <Link to="/login" className="p-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2 group" title="Masuk / Daftar">
+               <Link to="/profil" className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Profil Akun">
+                 <User size={20} strokeWidth={1.5} />
+               </Link>
+               <Link to="/login" className="p-2 hover:bg-black/5 rounded-full transition-colors flex flex-col items-center relative group" title="Masuk / Daftar">
                  <LogIn size={20} strokeWidth={1.5} />
-                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute right-12 w-16 text-right">Masuk</span>
+                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded">Masuk</span>
                </Link>
             </Show>
           </div>

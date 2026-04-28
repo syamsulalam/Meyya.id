@@ -1,8 +1,9 @@
-import { User, Package, History, Eye, Ticket, HelpCircle, Heart } from 'lucide-react';
+import { User, Package, History, Eye, Ticket, HelpCircle, Heart, LogIn } from 'lucide-react';
 import { useStore } from '../store';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import React, { useState } from 'react';
 import Tooltip from '../components/Tooltip';
+import { useUser, SignInButton } from '@clerk/react';
 
 import ProfileAccount from '../components/profile/ProfileAccount';
 import ProfileStatus from '../components/profile/ProfileStatus';
@@ -13,12 +14,40 @@ import ProfileHelp from '../components/profile/ProfileHelp';
 import ProfileRecommendations from '../components/profile/ProfileRecommendations';
 
 export default function Profile() {
-  const { user } = useStore();
+  const { user: localUser } = useStore();
+  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
   const [activeTab, setActiveTab] = useState<'akun' | 'status' | 'riwayat' | 'terakhir' | 'voucher' | 'bantuan' | 'rekomendasi'>('akun');
   const [isBlockerOpen, setIsBlockerOpen] = useState(false);
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (!isLoaded) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-12 md:py-20 w-full flex-1 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ink"></div>
+      </div>
+    );
+  }
+
+  // Profil yang terautentikasi adalah ketika Clerk User ada, ATAU User Admin (localStore) ada.
+  // Untuk flow biasa, gunakan Clerk isSignedIn
+  if (!isSignedIn && localUser?.role !== 'admin') {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20 md:py-32 w-full flex-1 flex flex-col items-center justify-center text-center">
+        <div className="w-24 h-24 bg-black/5 rounded-full flex items-center justify-center mb-8">
+          <User size={40} className="text-black/40" />
+        </div>
+        <h1 className="text-3xl font-light font-heading mb-4 text-ink">Halo, Tamu!</h1>
+        <p className="text-gray-600 mb-10 max-w-md mx-auto">
+          Silakan masuk atau daftar terlebih dahulu untuk mengakses profil Anda, melihat riwayat pesanan, menyimpan wishlist, dan menikmati fitur MEYYA.ID lainnya.
+        </p>
+        
+        <SignInButton mode="modal">
+          <button className="flex items-center gap-3 bg-ink text-white px-8 py-4 rounded-full font-medium tracking-wide uppercase text-sm hover:bg-black/80 transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200">
+            <LogIn size={18} />
+            Masuk / Daftar Sekarang
+          </button>
+        </SignInButton>
+      </div>
+    );
   }
 
   const tabs = [
@@ -67,7 +96,7 @@ export default function Profile() {
         {/* Content Area */}
         <div className="flex-1 min-w-0">
           <div className="bg-white/60 rounded-[24px] md:rounded-[36px] p-6 lg:p-12 border border-black/5 min-h-[500px]">
-            {activeTab === 'akun' && <ProfileAccount user={user} setBlockerOpen={setIsBlockerOpen} />}
+            {activeTab === 'akun' && <ProfileAccount user={localUser || clerkUser} setBlockerOpen={setIsBlockerOpen} />}
             {activeTab === 'status' && <ProfileStatus />}
             {activeTab === 'riwayat' && <ProfileHistory />}
             {activeTab === 'terakhir' && <ProfileRecentlyViewed />}

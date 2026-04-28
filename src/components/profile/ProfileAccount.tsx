@@ -27,7 +27,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
   const [alamatDetail, setAlamatDetail] = useState('');
 
   const [isSaved, setIsSaved] = useState(true);
-  const [profileName, setProfileName] = useState(user?.name || '');
+  const [profileName, setProfileName] = useState(user?.name || user?.fullName || '');
   const [profilePhone, setProfilePhone] = useState('');
 
   // Fetch Profile Data
@@ -37,7 +37,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
         .then(res => res.json())
         .then(data => {
           if (data.user) {
-            setProfileName(data.user.name || data.address?.recipient_name || user.name || '');
+            setProfileName(data.user.name || data.address?.recipient_name || user.name || user.fullName || '');
             const phone = data.user.phone_wa || '';
             const cc = COUNTRY_CODES.find(c => phone.startsWith(c.code))?.code || '+62';
             setCountryCode(cc);
@@ -209,7 +209,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                 <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50" />
                 <input 
                   type="email" 
-                  defaultValue={user.email}
+                  defaultValue={user?.email || user?.primaryEmailAddress?.emailAddress || ''}
                   disabled
                   className="w-full bg-black/5 border border-transparent rounded-full py-3 pl-12 pr-4 opacity-70 cursor-not-allowed text-sm"
                 />
