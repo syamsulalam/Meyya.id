@@ -31,8 +31,13 @@ export default function Auth() {
   };
 
   const commonAppearance = {
+    variables: {
+      fontFamily: 'inherit',
+      colorPrimary: '#000000', // Set primary color to black/ink
+    },
     elements: {
       rootBox: "w-full mx-auto flex flex-col items-center",
+      cardBox: "shadow-none p-0 bg-transparent rounded-none w-full border-none m-0",
       card: "shadow-none p-0 bg-transparent rounded-none w-full border-none m-0",
       headerTitle: "hidden", // We hide their title and use our own via Tabs
       headerSubtitle: "hidden", // Hide their subtitle
@@ -43,7 +48,7 @@ export default function Auth() {
       footerActionLink: "text-ink font-medium hover:underline text-sm",
       dividerLine: "bg-black/10",
       dividerText: "text-gray-500 font-light text-xs px-4 bg-transparent uppercase tracking-widest",
-      socialButtonsBlockButton: "w-full flex items-center justify-center gap-3 bg-white border border-black/10 py-3 px-6 rounded-full hover:bg-black/5 transition-colors text-sm font-medium text-ink shadow-none",
+      socialButtonsBlockButton: "w-full flex items-center justify-center gap-3 bg-transparent border border-black/10 py-3 px-6 rounded-full hover:bg-black/5 transition-colors text-sm font-medium text-ink shadow-none",
       socialButtonsBlockButtonText: "font-medium text-ink",
       identityPreviewEditButton: "text-ink hover:underline",
       formFieldSuccessText: "text-sm text-green-600",
@@ -58,8 +63,8 @@ export default function Auth() {
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-16 w-full flex-1 flex flex-col justify-center">
-      <div className="glass-panel p-8 md:p-12 rounded-[40px] w-full min-h-[400px]">
+    <div className="mx-auto px-4 py-16 w-full max-w-[480px] flex-1 flex flex-col justify-center items-center">
+      <div className="glass-panel p-6 sm:p-10 rounded-[40px] w-full min-h-[400px]">
         
         {envWarning && (
           <div className="mb-6 p-4 rounded-xl bg-orange-50 text-orange-700 text-xs text-center border border-orange-200 flex flex-col gap-2">

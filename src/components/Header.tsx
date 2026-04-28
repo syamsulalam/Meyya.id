@@ -77,11 +77,11 @@ export default function Header() {
             <Show when="signed-in">
                {/* Custom Profile Indicator & Dropdown on Hover */}
                <div className="relative group">
-                 <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="flex gap-2 items-center p-1.5 hover:bg-black/5 rounded-full transition-colors" title="Profil Akun">
-                    <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-xs font-medium uppercase">
-                      {clerkUser?.firstName?.charAt(0) || clerkUser?.emailAddresses[0]?.emailAddress?.charAt(0) || 'U'}
-                    </div>
-                    <ChevronDown size={14} className="text-black/50 mr-1 opacity-50 group-hover:opacity-100 transition-opacity" />
+                 <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors relative block mt-[2px]" title="Profil Akun">
+                    <User size={20} strokeWidth={1.5} />
+                    <span className="absolute top-0 right-0 bg-black text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full border border-white font-bold uppercase">
+                      {clerkUser?.firstName?.charAt(0) || clerkUser?.emailAddresses[0]?.emailAddress?.charAt(0) || '@'}
+                    </span>
                  </Link>
 
                  {/* Hover Dropdown / Tooltip */}
@@ -158,12 +158,12 @@ export default function Header() {
                 {/* User Greeting di Mobile saat Login */}
                 <Show when="signed-in">
                   <div className="p-3 mb-1 bg-black/5 rounded-xl flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-black text-white flex shrink-0 items-center justify-center text-xs font-medium uppercase">
-                        {clerkUser?.firstName?.charAt(0) || clerkUser?.emailAddresses[0]?.emailAddress?.charAt(0) || 'U'}
+                    <div className="w-8 h-8 rounded-full border border-black/10 flex shrink-0 items-center justify-center text-black bg-white">
+                        <User size={16} strokeWidth={1.5} />
                     </div>
                     <div className="flex flex-col overflow-hidden">
                       <span className="text-[9px] uppercase tracking-widest text-black/50">Halo,</span>
-                      <span className="text-xs font-medium truncate">{clerkUser?.firstName || 'User'}</span>
+                      <span className="text-xs font-medium truncate">{clerkUser?.firstName || clerkUser?.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User'}</span>
                     </div>
                   </div>
                 </Show>
