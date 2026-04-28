@@ -76,13 +76,14 @@ export default function CartPreviewDropdown() {
   return (
     <div className="relative group">
       {/* Tombol Utama */}
-      <Link to="/cart" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex" title="Keranjang Belanja (Cart)">
+      <Link to="/cart" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex group/cart">
         <ShoppingBag size={20} strokeWidth={1.5} />
         {cartCount > 0 && (
           <span className="absolute top-0 right-0 bg-black text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
             {cartCount}
           </span>
         )}
+        <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover/cart:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50">Keranjang</span>
       </Link>
 
       {/* Panel Mengambang (Hover Dropdown) */}

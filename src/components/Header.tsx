@@ -39,20 +39,23 @@ export default function Header() {
           
           {/* Left Icons - Hanya tampil di desktop (sm:flex) */}
           <div className="hidden sm:flex items-center gap-4 flex-1 justify-start">
-            <a href="/#katalog" className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Katalog Produk">
+            <a href="/#katalog" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
               <LayoutGrid size={20} strokeWidth={1.5} />
+              <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap">Katalog</span>
             </a>
-            <Link to="/search" className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Cari Produk (Search)">
+            <Link to="/search" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
               <Search size={20} strokeWidth={1.5} />
+              <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap">Cari</span>
             </Link>
-            <Link to="/wishlist" className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Wishlist Tersimpan">
+            <Link to="/wishlist" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
               <Heart size={20} strokeWidth={1.5} />
+              <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap">Wishlist</span>
             </Link>
           </div>
 
           {/* Left Icons - MOBILE (Cart) */}
           <div className="flex sm:hidden flex-1 justify-start items-center relative z-20">
-            <Link to="/cart" className="p-2 hover:bg-black/5 rounded-full transition-colors relative" title="Keranjang Belanja">
+            <Link to="/cart" className="p-2 hover:bg-black/5 rounded-full transition-colors relative">
               <ShoppingBag size={24} strokeWidth={1.5} />
               {cartCount > 0 && (
                 <span className="absolute top-0 right-0 bg-black text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white">
@@ -64,7 +67,7 @@ export default function Header() {
 
           {/* Center Logo */}
           <div className="flex-shrink-0 text-center flex justify-center z-10">
-            <Link to="/" className="text-[28px] sm:text-[32px] tracking-[0.2em] sm:tracking-[0.3em] font-[200] uppercase mx-2" style={{fontFamily: 'var(--font-logo)'}} title="Beranda MEYYA.ID">
+            <Link to="/" className="text-[28px] sm:text-[32px] tracking-[0.2em] sm:tracking-[0.3em] font-[200] uppercase mx-2" style={{fontFamily: 'var(--font-logo)'}}>
               MEYYA<span className="text-[10px] sm:text-xs font-sans tracking-normal opacity-50 ml-1">.ID</span>
             </Link>
           </div>
@@ -77,11 +80,12 @@ export default function Header() {
             <Show when="signed-in">
                {/* Custom Profile Indicator & Dropdown on Hover */}
                <div className="relative group">
-                 <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors relative block mt-[2px]" title="Profil Akun">
+                 <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group/tooltip">
                     <User size={20} strokeWidth={1.5} />
-                    <span className="absolute top-0 right-0 bg-black text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full border border-white font-bold uppercase">
+                    <span className="absolute top-0 right-0 mt-[2px] mr-[2px] bg-black text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full border border-white font-bold uppercase">
                       {clerkUser?.firstName?.charAt(0) || clerkUser?.emailAddresses[0]?.emailAddress?.charAt(0) || '@'}
                     </span>
+                    <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover/tooltip:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap">Profil</span>
                  </Link>
 
                  {/* Hover Dropdown / Tooltip */}
@@ -124,19 +128,21 @@ export default function Header() {
                </div>
 
                <SignOutButton>
-                 <button className="p-2 hover:bg-red-50 rounded-full transition-colors text-red-500" title="Keluar">
+                 <button className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
                    <LogOut size={20} strokeWidth={1.5} />
+                   <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50">Keluar</span>
                  </button>
                </SignOutButton>
             </Show>
             
             <Show when="signed-out">
-               <Link to="/profil" className="p-2 hover:bg-black/5 rounded-full transition-colors" title="Profil Akun">
+               <Link to="/profil" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group">
                  <User size={20} strokeWidth={1.5} />
+                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50">Profil</span>
                </Link>
-               <Link to="/login" className="p-2 hover:bg-black/5 rounded-full transition-colors flex flex-col items-center relative group" title="Masuk / Daftar">
+               <Link to="/login" className="p-2 hover:bg-black/5 rounded-full transition-colors flex flex-col items-center relative group">
                  <LogIn size={20} strokeWidth={1.5} />
-                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded">Masuk</span>
+                 <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50">Masuk</span>
                </Link>
             </Show>
           </div>
@@ -146,7 +152,6 @@ export default function Header() {
             <button 
               className={`p-2 rounded-full transition-colors relative ${isMobileMenuOpen ? 'bg-black/5' : 'hover:bg-black/5'}`}
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              title="Menu"
             >
               {isMobileMenuOpen ? <X size={24} strokeWidth={1.5} /> : <Menu size={24} strokeWidth={1.5} />}
             </button>
@@ -168,31 +173,31 @@ export default function Header() {
                   </div>
                 </Show>
 
-                <a href="/#katalog" className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors" title="Katalog Produk">
+                <a href="/#katalog" className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors">
                   <LayoutGrid size={18} strokeWidth={1.5} />
                   <span className="text-xs uppercase tracking-widest font-medium">Katalog</span>
                 </a>
 
-                <Link to="/search" className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors" title="Cari Produk">
+                <Link to="/search" className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors">
                   <Search size={18} strokeWidth={1.5} />
                   <span className="text-xs uppercase tracking-widest font-medium">Cari</span>
                 </Link>
 
-                <Link to="/wishlist" className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors" title="Wishlist">
+                <Link to="/wishlist" className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors">
                   <Heart size={18} strokeWidth={1.5} />
                   <span className="text-xs uppercase tracking-widest font-medium">Wishlist</span>
                 </Link>
 
                 <div className="h-px bg-black/10 my-1 mx-2"></div>
 
-                <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors" title="Profil Akun">
+                <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors">
                   <User size={18} strokeWidth={1.5} />
                   <span className="text-xs uppercase tracking-widest font-medium">Akun Saya</span>
                 </Link>
 
                 <Show when="signed-in">
                   <SignOutButton>
-                    <button className="flex w-full items-center gap-3 p-3 hover:bg-red-50 rounded-xl transition-colors text-red-500 text-left" title="Keluar">
+                    <button className="flex w-full items-center gap-3 p-3 hover:bg-red-50 rounded-xl transition-colors text-red-500 text-left">
                       <LogOut size={18} strokeWidth={1.5} />
                       <span className="text-xs uppercase tracking-widest font-medium">Keluar</span>
                     </button>
@@ -200,7 +205,7 @@ export default function Header() {
                 </Show>
                 
                 <Show when="signed-out">
-                  <Link to="/login" className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors" title="Masuk / Daftar">
+                  <Link to="/login" className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors">
                     <LogIn size={18} strokeWidth={1.5} />
                     <span className="text-xs uppercase tracking-widest font-medium">Masuk</span>
                   </Link>

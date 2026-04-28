@@ -35,6 +35,34 @@
 }
 
 @layer components {
+  /* Clerk appearance overrides */
+  .cl-rootBox {
+    width: 100% !important;
+  }
+  .cl-cardBox {
+    width: 100% !important;     /* To fit in the glass panel */
+  }
+  .cl-card {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  .cl-footer {
+    background: transparent !important;
+    border: none !important;
+  }
+  /* The internal box containing shadows/borders */
+  .cl-internal-1h6fgzy {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: auto !important;     /* let it expand */
+    max-width: none !important;
+  }
+
   .glass-panel {
     background: rgba(255, 255, 255, 0.4);
     backdrop-filter: blur(20px);

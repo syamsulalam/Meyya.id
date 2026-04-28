@@ -63,8 +63,8 @@ export default function Auth() {
   };
 
   return (
-    <div className="mx-auto px-4 py-16 w-full max-w-[480px] flex-1 flex flex-col justify-center items-center">
-      <div className="glass-panel p-6 sm:p-10 rounded-[40px] w-full min-h-[400px]">
+    <div className="mx-auto px-4 py-16 w-full max-w-[560px] flex-1 flex flex-col justify-center items-center">
+      <div className="glass-panel p-6 sm:p-10 md:p-12 rounded-[40px] w-full min-h-[400px]">
         
         {envWarning && (
           <div className="mb-6 p-4 rounded-xl bg-orange-50 text-orange-700 text-xs text-center border border-orange-200 flex flex-col gap-2">
