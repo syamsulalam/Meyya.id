@@ -153,4 +153,70 @@ app.post('/api/webhooks/clerk', async (c) => {
 - **Data Transaksi (Tugas D1)**: Menyimpan riwayat order `user_2x...`, wishlist di `user_2x...`, alamat pengiriman.
 - **Webhook (Jembatan)**: Clerk menembak backend tiap ada pendaftaran baru ➝ Backend mencatat `user_2x...` ke D1 agar siap dikaitkan (JOIN) dengan tabel Order / Wishlist / Keranjang. 
 
-Saat Webhook belum ada, kita tetap bisa menggunakan `clerk_id` secara mandiri. Misalnya, jika API menerima permintaan "Tambahkan ke keranjang", backend hanya perlu mencatat `{ clerk_id, item_id, qty }` di D1 tanpa secara absolut membutuhkan tabel `users` referensial untuk sekedar jalan dasar. Tapi untuk kelengkapan administrasi dan relasi, implementasi sinkronisasi Webhook ini sangat disarankan.
+Saat Webhook belum ada, kita tetap bisa menggunakan `clerk_id` secara mandiri pada saat *checkout* atau *add to cart*. Misalnya, jika API menerima permintaan "Tambahkan ke keranjang", backend hanya perlu mencatat `{ clerk_id, item_id, qty }` di D1 tanpa peduli tabel `users` utama.
+
+**TAPI, KENAPA WEBHOOK INI SANGAT PENTING UNTUK MEYYA.ID?**
+Terutama karena Anda ingin membangun sistem **CRM (Customer Relationship Management)**. 
+1. **User yang Mendaftar tapi Belum Belanja:** Jika tidak ada webhook, D1 tidak akan tahu ada user baru sampai mereka melakukan transaksi pertama. Dengan webhook, detik ketika mereka mendaftar, nama dan email mereka sudah ada di D1. Anda bisa langsung mengirimkan *Voucher Kupon Selamat Datang* ke email mereka dari admin dashboard Anda.
+2. **LTV (Life Time Value) & Perilaku:** CRM membutuhkan "sumber kebenaran tunggal" (Single Source of Truth) di database Anda. Anda butuh tabel `users` di D1 (yang disinkronkan oleh Webhook) agar bisa di-JOIN dengan tabel `orders` untuk menghitung LTV, memantau *wishlist*, dan menganalisis kebiasaan belanja (User A suka beli di hari Jumat).
+3. **Pemisahan Tugas yang Sehat:** Clerk hanya mengurus "Siapa yang masuk" (Autentikasi). D1 mengurus "Apa yang mereka lakukan di toko kita" (Data Bisnis/CRM). Webhook adalah jembatan yang menghubungkan keduanya secara *real-time*.
+
+---
+
+## 3. Cara Mengembangkan Webhook (Bagi Pemula Cloudflare)
+
+Berita baiknya: Karena MEYYA.ID di-[deploy] menggunakan **Cloudflare Pages**, Anda **TIDAK PERLU** membuat *Cloudflare Worker* terpisah (`api.meyya.id`). Anda bisa menumpang fitur **Cloudflare Pages Functions**.
+
+**Apakah bisa pakai UI Cloudflare 100%?**
+Sayangnya tidak sepenuhnya. Menulis *backend* yang membutuhkan *library* keamanan (seperti `svix` dari Clerk) tidak bisa dilakukan langsung dari "kolom ketik" di UI Cloudflare Dashboard. Anda harus melakukannya di project lokal (VSCode) lalu mem-push-nya ke Git/Cloudflare.
+
+**Langkah-langkah di Lokal (Sangat Mudah):**
+
+1. Buka terminal di VSCode proyek MEYYA.ID Anda, ketik:
+   `npm install svix`
+2. Buat folder baru bernama `functions` di dalam root direktori MEYYA.ID (sejajar dengan folder `src`).
+3. Di dalam folder `functions`, buat folder `api`, lalu di dalamnya buat folder `webhooks`, dan buat file `clerk.ts` (`functions/api/webhooks/clerk.ts`).
+4. Isi file `clerk.ts` dengan kode berikut (ini adalah *native* Pages Functions, tidak butuh Hono):
+
+```typescript
+import { Webhook } from 'svix';
+
+export async function onRequestPost({ request, env }) {
+  const WEBHOOK_SECRET = env.CLERK_WEBHOOK_SECRET;
+  if (!WEBHOOK_SECRET) {
+    return new Response('Secret API Key belum disetting di Cloudflare!', { status: 500 });
+  }
+
+  const payload = await request.text();
+  const headers = Object.fromEntries(request.headers);
+  const wh = new Webhook(WEBHOOK_SECRET);
+
+  let evt;
+  try {
+    evt = wh.verify(payload, headers);
+  } catch (err) {
+    return new Response('Webhook tidak valid', { status: 400 });
+  }
+
+  // Cek jika user baru mendaftar
+  if (evt.type === 'user.created' || evt.type === 'user.updated') {
+    const clerkId = evt.data.id;
+    const email = evt.data.email_addresses[0]?.email_address;
+    const name = `${evt.data.first_name || ''} ${evt.data.last_name || ''}`.trim();
+    
+    // Simpan ke D1
+    // await env.MEYYA_DB.prepare(`
+    //   INSERT INTO users (clerk_id, email, full_name, created_at) 
+    //   VALUES (?, ?, ?, datetime('now'))
+    //   ON CONFLICT(clerk_id) DO UPDATE SET email=excluded.email, full_name=excluded.full_name
+    // `).bind(clerkId, email, name).run();
+  }
+
+  return new Response('Webhook Sukses', { status: 200 });
+}
+```
+
+5. **Commit dan Push ke GitHub**. Cloudflare Pages akan otomatis mendeteksi folder `functions` dan membuatnya menjadi endpoint *backend* (`https://meyya.id/api/webhooks/clerk`).
+6. **Setting Secret di UI Cloudflare:** 
+   - Masuk ke dashboard Cloudflare > Pages > MEYYA.ID > **Settings** > **Environment variables**.
+   - Tambahkan variable baru: Nama `CLERK_WEBHOOK_SECRET`, isinya adalah "Signing Secret" (dimulai `whsec_`) yang Anda dapatkan dari Dashboard Clerk > Webhooks. Re-deploy project. Selesai!

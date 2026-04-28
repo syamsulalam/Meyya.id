@@ -45,7 +45,98 @@ CREATE TABLE IF NOT EXISTS shipping_settings (
 );
 ```
 
-## 2. Migrasi ke Cloudflare Pages Functions (`/functions`)
+## 2. Skema Database D1 (Fitur CRM & Analitik)
+
+Untuk mendukung fitur **Customer Relationship Management (CRM)** di Dashboard Admin MEYYA.ID, kita membutuhkan tabel yang tersinkronisasi via Webhook Clerk, agar admin bisa menganalisis siklus hidup pelanggan (LTV), preferensi belanja, hingga penggunaan diskon.
+
+### Tabel `users` (Sinkronisasi Webhook Clerk)
+Menyimpan identitas dasar, wajib diisi saat user mendaftar.
+```sql
+CREATE TABLE IF NOT EXISTS users (
+  clerk_id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  first_name TEXT,
+  last_name TEXT,
+  joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_login_at DATETIME -- Opsional, diupdate via webhook session.created jika ada
+);
+```
+
+### Tabel `orders` (Diperluas untuk CRM)
+Tabel Orders yang sudah ada perlu memastikan kolom-kolom kalkulasi tersedia untuk dianalisis oleh CRM.
+```sql
+CREATE TABLE IF NOT EXISTS orders (
+  id TEXT PRIMARY KEY,
+  clerk_id TEXT, -- Relasi ke users.clerk_id
+  status TEXT, -- 'PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELED'
+  subtotal numeric,
+  shipping_cost numeric,
+  discount_amount numeric DEFAULT 0,
+  total_amount numeric,
+  voucher_id TEXT, -- Relasi ke tabel vouchers
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (clerk_id) REFERENCES users(clerk_id)
+);
+```
+
+### Tabel `vouchers` & `voucher_usages` 
+Melacak kupon yang dibuat admin dan penggunaannya.
+```sql
+CREATE TABLE IF NOT EXISTS vouchers (
+  code TEXT PRIMARY KEY, -- misal: 'WELCOME20', 'SALE50'
+  discount_type TEXT, -- 'PERCENTAGE' atau 'FIXED'
+  discount_value numeric,
+  min_purchase numeric DEFAULT 0,
+  max_discount numeric,
+  valid_from DATETIME,
+  valid_until DATETIME,
+  usage_limit INTEGER -- Kuota total (misal 100x pakai)
+);
+
+CREATE TABLE IF NOT EXISTS voucher_usages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  voucher_code TEXT,
+  clerk_id TEXT,
+  order_id TEXT,
+  used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (voucher_code) REFERENCES vouchers(code),
+  FOREIGN KEY (clerk_id) REFERENCES users(clerk_id)
+);
+```
+
+## 3. Strategi Analitik CRM (Dashboard Admin LTV & Preferensi)
+
+Dengan skema database di atas, backend Admin Dashboard Anda bisa menjalankan SQL untuk melihat perilaku belanja (`Habits`) dan metrik bisnis (`LTV`) per user.
+
+1. **LTV (Life Time Value) dan Estimasi Income:**
+   Didapatkan dengan menjumlahkan seluruh `orders.total_amount` dari seorang `clerk_id`  dengan status `DELIVERED` atau `PAID`.
+   ```sql
+   SELECT clerk_id, COUNT(id) as total_orders, SUM(total_amount) as LTV 
+   FROM orders WHERE status = 'DELIVERED' GROUP BY clerk_id;
+   ```
+
+2. **Kebiasaan Belanja (Hari Favorit & Waktu Transit):**
+   Menganalisa kebiasaan hari dengan menggunakan fungsi tanggal SQLite:
+   ```sql
+   -- Mencari hari terbanyak user berbelanja (0=Minggu, 1=Senin, dst)
+   SELECT strftime('%w', created_at) as day_of_week, COUNT(*) as counts 
+   FROM orders WHERE clerk_id = 'user_abc' GROUP BY day_of_week ORDER BY counts DESC LIMIT 1;
+   ```
+
+3. **Produk Favorit (Most Bought Items):**
+   Dengan menggabungkan (`JOIN`) tabel `orders`, `order_items`, dan `products`.
+   ```sql
+   SELECT p.name, COUNT(oi.product_id) as freq 
+   FROM order_items oi
+   JOIN orders o ON oi.order_id = o.id
+   JOIN products p ON oi.product_id = p.id
+   WHERE o.clerk_id = 'user_abc' AND o.status = 'DELIVERED'
+   GROUP BY oi.product_id ORDER BY freq DESC LIMIT 5;
+   ```
+
+Melalui desain D1 ini, dashboard admin Meyya.id tidak perlu melakukan ribuan permintaan ke Clerk API; Anda cukup menarik semuanya dari Database MEYYA secara relasional dan instan.
+
+## 4. Migrasi ke Cloudflare Pages Functions (`/functions`)
 
 Saat ini, MEYYA.ID menggunakan `server.ts` (Express) untuk mode *development*. Untuk men-deploy secara *serverless* menggunakan Cloudflare D1, kita akan membuat direktori `/functions/api/`.
 
