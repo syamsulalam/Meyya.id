@@ -39,16 +39,18 @@ export default function Auth() {
       rootBox: "w-full mx-auto flex flex-col items-center",
       cardBox: "shadow-none p-0 bg-transparent rounded-none w-full border-none m-0",
       card: "shadow-none p-0 bg-transparent rounded-none w-full border-none m-0",
+      header: "hidden", // Completely hide header
       headerTitle: "hidden", // We hide their title and use our own via Tabs
       headerSubtitle: "hidden", // Hide their subtitle
-      formButtonPrimary: "px-6 py-3 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors w-full mt-4 font-medium shadow-none border-none outline-none focus:ring-2 focus:ring-ink/20",
-      formFieldInput: "w-full bg-white/50 border border-black/10 rounded-full py-3 px-6 focus:outline-none focus:border-black/50 transition-colors font-sans text-ink text-sm placeholder:font-light",
-      formFieldLabelRow: "hidden", // Hide labels so placeholders do the work, matching meyya
+      formButtonPrimary: "px-6 py-4 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors w-full mt-4 font-medium shadow-none border-none outline-none focus:ring-2 focus:ring-ink/20",
+      formFieldInput: "w-full bg-white/70 border border-black/10 rounded-full py-4 px-6 focus:outline-none focus:border-black/50 transition-colors font-sans text-ink text-base placeholder:font-light",
+      formFieldLabelRow: "flex mb-2", // Reveal labels
+      formFieldLabel: "text-[10px] font-medium text-black/60 uppercase tracking-widest ml-1 block", // Uppercase labels
       footerActionText: "text-gray-500 font-light text-sm text-center",
       footerActionLink: "text-ink font-medium hover:underline text-sm",
       dividerLine: "bg-black/10",
       dividerText: "text-gray-500 font-light text-xs px-4 bg-transparent uppercase tracking-widest",
-      socialButtonsBlockButton: "w-full flex items-center justify-center gap-3 bg-white border border-black/10 py-3 px-6 rounded-full hover:bg-black/5 transition-colors text-sm font-medium text-ink shadow-none",
+      socialButtonsBlockButton: "w-full flex items-center justify-center gap-3 bg-gradient-to-b from-white to-gray-50/80 border border-black/10 hover:border-black/20 py-4 px-6 rounded-full hover:bg-black/5 transition-all duration-300 text-sm font-medium text-ink shadow-sm hover:shadow-md relative overflow-hidden group",
       socialButtonsBlockButtonText: "font-medium text-ink",
       identityPreviewEditButton: "text-ink hover:underline",
       formFieldSuccessText: "text-sm text-green-600",
@@ -57,7 +59,7 @@ export default function Auth() {
       alert: "mb-6 p-4 rounded-xl bg-red-50 border border-red-100",
       socialButtons: "flex flex-col gap-3",
       form: "flex flex-col gap-5 w-full", // Matching the native space-y-5
-      phoneInputBox: "w-full bg-white/50 border border-black/10 rounded-full focus-within:border-black/50 transition-colors font-sans text-ink text-sm overflow-hidden",
+      phoneInputBox: "w-full bg-white/70 border border-black/10 rounded-full focus-within:border-black/50 transition-colors font-sans text-ink text-base overflow-hidden",
       footer: "hidden", // Hide their native footer if we want, or keep it. Let's keep it but styled
     }
   };
@@ -74,18 +76,18 @@ export default function Auth() {
         )}
 
         {/* Tab Navigation */}
-        <div className="flex mb-8 pb-4 border-b border-black/10 relative">
+        <div className="flex mb-8 relative border-b border-black/10">
           <button 
             type="button"
             onClick={() => setSearchParams({ tab: 'login' })}
-            className={`flex-1 text-sm tracking-widest uppercase transition-opacity ${tab === 'login' ? 'font-medium opacity-100' : 'font-light opacity-50 hover:opacity-80'}`}
+            className={`flex-1 py-4 text-sm tracking-widest uppercase transition-colors hover:bg-black/5 ${tab === 'login' ? 'font-medium opacity-100' : 'font-light opacity-50'}`}
           >
             Masuk
           </button>
           <button 
             type="button"
             onClick={() => setSearchParams({ tab: 'register' })}
-            className={`flex-1 text-sm tracking-widest uppercase transition-opacity ${tab === 'register' ? 'font-medium opacity-100' : 'font-light opacity-50 hover:opacity-80'}`}
+            className={`flex-1 py-4 text-sm tracking-widest uppercase transition-colors hover:bg-black/5 ${tab === 'register' ? 'font-medium opacity-100' : 'font-light opacity-50'}`}
           >
             Daftar
           </button>
@@ -112,7 +114,8 @@ export default function Auth() {
           )}
         </div>
 
-        {/* MOCK LOGIN OPTIONS FOR TESTING */}
+        {/* MOCK LOGIN OPTIONS FOR TESTING (SIMULATION MODE) - HIDDEN BY DEFAULT */}
+        {/*
         <div className="pt-6 mt-8 border-t border-black/10">
           <p className="text-xs uppercase tracking-widest text-center opacity-40 mb-4">Mode Simulasi (Local Testing)</p>
           <div className="flex gap-2">
@@ -124,6 +127,7 @@ export default function Auth() {
             </button>
           </div>
         </div>
+        */}
 
       </div>
     </div>

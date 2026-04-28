@@ -14,6 +14,8 @@ import Profile from './pages/Profile';
 import Auth from './pages/Auth';
 import SearchPage from './pages/SearchPage';
 import ErrorBoundaryPage from './pages/ErrorBoundaryPage';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import { AuthenticateWithRedirectCallback } from '@clerk/react';
 
 const Layout = () => (
@@ -59,6 +61,8 @@ const router = createBrowserRouter([
           <p>Kami menerima retur untuk pakaian yang belum dikenakan dan <i>tag</i> harga aslinya belum dilepas dalam kurun waktu 7 hari sejak produk tiba. Produk <i>sale items</i> berstatus sebagai final dan tidak dapat diretur.</p>
         </StaticPage>
       )},
+      { path: "/terms-of-service", element: <TermsOfService /> },
+      { path: "/privacy-policy", element: <PrivacyPolicy /> },
       { path: "/terms", element: (
         <StaticPage title="Syarat & Ketentuan">
           <p>Dengan mengakses <i>website</i> kami dan melakukan pesanan, Anda secara otomatis menyetujui persyaratan layanan (<i>terms of service</i>) yang berlaku.</p>

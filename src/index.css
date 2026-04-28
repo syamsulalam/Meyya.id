@@ -37,10 +37,19 @@
 @layer components {
   /* Clerk appearance overrides */
   .cl-rootBox {
-    width: 100% !important;
+    width: calc(100% + 10px) !important;
+    margin-left: -5px !important;
+    margin-right: -5px !important;
   }
   .cl-cardBox {
     width: 100% !important;     /* To fit in the glass panel */
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+  }
+  
+  /* Fix badge positioning to allow more space on the right */
+  .cl-lastAuthenticationStrategyBadge {
+    right: 12px !important;
   }
   .cl-card {
     background: transparent !important;

@@ -80,8 +80,8 @@ export default function Footer() {
         <div className="pt-8 border-t border-black/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-light opacity-60">
           <p>&copy; {new Date().getFullYear()} MEYYA.ID. Hak cipta dilindungi (<i>All rights reserved</i>).</p>
           <div className="flex gap-6">
-            <Link to="/privacy" className="hover:opacity-100 flex items-center gap-1"><Lock size={12} /> Kebijakan Privasi</Link>
-            <Link to="/terms" className="hover:opacity-100 flex items-center gap-1"><FileText size={12} /> Ketentuan Layanan</Link>
+            <Link to="/privacy-policy" className="hover:opacity-100 flex items-center gap-1"><Lock size={12} /> Kebijakan Privasi</Link>
+            <Link to="/terms-of-service" className="hover:opacity-100 flex items-center gap-1"><FileText size={12} /> Ketentuan Layanan</Link>
           </div>
         </div>
       </div>
