@@ -79,7 +79,7 @@ export default function CartPreviewDropdown() {
       <Link to="/cart" className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex group/cart">
         <ShoppingBag size={20} strokeWidth={1.5} />
         {cartCount > 0 && (
-          <span className="absolute top-0 right-0 bg-black text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+          <span className="absolute top-0 right-0 bg-black text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">
             {cartCount}
           </span>
         )}

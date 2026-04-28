@@ -58,7 +58,7 @@ export default function Header() {
             <Link to="/cart" className="p-2 hover:bg-black/5 rounded-full transition-colors relative">
               <ShoppingBag size={24} strokeWidth={1.5} />
               {cartCount > 0 && (
-                <span className="absolute top-0 right-0 bg-black text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white">
+                <span className="absolute top-0 right-0 bg-black text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">
                   {cartCount}
                 </span>
               )}
@@ -82,7 +82,7 @@ export default function Header() {
                <div className="relative group">
                  <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group/tooltip">
                     <User size={20} strokeWidth={1.5} />
-                    <span className="absolute top-0 right-0 bg-black text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white font-bold uppercase">
+                    <span className="absolute top-0 right-0 bg-black text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white uppercase">
                       {clerkUser?.firstName?.charAt(0) || clerkUser?.emailAddresses[0]?.emailAddress?.charAt(0) || '@'}
                     </span>
                     <span className="text-[10px] uppercase tracking-widest font-medium opacity-0 group-hover/tooltip:opacity-100 transition-opacity absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">Profil</span>

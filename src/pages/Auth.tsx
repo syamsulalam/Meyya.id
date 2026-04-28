@@ -41,14 +41,14 @@ export default function Auth() {
       card: "shadow-none p-0 bg-transparent rounded-none w-full border-none m-0",
       headerTitle: "hidden", // We hide their title and use our own via Tabs
       headerSubtitle: "hidden", // Hide their subtitle
-      formButtonPrimary: "px-6 py-4 bg-ink text-white rounded-[24px] uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors w-full mt-4 font-medium shadow-none border-none outline-none focus:ring-2 focus:ring-ink/20",
-      formFieldInput: "w-full bg-white/60 border border-black/10 rounded-[24px] py-4 px-6 focus:outline-none focus:border-black/50 transition-colors font-sans text-ink text-sm",
-      formFieldLabel: "text-[10px] font-medium text-black/60 uppercase tracking-widest ml-4 mb-1 block",
+      formButtonPrimary: "px-6 py-4 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors w-full mt-4 font-medium shadow-none border-none outline-none focus:ring-2 focus:ring-ink/20",
+      formFieldInput: "w-full bg-white/50 border border-black/10 rounded-full py-4 px-6 focus:outline-none focus:border-black/50 transition-colors font-sans text-ink text-sm",
+      formFieldLabelRow: "hidden", // Hide labels so placeholders do the work, matching meyya
       footerActionText: "text-gray-500 font-light text-sm text-center",
       footerActionLink: "text-ink font-medium hover:underline text-sm",
       dividerLine: "bg-black/10",
       dividerText: "text-gray-500 font-light text-xs px-4 bg-transparent uppercase tracking-widest",
-      socialButtonsBlockButton: "w-full flex items-center justify-center gap-3 bg-white border border-black/10 py-4 px-6 rounded-[24px] hover:bg-black/5 transition-colors text-sm font-medium text-ink shadow-none",
+      socialButtonsBlockButton: "w-full flex items-center justify-center gap-3 bg-white border border-black/10 py-4 px-6 rounded-full hover:bg-black/5 transition-colors text-sm font-medium text-ink shadow-none",
       socialButtonsBlockButtonText: "font-medium text-ink",
       identityPreviewEditButton: "text-ink hover:underline",
       formFieldSuccessText: "text-sm text-green-600",

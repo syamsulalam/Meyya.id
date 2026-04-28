@@ -58,15 +58,25 @@
   .cl-internal-vvtys3,
   .cl-internal-twlk36,
   .cl-internal-kpc0nc,
-  .cl-internal-ovdovs {
+  .cl-internal-ovdovs,
+  .cl-internal-ji79b9,
+  .cl-internal-k7wlaf,
+  .cl-internal-10rdw13,
+  .cl-internal-17uj465,
+  .cl-internal-1pnppin,
+  .cl-formFieldRow,
+  .cl-formField,
+  .cl-formFieldInputGroup {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
   .cl-internal-1h6fgzy {
-    width: auto !important;     /* let it expand */
-    max-width: none !important;
+    width: 100% !important;     /* let it expand */
+    max-width: 100% !important;
   }
   
   /* Hide Secured by Clerk logo block */
