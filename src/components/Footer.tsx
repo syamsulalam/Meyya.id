@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Instagram, Twitter, Facebook, ArrowRight, HelpCircle, MapPin, FileText, Lock, Mail, Tag } from 'lucide-react';
+import { Instagram, Twitter, Facebook, ArrowRight, HelpCircle, MapPin, FileText, Lock, Mail, Tag, User } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -47,9 +47,9 @@ export default function Footer() {
           <div>
             <h4 className="font-heading uppercase tracking-widest text-xs font-semibold mb-6">Layanan Pelanggan (<i>Care</i>)</h4>
             <ul className="space-y-4 text-sm font-light opacity-80">
+              <li><Link to="/profil" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><User size={14} /> Akun Saya</Link></li>
               <li><Link to="/faq" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><HelpCircle size={14} /> FAQ & Ukuran</Link></li>
-              <li><Link to="/shipping" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><MapPin size={14} /> Kirim & Retur</Link></li>
-              <li><Link to="/terms" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><FileText size={14} /> Syarat & Ketentuan</Link></li>
+              <li><Link to="/shipping" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><MapPin size={14} /> Pengiriman & Retur</Link></li>
               <li><Link to="/contact" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><Mail size={14} /> Hubungi Kami</Link></li>
             </ul>
           </div>

@@ -63,18 +63,6 @@ const router = createBrowserRouter([
       )},
       { path: "/terms-of-service", element: <TermsOfService /> },
       { path: "/privacy-policy", element: <PrivacyPolicy /> },
-      { path: "/terms", element: (
-        <StaticPage title="Syarat & Ketentuan">
-          <p>Dengan mengakses <i>website</i> kami dan melakukan pesanan, Anda secara otomatis menyetujui persyaratan layanan (<i>terms of service</i>) yang berlaku.</p>
-          <p>Semua konten yang dimuat di sini, termasuk foto produk dan pengaturan tipografi, sepenuhnya merupakan milik dari MEYYA.ID.</p>
-        </StaticPage>
-      )},
-      { path: "/privacy", element: (
-        <StaticPage title="Kebijakan Privasi">
-          <p>Kerahasiaan data Anda sangat penting bagi kami. Kami hanya mengumpulkan informasi seperlunya (<i>necessary information</i>) untuk memproses pesanan Anda secara aman dan tertutup.</p>
-          <p>Kami tidak akan pernah menjual atau membagikan (<i>share</i>) data profil Anda kepada pihak ketiga (<i>third-party marketers</i>) tanpa izin persetujuan Anda.</p>
-        </StaticPage>
-      )},
       { path: "/contact", element: (
         <StaticPage title="Hubungi Kami">
           <p>Kami sangat antusias untuk mendengar pengalaman berbelanja Anda.</p>
