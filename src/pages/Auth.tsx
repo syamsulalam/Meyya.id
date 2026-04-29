@@ -33,35 +33,54 @@ export default function Auth() {
   const commonAppearance = {
     variables: {
       fontFamily: 'inherit',
-      colorPrimary: '#000000', // Set primary color to black/ink
+      colorPrimary: '#121212',
+      colorText: '#121212',
+      colorTextSecondary: 'rgba(0,0,0,0.6)',
+      colorBackground: 'transparent',
+      borderRadius: '9999px',
     },
     elements: {
-      rootBox: "w-full mx-auto flex flex-col items-center",
-      cardBox: "shadow-none p-0 bg-transparent rounded-none w-full border-none m-0",
-      card: "shadow-none p-0 bg-transparent rounded-none w-full border-none m-0",
-      header: "hidden", // Completely hide header
-      headerTitle: "hidden", // We hide their title and use our own via Tabs
-      headerSubtitle: "hidden", // Hide their subtitle
-      formButtonPrimary: "px-6 py-4 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors w-full mt-4 font-medium shadow-none border-none outline-none focus:ring-2 focus:ring-ink/20",
-      formFieldInput: "w-full bg-white/70 border border-black/10 rounded-full py-4 px-6 focus:outline-none focus:border-black/50 transition-colors font-sans text-ink text-base placeholder:font-light",
-      formFieldLabelRow: "flex mb-2", // Reveal labels
-      formFieldLabel: "text-[10px] font-medium text-black/60 uppercase tracking-widest ml-1 block", // Uppercase labels
-      footerActionText: "text-gray-500 font-light text-sm text-center",
-      footerActionLink: "text-ink font-medium hover:underline text-sm",
-      dividerLine: "bg-black/10",
-      dividerText: "text-gray-500 font-light text-xs px-4 bg-transparent uppercase tracking-widest",
-      socialButtonsBlockButton: "w-full flex items-center justify-center gap-3 bg-gradient-to-b from-white to-gray-50/80 border border-black/10 hover:border-black/20 py-4 px-6 rounded-full hover:bg-black/5 transition-all duration-300 text-sm font-medium text-ink shadow-sm hover:shadow-md relative overflow-hidden group",
-      socialButtonsBlockButtonText: "font-medium text-ink",
-      identityPreviewEditButton: "text-ink hover:underline",
-      formFieldSuccessText: "text-sm text-green-600",
-      formFieldErrorText: "text-xs text-red-600 mt-1 pl-4",
-      alertText: "text-xs text-red-600",
-      alert: "mb-6 p-4 rounded-xl bg-red-50 border border-red-100",
-      socialButtons: "flex flex-col gap-3",
-      form: "flex flex-col gap-5 w-full", // Matching the native space-y-5
-      phoneInputBox: "w-full bg-white/70 border border-black/10 rounded-full focus-within:border-black/50 transition-colors font-sans text-ink text-base overflow-hidden",
-      footer: "hidden", // Hide their native footer if we want, or keep it. Let's keep it but styled
-    }
+      rootBox: 'w-full mx-auto flex flex-col items-center',
+      cardBox: 'w-full m-0 p-0 bg-transparent shadow-none border-none rounded-none',
+      card: 'w-full m-0 p-0 bg-transparent shadow-none border-none rounded-none',
+
+      header: 'hidden',
+      headerTitle: 'hidden',
+      headerSubtitle: 'hidden',
+
+      form: 'flex flex-col gap-6 w-full',
+      formField: 'w-full',
+      formFieldRow: 'w-full',
+      formFieldLabelRow: 'flex mb-2',
+      formFieldLabel: 'block text-xs uppercase tracking-widest text-black/60 font-medium',
+
+      formFieldInput: 'w-full bg-white/50 border border-black/10 rounded-full py-3 px-4 focus:outline-none focus:border-black/50 focus:ring-0 transition-colors font-sans text-ink text-sm placeholder:font-light placeholder:text-black/40 shadow-none',
+      formFieldInputShowPasswordButton: 'text-black/50 hover:text-ink transition-colors mr-3',
+      formFieldSuccessText: 'text-xs text-green-600 mt-1 pl-4',
+      formFieldErrorText: 'text-xs text-red-600 mt-1 pl-4',
+      formFieldWarningText: 'text-xs text-orange-600 mt-1 pl-4',
+
+      formButtonPrimary: 'w-full px-8 py-3 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs font-medium hover:bg-black/80 transition-colors shadow-none border-none outline-none focus:ring-2 focus:ring-ink/20 disabled:opacity-50 disabled:cursor-not-allowed',
+
+      socialButtons: 'flex flex-col gap-3 w-full',
+      socialButtonsBlockButton: 'w-full flex items-center justify-center gap-3 bg-white/50 border border-black/10 hover:border-black/20 py-3 px-4 rounded-full hover:bg-black/5 transition-colors text-sm font-medium text-ink shadow-none',
+      socialButtonsBlockButtonText: 'text-sm font-medium text-ink',
+      socialButtonsProviderIcon: 'w-4 h-4',
+
+      dividerLine: 'bg-black/10',
+      dividerText: 'text-black/50 font-light text-xs px-4 bg-transparent uppercase tracking-widest',
+
+      footer: 'bg-transparent border-none shadow-none p-0 mt-6',
+      footerActionText: 'text-gray-500 font-light text-sm text-center',
+      footerActionLink: 'text-ink font-medium hover:underline text-sm',
+
+      identityPreview: 'bg-black/5 border border-transparent rounded-full py-3 px-4 text-sm shadow-none',
+      identityPreviewText: 'text-sm text-ink',
+      identityPreviewEditButton: 'text-ink hover:underline text-xs uppercase tracking-widest',
+
+      alert: 'mb-6 p-4 rounded-xl bg-red-50 border border-red-100 shadow-none',
+      alertText: 'text-xs text-red-600',
+    },
   };
 
   return (

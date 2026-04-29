@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { Settings, Box, Tags } from 'lucide-react';
+import { Settings, Box, Tags, Users } from 'lucide-react';
 import AdminMetricsPanel from '../components/admin/AdminMetricsPanel';
 import AdminProductForm from '../components/admin/AdminProductForm';
 import AdminCategoryManager from '../components/admin/AdminCategoryManager';
+import AdminCRMManager from '../components/admin/AdminCRMManager';
 import Tooltip from '../components/Tooltip';
 
 export default function AdminDashboard() {
   const { user } = useStore();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'produk' | 'kategori'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'produk' | 'kategori' | 'crm'>('crm');
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -40,6 +41,18 @@ export default function AdminDashboard() {
                     }`}
                   >
                     <Settings size={20} />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Pelanggan (CRM)" position="right">
+                  <button
+                    onClick={() => setActiveTab('crm')}
+                    className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
+                      activeTab === 'crm' 
+                        ? 'bg-ink text-white shadow-md scale-110' 
+                        : 'text-gray-600 hover:bg-black/5 hover:scale-110'
+                    }`}
+                  >
+                    <Users size={20} />
                   </button>
                 </Tooltip>
                 <Tooltip content="Kategori Produk" position="right">
@@ -72,6 +85,7 @@ export default function AdminDashboard() {
         {/* Content Area */}
         <div className="flex-1 min-w-0 bg-white/60 rounded-[24px] md:rounded-[36px] p-6 lg:p-12 border border-black/5 min-h-[600px]">
           {activeTab === 'dashboard' && <AdminMetricsPanel />}
+          {activeTab === 'crm' && <AdminCRMManager />}
           {activeTab === 'kategori' && <AdminCategoryManager />}
           {activeTab === 'produk' && <AdminProductForm />}
         </div>
