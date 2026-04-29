@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { Settings, Box, Tags, Users } from 'lucide-react';
+import { Settings, Box, Tags, Users, Ticket } from 'lucide-react';
 import AdminMetricsPanel from '../components/admin/AdminMetricsPanel';
 import AdminProductForm from '../components/admin/AdminProductForm';
 import AdminCategoryManager from '../components/admin/AdminCategoryManager';
 import AdminCRMManager from '../components/admin/AdminCRMManager';
+import AdminVoucherManager from '../components/admin/AdminVoucherManager';
 import Tooltip from '../components/Tooltip';
 import { useUser } from '@clerk/react';
 
@@ -14,7 +15,7 @@ export default function AdminDashboard() {
   const { user: clerkUser, isLoaded } = useUser();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'produk' | 'kategori' | 'crm'>('crm');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher'>('crm');
 
   useEffect(() => {
     if (isLoaded) {
@@ -89,6 +90,18 @@ export default function AdminDashboard() {
                     <Box size={20} />
                   </button>
                 </Tooltip>
+                <Tooltip content="Manajemen Voucher & Promo" position="right">
+                  <button
+                    onClick={() => setActiveTab('voucher')}
+                    className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
+                      activeTab === 'voucher' 
+                        ? 'bg-ink text-white shadow-md scale-110' 
+                        : 'text-gray-600 hover:bg-black/5 hover:scale-110'
+                    }`}
+                  >
+                    <Ticket size={20} />
+                  </button>
+                </Tooltip>
              </nav>
         </div>
 
@@ -98,6 +111,7 @@ export default function AdminDashboard() {
           {activeTab === 'crm' && <AdminCRMManager />}
           {activeTab === 'kategori' && <AdminCategoryManager />}
           {activeTab === 'produk' && <AdminProductForm />}
+          {activeTab === 'voucher' && <AdminVoucherManager />}
         </div>
       </div>
     </div>

@@ -56,9 +56,9 @@ export default function Header() {
           {/* Left Icons - MOBILE (Cart) */}
           <div className="flex sm:hidden flex-1 justify-start items-center relative z-20">
             <Link to="/cart" className="p-2 hover:bg-black/5 rounded-full transition-colors relative">
-              <ShoppingBag size={24} strokeWidth={1.5} />
+              <ShoppingBag size={20} strokeWidth={1.5} />
               {cartCount > 0 && (
-                <span className="absolute top-0 right-0 bg-black text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">
+                <span className="absolute top-0.5 right-0.5 bg-black text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white">
                   {cartCount}
                 </span>
               )}

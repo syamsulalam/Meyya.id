@@ -44,7 +44,7 @@ export default function Home() {
 
       {/* Catalog */}
       <div className="max-w-7xl mx-auto px-4 py-8 mb-20 w-full" id="katalog">
-        <div className="flex flex-col items-center justify-center mb-12 border-b border-black/10 pb-12">
+        <div className="flex flex-col items-center justify-center mb-8">
           <h2 className="text-3xl md:text-4xl font-light mb-8 text-center text-ink">
             {category ? `Kategori: ${category.charAt(0).toUpperCase() + category.slice(1)}` : 'Katalog Terbaru'}
           </h2>

@@ -74,8 +74,31 @@ export default function Cart() {
         <div className="flex-1">
           <div className="glass-panel p-4 md:p-6 rounded-[2rem]">
             {groupedCart.map((product) => (
-              <div key={product.product_id} className="flex gap-4 md:gap-6 py-6 border-b border-black/5 last:border-0 group/item">
-                <Link to={`/produk/${product.product_id}`} className="w-24 md:w-32 aspect-[3/4] rounded-xl overflow-hidden bg-black/5 flex-shrink-0 relative">
+              <div key={product.product_id} className="flex flex-col sm:flex-row gap-4 md:gap-6 py-6 border-b border-black/5 last:border-0 group/item">
+                <div className="flex items-center gap-4 sm:hidden">
+                  <Link to={`/produk/${product.product_id}`} className="w-20 aspect-[3/4] rounded-xl overflow-hidden bg-black/5 flex-shrink-0 relative">
+                    <img 
+                      src={product.image_url} 
+                      alt={product.product_name} 
+                      className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-700"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover/item:bg-black/5 transition-colors duration-500"></div>
+                  </Link>
+                  <div className="flex-1">
+                    <Link to={`/produk/${product.product_id}`} className="font-medium text-lg leading-tight hover:underline line-clamp-2 mb-1">
+                      {product.product_name}
+                    </Link>
+                    <div className="text-[10px] uppercase text-gray-500 font-medium">
+                      Rp {product.price.toLocaleString('id-ID')} / pcs
+                    </div>
+                  </div>
+                  <div className="text-xs font-semibold bg-black text-white px-2 py-1 rounded-full flex-shrink-0 self-start">
+                    {product.total_quantity} Item
+                  </div>
+                </div>
+
+                <Link to={`/produk/${product.product_id}`} className="hidden sm:block w-24 md:w-32 aspect-[3/4] rounded-xl overflow-hidden bg-black/5 flex-shrink-0 relative">
                   <img 
                     src={product.image_url} 
                     alt={product.product_name} 
@@ -86,11 +109,16 @@ export default function Cart() {
                 </Link>
                 
                 <div className="flex flex-col flex-1 justify-between py-1">
-                  <div>
+                  <div className="hidden sm:block">
                     <div className="flex justify-between items-start mb-1">
-                      <Link to={`/produk/${product.product_id}`} className="font-medium text-lg leading-tight hover:underline line-clamp-1">
-                        {product.product_name}
-                      </Link>
+                      <div>
+                        <Link to={`/produk/${product.product_id}`} className="font-medium text-lg leading-tight hover:underline line-clamp-1">
+                          {product.product_name}
+                        </Link>
+                        <div className="text-[10px] uppercase text-gray-500 font-medium mt-1">
+                          Rp {product.price.toLocaleString('id-ID')} / pcs
+                        </div>
+                      </div>
                       <div className="text-xs font-semibold bg-black text-white px-3 py-1 rounded-full flex-shrink-0 ml-4">
                         {product.total_quantity} Item
                       </div>
@@ -98,15 +126,15 @@ export default function Cart() {
                   </div>
                   
                   {/* Detailed Variations Map */}
-                  <div className="mt-4 flex flex-col gap-2">
+                  <div className="mt-2 sm:mt-4 flex flex-col gap-2">
                     {product.variations.map((v, i) => (
-                      <div key={i} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white/50 border border-black/5 p-3 rounded-xl gap-3">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">Variasi {i + 1}</span>
-                          <span className="text-xs text-gray-500 uppercase tracking-widest">{v.color} / {v.size}</span>
+                      <div key={i} className="flex flex-wrap sm:flex-nowrap justify-between items-center bg-white/50 border border-black/5 p-3 rounded-xl gap-3">
+                        <div className="flex flex-col w-full sm:w-auto">
+                          <span className="text-[10px] uppercase tracking-widest text-gray-500 mb-0.5">Varian {(i + 1).toString().padStart(2, '0')}</span>
+                          <span className="text-xs font-semibold">{v.color} / {v.size}</span>
                         </div>
                         
-                        <div className="flex items-center gap-4 w-full sm:w-auto mt-2 sm:mt-0 justify-between sm:justify-end">
+                        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end mt-1 sm:mt-0">
                            <div className="flex items-center bg-black/5 rounded-full px-2 py-1">
                             <button 
                               onClick={(e) => { e.preventDefault(); decreaseQuantity(v.originalIndex); }}
@@ -134,11 +162,11 @@ export default function Cart() {
                             </button>
                           </div>
                           
-                          <div className="flex items-center gap-4">
-                            <span className="font-medium">Rp {(product.price * v.quantity).toLocaleString('id-ID')}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium text-sm sm:text-base">Rp {(product.price * v.quantity).toLocaleString('id-ID')}</span>
                             <button 
                               onClick={(e) => { e.preventDefault(); removeFromCart(v.originalIndex); }}
-                              className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
+                              className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors flex-shrink-0"
                               title="Hapus variasi ini"
                             >
                               <Trash2 size={16} />
