@@ -12,26 +12,10 @@ Perlu penambahan kolom `weight` (berat satuan dalam gram atau kilogram).
 ALTER TABLE products ADD COLUMN weight INTEGER DEFAULT 250; -- Default 250 gram
 ```
 
-### Tabel `user_addresses` (Update/Standarisasi)
-Harus divalidasi dengan kode dari API Wilayah agar perhitungan ongkir akurat.
+### Tabel `categories` (Update)
+Perlu penambahan kolom gambar untuk di admin dashboard.
 ```sql
-CREATE TABLE IF NOT EXISTS user_addresses (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id TEXT,
-  recipient_name TEXT,
-  recipient_phone TEXT,
-  province_code TEXT,      -- Dari API
-  province_name TEXT,
-  regency_code TEXT,       -- Dari API
-  regency_name TEXT,
-  district_code TEXT,      -- Dari API
-  district_name TEXT,
-  village_code TEXT,       -- Dari API (10 digit, sangat penting untuk cek ongkir)
-  village_name TEXT,
-  postal_code TEXT,
-  street_address TEXT,
-  is_default INTEGER DEFAULT 0
-);
+ALTER TABLE categories ADD COLUMN image_url TEXT; 
 ```
 
 ### Tabel `shipping_settings` (Baru)
@@ -50,30 +34,61 @@ CREATE TABLE IF NOT EXISTS shipping_settings (
 Untuk mendukung fitur **Customer Relationship Management (CRM)** di Dashboard Admin MEYYA.ID, kita membutuhkan tabel yang tersinkronisasi via Webhook Clerk, agar admin bisa menganalisis siklus hidup pelanggan (LTV), preferensi belanja, hingga penggunaan diskon.
 
 ### Tabel `users` (Sinkronisasi Webhook Clerk)
-Menyimpan identitas dasar, wajib diisi saat user mendaftar.
+Menyimpan identitas dasar, serta nomor WhatsApp untuk komunikasi marketing.
 ```sql
 CREATE TABLE IF NOT EXISTS users (
   clerk_id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
   first_name TEXT,
   last_name TEXT,
+  phone_wa TEXT,
   joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  last_login_at DATETIME -- Opsional, diupdate via webhook session.created jika ada
+  last_login_at DATETIME
 );
 ```
 
-### Tabel `orders` (Diperluas untuk CRM)
-Tabel Orders yang sudah ada perlu memastikan kolom-kolom kalkulasi tersedia untuk dianalisis oleh CRM.
+### Tabel `user_addresses` (Diperbarui untuk Multiple Address)
+Menyimpan beberapa alamat per user dengan label dan icon (Rumah, Kantor, dll).
+```sql
+CREATE TABLE IF NOT EXISTS user_addresses (
+  id TEXT PRIMARY KEY, -- Generate random string/UUID
+  user_id TEXT, -- clerk_id
+  label TEXT, -- 'Rumah', 'Kantor'
+  icon TEXT, -- '🏠', '🏢'
+  recipient_name TEXT,
+  recipient_phone TEXT,
+  province_code TEXT,
+  province_name TEXT,
+  regency_code TEXT,
+  regency_name TEXT,
+  district_code TEXT,
+  district_name TEXT,
+  village_code TEXT,
+  village_name TEXT,
+  street_address TEXT,
+  is_default INTEGER DEFAULT 0,
+  FOREIGN KEY (user_id) REFERENCES users(clerk_id)
+);
+```
+
+### Tabel `orders` (Diperluas untuk Checkout & CRM)
+Mencatat metode pembayaran, tambahan/potongan biaya, dan order bump.
 ```sql
 CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
   clerk_id TEXT, -- Relasi ke users.clerk_id
+  address_snapshot TEXT, -- Snapshot alamat lengkap saat order
   status TEXT, -- 'PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELED'
+  payment_method TEXT, -- 'TRANSFER', 'QRIS', 'VA', 'CC'
   subtotal numeric,
   shipping_cost numeric,
+  admin_fee numeric DEFAULT 0,
+  order_bump numeric DEFAULT 0,
+  unique_code numeric DEFAULT 0,
   discount_amount numeric DEFAULT 0,
-  total_amount numeric,
-  voucher_id TEXT, -- Relasi ke tabel vouchers
+  total_paid numeric,
+  voucher_code TEXT, -- Menyimpan kode kupon yang dipakai
+  note TEXT, -- Pesan dari pembeli
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (clerk_id) REFERENCES users(clerk_id)
 );
@@ -83,14 +98,16 @@ CREATE TABLE IF NOT EXISTS orders (
 Melacak kupon yang dibuat admin dan penggunaannya.
 ```sql
 CREATE TABLE IF NOT EXISTS vouchers (
-  code TEXT PRIMARY KEY, -- misal: 'WELCOME20', 'SALE50'
-  discount_type TEXT, -- 'PERCENTAGE' atau 'FIXED'
+  code TEXT PRIMARY KEY, -- misal: 'WELCOME20', 'FREESONGKIR'
+  discount_type TEXT, -- 'PERCENTAGE', 'FIXED', 'FREE_SHIPPING'
   discount_value numeric,
   min_purchase numeric DEFAULT 0,
-  max_discount numeric,
+  max_discount numeric, -- Berlaku untuk persentase maksimal diskon
   valid_from DATETIME,
   valid_until DATETIME,
-  usage_limit INTEGER -- Kuota total (misal 100x pakai)
+  usage_limit INTEGER, -- Kuota total (misal 100x pakai)
+  used_count INTEGER DEFAULT 0,
+  target_user_role TEXT DEFAULT 'all' -- 'all', 'new_user', 'vip'
 );
 
 CREATE TABLE IF NOT EXISTS voucher_usages (

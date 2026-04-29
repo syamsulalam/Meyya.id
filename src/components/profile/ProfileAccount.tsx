@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { User, MapPin, Phone, Mail, CheckCircle2 } from 'lucide-react';
+import { User, MapPin, Phone, Mail, CheckCircle2, Home, Briefcase, Building, Plus, Trash2 } from 'lucide-react';
 import AutoSuggest from './AutoSuggest';
 import { useBlocker } from 'react-router-dom';
+import { useStore } from '../../store';
 
 const COUNTRY_CODES = [
   { code: '+62', flag: '🇮🇩', label: 'ID' },
@@ -12,8 +13,15 @@ const COUNTRY_CODES = [
 ];
 
 export default function ProfileAccount({ user, setBlockerOpen }: { user: any, setBlockerOpen?: (open: boolean) => void }) {
+  const { savedAddresses, addSavedAddress, removeSavedAddress } = useStore();
   const [countryCode, setCountryCode] = useState('+62');
   
+  const [isAddingAddress, setIsAddingAddress] = useState(savedAddresses.length === 0);
+  const [addressLabel, setAddressLabel] = useState('Rumah');
+  const [addressIcon, setAddressIcon] = useState('🏠');
+  const [addressRecipient, setAddressRecipient] = useState('');
+  const [addressPhone, setAddressPhone] = useState('');
+
   const [activeStep, setActiveStep] = useState(1);
   
   const [provinsiList, setProvinsiList] = useState<{id: string, name: string}[]>([]);
@@ -38,20 +46,11 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
         .then(res => res.json())
         .then(data => {
           if (data.user) {
-            setProfileName(data.user.name || data.address?.recipient_name || user.name || user.fullName || '');
+            setProfileName(data.user.name || user.name || user.fullName || '');
             const phone = data.user.phone_wa || '';
             const cc = COUNTRY_CODES.find(c => phone.startsWith(c.code))?.code || '+62';
             setCountryCode(cc);
             setProfilePhone(phone.replace(cc, ''));
-          }
-          if (data.address) {
-            setSelectedProvinsi({ id: data.address.province_code, name: data.address.province_name });
-            setSelectedKota({ id: data.address.regency_code, name: data.address.regency_name });
-            setSelectedKecamatan({ id: data.address.district_code, name: data.address.district_name });
-            setSelectedKelurahan({ id: data.address.village_code, name: data.address.village_name });
-            setAlamatDetail(data.address.street_address || '');
-            setActiveStep(5);
-            
             setTimeout(() => setIsSaved(true), 10);
           }
         });
@@ -106,10 +105,10 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
 
   // Handle Unsaved Changes
   useEffect(() => {
-    if (selectedProvinsi || selectedKota || selectedKecamatan || selectedKelurahan || alamatDetail || profileName || profilePhone) {
-      setIsSaved(false);
+    if (profileName || profilePhone) {
+      // setIsSaved(false); // we removed strict unsaved block for profile because addresses are local
     }
-  }, [selectedProvinsi, selectedKota, selectedKecamatan, selectedKelurahan, alamatDetail, profileName, profilePhone]);
+  }, [profileName, profilePhone]);
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -143,7 +142,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       const res = await fetch(`/api/user/profile/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ name: profileName, phone_wa: countryCode + profilePhone })
       });
       
       if (!res.ok) throw new Error("Gagal menyimpan data");
@@ -157,6 +156,43 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       alert(e.message);
     }
   }
+
+  const handleSaveAddress = () => {
+    if (activeStep < 5 || alamatDetail.length < 5 || !addressRecipient || !addressPhone) {
+      alert('Mohon lengkapi semua form alamat pengiriman');
+      return;
+    }
+    const newAddr = {
+      id: Math.random().toString(36).substr(2, 9),
+      label: addressLabel,
+      icon: addressIcon,
+      recipientName: addressRecipient,
+      phone: addressPhone,
+      street: alamatDetail,
+      province_code: selectedProvinsi?.id || '',
+      province_name: selectedProvinsi?.name || '',
+      regency_code: selectedKota?.id || '',
+      regency_name: selectedKota?.name || '',
+      district_code: selectedKecamatan?.id || '',
+      district_name: selectedKecamatan?.name || '',
+      village_code: selectedKelurahan?.id || '',
+      village_name: selectedKelurahan?.name || ''
+    };
+    addSavedAddress(newAddr);
+    setIsAddingAddress(false);
+    
+    // reset
+    setAddressRecipient('');
+    setAddressPhone('');
+    setSelectedProvinsi(null);
+    setSelectedKota(null);
+    setSelectedKecamatan(null);
+    setSelectedKelurahan(null);
+    setAlamatDetail('');
+    setActiveStep(1);
+    setIsSaved(true); // Treat add address as saved automatically
+    alert('Alamat berhasil ditambahkan!');
+  };
 
   return (
     <>
@@ -246,15 +282,93 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
               </div>
             </div>
           </div>
+          <div className="pt-2">
+            <button type="button" onClick={handleSave} className="px-6 py-2.5 bg-ink text-white rounded-full uppercase tracking-widest text-xs hover:bg-black/80 transition-colors">
+              Simpan Data Pribadi
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-6">
-           <h3 className="text-sm uppercase tracking-widest font-semibold pb-2 border-b border-black/10 flex items-center gap-2">
-              <MapPin size={16} /> Alamat Pengiriman
+        <div className="space-y-6 pt-6 border-t border-black/10">
+           <h3 className="text-sm uppercase tracking-widest font-semibold flex items-center justify-between pb-2 border-b border-black/5">
+              <span className="flex items-center gap-2"><MapPin size={16} /> Daftar Alamat Pengiriman</span>
+              {!isAddingAddress && (
+                <button type="button" onClick={() => setIsAddingAddress(true)} className="flex items-center gap-1 text-[10px] bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-full transition-colors">
+                  <Plus size={12} /> Tambah Baru
+                </button>
+              )}
            </h3>
-           <div className="glass-panel p-6 rounded-3xl bg-white/40 space-y-4">
-              
-              <div className={`transition-opacity ${activeStep >= 1 ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+
+           {!isAddingAddress && savedAddresses.length > 0 && (
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               {savedAddresses.map(addr => (
+                 <div key={addr.id} className="p-5 border border-black/10 bg-white/50 rounded-3xl relative group">
+                   <div className="flex gap-3 items-start">
+                     <div className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-xl shrink-0">{addr.icon}</div>
+                     <div className="flex-1">
+                       <h4 className="font-semibold text-ink text-sm flex items-center gap-2">{addr.label}</h4>
+                       <p className="text-sm mt-1 text-gray-800 font-medium">{addr.recipientName} ({addr.phone})</p>
+                       <p className="text-xs text-gray-500 mt-1 line-clamp-3">{addr.street}, {addr.village_name}, {addr.district_name}, {addr.regency_name}, {addr.province_name}</p>
+                     </div>
+                   </div>
+                   <button 
+                     type="button" 
+                     onClick={() => removeSavedAddress(addr.id)}
+                     className="absolute top-4 right-4 p-2 bg-red-50 text-red-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100"
+                     title="Hapus Alamat"
+                   >
+                     <Trash2 size={14} />
+                   </button>
+                 </div>
+               ))}
+             </div>
+           )}
+
+           {isAddingAddress && (
+             <div className="glass-panel p-6 rounded-3xl bg-white/40 space-y-6">
+                <div className="flex justify-between items-center pb-4 border-b border-black/5">
+                  <h4 className="text-sm font-semibold">Tambah Alamat Baru</h4>
+                  {savedAddresses.length > 0 && (
+                    <button type="button" onClick={() => setIsAddingAddress(false)} className="text-xs text-gray-500 hover:text-black">Batal</button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Label Alamat</label>
+                    <input type="text" value={addressLabel} onChange={e => setAddressLabel(e.target.value)} placeholder="Contoh: Rumah, Kantor..." className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Pilih Ikon</label>
+                    <div className="flex gap-2 p-1 bg-black/5 rounded-xl">
+                       {['🏠', '🏢', 'Apartemen'].map(ic => {
+                         const rawIcon = ic === 'Apartemen' ? '🏗️' : ic;
+                         return (
+                           <button 
+                             key={ic} type="button" 
+                             onClick={() => setAddressIcon(rawIcon)}
+                             className={`flex-1 py-1.5 rounded-lg text-lg transition-colors ${addressIcon === rawIcon ? 'bg-white shadow' : 'hover:bg-black/5'}`}
+                           >
+                             {rawIcon}
+                           </button>
+                         )
+                       })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Nama Penerima</label>
+                    <input type="text" value={addressRecipient} onChange={e => setAddressRecipient(e.target.value)} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">No WA Penerima</label>
+                    <input type="tel" value={addressPhone} onChange={e => setAddressPhone(e.target.value)} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" />
+                  </div>
+                </div>
+                
+                <div className={`transition-opacity ${activeStep >= 1 ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
                 <label className="block text-xs uppercase tracking-widest opacity-60 mb-2 flex items-center gap-2">
                   Langkah 1: Provinsi {selectedProvinsi && <CheckCircle2 size={14} className="text-green-600" />}
                 </label>
@@ -336,18 +450,19 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                   className="w-full bg-white/80 border border-black/10 rounded-2xl py-3 px-4 outline-none focus:border-black/50 resize-none text-sm"
                 ></textarea>
               </div>
-           </div>
-        </div>
 
-        <div className="pt-8 text-center border-t border-black/10">
-          <button 
-            type="button" 
-            onClick={handleSave}
-            disabled={activeStep < 5 || alamatDetail.length < 5}
-            className="px-8 py-3 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Simpan Perubahan Data
-          </button>
+              <div className="pt-4 border-t border-black/5 text-right">
+                <button 
+                  type="button" 
+                  onClick={handleSaveAddress}
+                  disabled={activeStep < 5 || alamatDetail.length < 5 || !addressRecipient || !addressPhone}
+                  className="px-6 py-2.5 bg-ink text-white rounded-full uppercase tracking-widest text-xs hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Tambah Ke Daftar Alamat
+                </button>
+              </div>
+           </div>
+           )}
         </div>
       </form>
     </>

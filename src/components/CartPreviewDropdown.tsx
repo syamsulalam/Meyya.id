@@ -2,6 +2,7 @@ import { ShoppingBag, ChevronDown, ChevronUp, Plus, Minus, Trash2 } from 'lucide
 import { Link } from 'react-router-dom';
 import { useStore } from '../store';
 import { useState, useRef, useEffect } from 'react';
+import { useUser } from '@clerk/react';
 
 type GroupedCartItem = {
   product_id: number;
@@ -18,7 +19,8 @@ type GroupedCartItem = {
 };
 
 export default function CartPreviewDropdown() {
-  const { cart, addToCart, decreaseQuantity, removeFromCart } = useStore();
+  const { cart, addToCart, decreaseQuantity, removeFromCart, user: localUser } = useStore();
+  const { user: clerkUser } = useUser();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
@@ -90,8 +92,11 @@ export default function CartPreviewDropdown() {
       <div className="absolute top-full right-0 pt-4 w-80 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
         <div className="bg-white/95 backdrop-blur-xl border border-black/5 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
           
-          <div className="px-4 py-3 border-b border-black/5 flex justify-between items-center bg-white">
-            <span className="text-xs font-medium text-ink">Keranjang ({cartCount})</span>
+          <div className="px-4 py-3 border-b border-black/5 bg-gray-50 flex flex-col items-center">
+            <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-widest mb-1">Keranjang ({cartCount})</span>
+            <span className="text-xs font-medium truncate w-full text-center">
+              {clerkUser ? clerkUser.firstName || clerkUser.emailAddresses[0]?.emailAddress : localUser ? localUser.email : 'Guest'}
+            </span>
           </div>
 
           {groupedCart.length === 0 ? (

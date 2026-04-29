@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Tag, Upload } from 'lucide-react';
+import { Plus, Trash2, Tag, Upload, Edit, X, Check } from 'lucide-react';
 
 export default function AdminCategoryManager() {
   const [categories, setCategories] = useState([
@@ -11,12 +11,20 @@ export default function AdminCategoryManager() {
   ]);
   const [newCat, setNewCat] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      if (isEdit) {
+        setEditPreviewUrl(url);
+      } else {
+        setPreviewUrl(url);
+      }
     }
   };
 
@@ -38,6 +46,27 @@ export default function AdminCategoryManager() {
     setCategories(categories.filter(c => c.id !== id));
   };
 
+  const startEdit = (cat: any) => {
+    setEditingId(cat.id);
+    setEditName(cat.name);
+    setEditPreviewUrl(cat.imagePreview);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const saveEdit = (id: number) => {
+    if (!editName.trim()) return;
+    setCategories(categories.map(c => c.id === id ? {
+      ...c,
+      name: editName,
+      slug: editName.toLowerCase().replace(/\s+/g, '-'),
+      imagePreview: editPreviewUrl || c.imagePreview
+    } : c));
+    setEditingId(null);
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-light mb-8 font-heading">Manajemen Kategori (Taxonomy)</h2>
@@ -46,17 +75,57 @@ export default function AdminCategoryManager() {
           <h3 className="text-sm uppercase tracking-widest font-semibold mb-6 flex items-center gap-2"><Tag size={16}/> Daftar Kategori</h3>
           <ul className="space-y-3">
             {categories.map(cat => (
-              <li key={cat.id} className="flex justify-between items-center bg-white/50 p-4 rounded-2xl border border-black/5">
-                <div>
-                  <p className="font-medium text-sm">{cat.name}</p>
-                  <p className="text-xs text-gray-500 font-mono">/{cat.slug}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xs bg-black/5 px-2 py-1 rounded-full">{cat.count} produk</span>
-                  <button onClick={() => handleDelete(cat.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+              <li key={cat.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white/50 p-4 rounded-2xl border border-black/5 gap-4">
+                {editingId === cat.id ? (
+                  <div className="flex-1 w-full space-y-3">
+                     <div className="flex items-center gap-4">
+                       <div className="w-12 h-12 rounded-xl border border-black/10 overflow-hidden bg-black/5 flex items-center justify-center flex-shrink-0">
+                         {editPreviewUrl ? (
+                           <img src={editPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                         ) : (
+                           <Upload size={16} className="opacity-20" />
+                         )}
+                       </div>
+                       <label className="cursor-pointer border border-black/10 hover:border-black/30 bg-white/50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors inline-block text-ink whitespace-nowrap">
+                         Ganti Foto
+                         <input type="file" accept="image/*" onChange={(e) => handleImageChange(e, true)} className="hidden" />
+                       </label>
+                     </div>
+                     <input 
+                       type="text" 
+                       value={editName}
+                       onChange={(e) => setEditName(e.target.value)}
+                       className="w-full bg-white border border-black/10 rounded-xl py-2 px-3 focus:outline-none focus:border-black/50 text-sm"
+                     />
+                     <div className="flex gap-2 justify-end w-full">
+                        <button onClick={cancelEdit} className="text-gray-500 hover:bg-black/5 p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"><X size={14} /> Batal</button>
+                        <button onClick={() => saveEdit(cat.id)} className="bg-ink text-white p-2 px-3 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"><Check size={14} /> Simpan</button>
+                     </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-4">
+                      {cat.imagePreview && (
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/5 flex-shrink-0">
+                          <img src={cat.imagePreview} alt={cat.name} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium text-sm">{cat.name}</p>
+                        <p className="text-xs text-gray-500 font-mono">/{cat.slug}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 self-end sm:self-auto">
+                      <span className="text-xs bg-black/5 px-2 py-1 rounded-full">{cat.count} produk</span>
+                      <button onClick={() => startEdit(cat)} className="text-gray-500 hover:bg-black/5 p-2 rounded-full transition-colors" title="Edit">
+                        <Edit size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(cat.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors" title="Hapus">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </>
+                )}
               </li>
             ))}
             {categories.length === 0 && <p className="text-center text-sm text-gray-500 py-4">Belum ada kategori</p>}

@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import Order from './pages/Order';
 import AdminDashboard from './pages/AdminDashboard';
 import Wishlist from './pages/Wishlist';
 import StaticPage from './pages/StaticPage';
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
       { path: "/produk/:slug", element: <ProductDetail /> },
       { path: "/cart", element: <Cart /> },
       { path: "/checkout", element: <Checkout /> },
+      { path: "/order/:id", element: <Order /> },
       { path: "/admin", element: <AdminDashboard /> },
       { path: "/wishlist", element: <Wishlist /> },
       { path: "/profil", element: <Profile /> },

@@ -16,11 +16,29 @@ export interface ColorDefinition {
   hex: string;
 }
 
+export interface SavedAddress {
+  id: string;
+  label: string;
+  icon: string;
+  recipientName: string;
+  phone: string;
+  street: string;
+  province_code?: string;
+  province_name?: string;
+  regency_code?: string;
+  regency_name?: string;
+  district_code?: string;
+  district_name?: string;
+  village_code?: string;
+  village_name?: string;
+}
+
 interface AppState {
   cart: CartItem[];
   wishlist: number[];
   user: { id: string; role: 'customer' | 'admin'; name?: string; email?: string } | null;
   globalColors: ColorDefinition[];
+  savedAddresses: SavedAddress[];
   addGlobalColor: (color: ColorDefinition) => void;
   addToCart: (item: CartItem) => void;
   decreaseQuantity: (index: number) => void;
@@ -29,6 +47,9 @@ interface AppState {
   toggleWishlist: (product_id: number) => void;
   login: (role: 'customer' | 'admin') => void;
   logout: () => void;
+  addSavedAddress: (address: Omit<SavedAddress, 'id'>) => void;
+  removeSavedAddress: (id: string) => void;
+  updateSavedAddress: (id: string, address: Partial<SavedAddress>) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -37,6 +58,7 @@ export const useStore = create<AppState>()(
       cart: [],
       wishlist: [],
       user: null,
+      savedAddresses: [],
       globalColors: [
         { name: 'Hitam', hex: '#000000' },
         { name: 'Nude', hex: '#E3C2B0' },
@@ -44,6 +66,16 @@ export const useStore = create<AppState>()(
         { name: 'Putih', hex: '#FFFFFF' },
         { name: 'Navy', hex: '#000080' },
       ],
+      savedAddress: [],
+      addSavedAddress: (address) => set((state) => ({
+        savedAddresses: [...state.savedAddresses, { ...address, id: Math.random().toString(36).substr(2, 9) }]
+      })),
+      removeSavedAddress: (id) => set((state) => ({
+        savedAddresses: state.savedAddresses.filter(a => a.id !== id)
+      })),
+      updateSavedAddress: (id, address) => set((state) => ({
+        savedAddresses: state.savedAddresses.map(a => a.id === id ? { ...a, ...address } : a)
+      })),
       addGlobalColor: (color) =>
         set((state) => ({
           globalColors: [...state.globalColors, color]
