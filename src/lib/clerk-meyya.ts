@@ -18,7 +18,7 @@ export const meyyaClerkAppearance = {
     form: 'flex flex-col gap-6 w-full',
     formField: 'w-full',
     formFieldRow: 'w-full',
-    formFieldLabelRow: 'flex mb-2',
+    formFieldLabelRow: 'flex mb-1',
     formFieldLabel: 'block text-xs uppercase tracking-widest text-black/60 font-medium',
 
     formFieldInput: 'w-full bg-white/50 border border-black/10 rounded-full py-3 px-4 focus:outline-none focus:border-black/50 focus:ring-0 transition-colors font-sans text-ink text-sm placeholder:font-light placeholder:text-black/40 shadow-none',

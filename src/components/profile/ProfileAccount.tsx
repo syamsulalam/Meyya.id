@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { User, MapPin, Phone, Mail, CheckCircle2 } from 'lucide-react';
 import AutoSuggest from './AutoSuggest';
 import { useBlocker } from 'react-router-dom';
@@ -159,7 +160,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
 
   return (
     <>
-      {blocker.state === 'blocked' && (
+      {blocker.state === 'blocked' && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white p-8 rounded-[32px] max-w-sm w-full shadow-2xl">
             <h3 className="text-xl font-light font-heading mb-3">Simpan Perubahan?</h3>
@@ -175,6 +176,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                 type="button"
                 onClick={() => {
                   handleSave().then(() => blocker.proceed?.());
+                  setIsSaved(true); // force save complete in UI if unmounted
                 }} 
                 className="flex-1 py-3 items-center justify-center rounded-full bg-ink text-white text-xs font-semibold uppercase tracking-widest hover:bg-black/80 transition-colors"
               >
@@ -182,7 +184,8 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <form className="space-y-12">
