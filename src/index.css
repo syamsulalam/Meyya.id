@@ -140,7 +140,8 @@
     content: "";
     position: absolute;
     left: 16px;
-    top: calc(50% + 8px); /* adjusted slightly for label offset */
+    top: auto;
+    bottom: 15px;
     width: 16px;
     height: 16px;
     opacity: .5;
@@ -161,7 +162,8 @@
     content: "";
     position: absolute;
     left: 16px;
-    top: calc(50% + 8px);
+    top: auto;
+    bottom: 15px;
     width: 16px;
     height: 16px;
     opacity: .5;
@@ -182,7 +184,8 @@
     content: "";
     position: absolute;
     left: 16px;
-    top: calc(50% + 8px);
+    top: auto;
+    bottom: 15px;
     width: 16px;
     height: 16px;
     opacity: .5;

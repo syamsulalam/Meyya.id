@@ -37,7 +37,6 @@ export default function Auth() {
       colorText: '#121212',
       colorTextSecondary: 'rgba(0,0,0,0.6)',
       colorBackground: 'transparent',
-      borderRadius: '9999px',
     },
     elements: {
       rootBox: 'w-full mx-auto flex flex-col items-center',
