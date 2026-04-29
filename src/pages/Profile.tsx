@@ -1,6 +1,6 @@
 import { User, Package, History, Eye, Ticket, HelpCircle, Heart, LogIn } from 'lucide-react';
 import { useStore } from '../store';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import Tooltip from '../components/Tooltip';
 import { useUser, SignInButton } from '@clerk/react';
@@ -22,12 +22,19 @@ export default function Profile() {
   
   const tabFromUrl = searchParams.get('tab') as TabType | null;
   const [activeTab, setActiveTabState] = useState<TabType>(tabFromUrl || 'akun');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTabState(tabFromUrl);
     }
   }, [tabFromUrl]);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn && clerkUser?.publicMetadata?.role === 'admin') {
+      navigate('/admin');
+    }
+  }, [isLoaded, isSignedIn, clerkUser, navigate]);
 
   const setActiveTab = (tab: TabType) => {
     setActiveTabState(tab);

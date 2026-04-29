@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Upload, Settings } from 'lucide-react';
+import { Upload, Settings, Plus, Check } from 'lucide-react';
+import { useStore, ColorDefinition } from '../../store';
 
 export default function AdminProductForm() {
+  const { globalColors, addGlobalColor } = useStore();
+  
   const [hargaKainRoll, setHargaKainRoll] = useState(0);
   const [yieldKain, setYieldKain] = useState(1);
   const [biayaJahitTotal, setBiayaJahitTotal] = useState(0);
@@ -15,6 +18,32 @@ export default function AdminProductForm() {
   const [biayaLumpsum, setBiayaLumpsum] = useState(0);
   
   const [hargaJual, setHargaJual] = useState(0);
+  
+  // Custom Color State
+  const [selectedColorNames, setSelectedColorNames] = useState<string[]>([]);
+  const [showAddColor, setShowAddColor] = useState(false);
+  const [newColorName, setNewColorName] = useState('');
+  const [newColorHex, setNewColorHex] = useState('#000000');
+
+  // Gift Box state
+  const [allowGiftBox, setAllowGiftBox] = useState(false);
+  const [giftBoxPrice, setGiftBoxPrice] = useState(0);
+
+  const toggleColor = (name: string) => {
+    setSelectedColorNames(prev => 
+      prev.includes(name) ? prev.filter(c => c !== name) : [...prev, name]
+    );
+  };
+
+  const handleAddNewColor = () => {
+    if (newColorName.trim() && newColorHex) {
+      addGlobalColor({ name: newColorName.trim(), hex: newColorHex });
+      setSelectedColorNames(prev => [...prev, newColorName.trim()]);
+      setNewColorName('');
+      setNewColorHex('#000000');
+      setShowAddColor(false);
+    }
+  };
 
   // Breakdown Calculations
   const costKainSatuan = yieldKain > 0 ? (hargaKainRoll / yieldKain) : 0;
@@ -28,7 +57,7 @@ export default function AdminProductForm() {
 
   return (
     <div>
-      <h2 className="text-2xl font-light mb-8 font-heading">Tambah Produk Baru</h2>
+      <h2 className="text-2xl font-light mb-8 font-heading text-ink">Tambah Produk Baru</h2>
       
       <form className="space-y-12">
         {/* 1. Basic Info */}
@@ -61,17 +90,88 @@ export default function AdminProductForm() {
               </select>
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Warna (Pisahkan dengan koma)</label>
-              <input type="text" placeholder="Mis: Hitam, Nude, Sage" className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm" />
-            </div>
-            <div>
               <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Ukuran Tersedia</label>
               <input type="text" placeholder="Mis: All Size, S, M, L" className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm" />
             </div>
+            
+            <div className="md:col-span-2 space-y-4">
+              <label className="block text-xs uppercase tracking-widest opacity-60">Warna Tersedia</label>
+              <div className="flex flex-wrap gap-4 items-center">
+                {globalColors.map((color) => {
+                  const isSelected = selectedColorNames.includes(color.name);
+                  return (
+                    <div 
+                      key={color.name}
+                      onClick={() => toggleColor(color.name)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-full border cursor-pointer transition-all ${isSelected ? 'border-ink bg-black/5' : 'border-black/10 hover:border-black/30'}`}
+                    >
+                      <div className="w-4 h-4 rounded-full border border-black/20" style={{ backgroundColor: color.hex }}></div>
+                      <span className="text-xs">{color.name}</span>
+                      {isSelected && <Check size={14} className="text-ink ml-1" />}
+                    </div>
+                  );
+                })}
+                
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddColor(!showAddColor)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-full border border-dashed border-black/30 text-xs hover:border-ink hover:text-ink transition-colors"
+                >
+                  <Plus size={14} /> Tambah Warna
+                </button>
+              </div>
+
+              {showAddColor && (
+                <div className="bg-white/60 p-4 rounded-2xl border border-black/5 flex gap-4 items-end max-w-lg mt-2 slide-down">
+                   <div className="flex-1">
+                     <label className="block text-[10px] uppercase opacity-60 mb-1">Nama Warna</label>
+                     <input type="text" value={newColorName} onChange={e => setNewColorName(e.target.value)} placeholder="Mis: Taro" className="w-full bg-white border border-black/10 rounded-lg py-2 px-3 text-sm" />
+                   </div>
+                   <div>
+                     <label className="block text-[10px] uppercase opacity-60 mb-1">Pilih Warna (Hex)</label>
+                     <div className="flex items-center gap-2">
+                       <input type="color" value={newColorHex} onChange={e => setNewColorHex(e.target.value)} className="w-9 h-9 p-0 border-0 rounded cursor-pointer" />
+                       <span className="text-xs uppercase font-mono bg-white border border-black/10 rounded-lg py-2 px-3">{newColorHex}</span>
+                     </div>
+                   </div>
+                   <button type="button" onClick={handleAddNewColor} className="bg-ink text-white px-4 py-2 rounded-lg text-xs uppercase tracking-widest font-medium hover:bg-black/80 h-[38px]">
+                     Simpan
+                   </button>
+                </div>
+              )}
+            </div>
+
             <div className="md:col-span-2">
                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Deskripsi Produk</label>
                <textarea rows={4} className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 resize-none text-sm"></textarea>
             </div>
+            
+            {/* Opsi Gift Box */}
+            <div className="md:col-span-2 bg-white/40 p-5 rounded-2xl border border-black/5">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={allowGiftBox}
+                  onChange={(e) => setAllowGiftBox(e.target.checked)}
+                  className="w-5 h-5 rounded border-black/20 text-ink focus:ring-ink"
+                />
+                <span className="text-sm font-medium">Bisa dibeli dengan tambahan Gift Box</span>
+              </label>
+              
+              {allowGiftBox && (
+                <div className="mt-4 pl-8 slide-down flex items-center gap-3">
+                  <label className="text-xs uppercase tracking-widest opacity-60">Biaya Tambahan Gift Box per pcs (Rp):</label>
+                  <input 
+                    type="number" 
+                    value={giftBoxPrice || ''} 
+                    onChange={e => setGiftBoxPrice(Number(e.target.value))} 
+                    placeholder="Mis: 15000" 
+                    className="w-40 bg-white border border-black/10 rounded-lg py-2 px-3 text-sm" 
+                  />
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
 
@@ -149,13 +249,19 @@ export default function AdminProductForm() {
                    <span>Total HPP / Modal (Per Pcs)</span>
                    <span className="text-yellow-400">Rp {Math.round(totalCostSatuan).toLocaleString('id-ID')}</span>
                  </div>
+                 {allowGiftBox && giftBoxPrice > 0 && (
+                   <div className="flex justify-between border-t border-white/20 pt-2 text-sm mt-2 text-green-300">
+                     <span>HPP (Termasuk Gift Box)</span>
+                     <span>Rp {Math.round(totalCostSatuan + giftBoxPrice).toLocaleString('id-ID')}</span>
+                   </div>
+                 )}
               </div>
               
               <div className="bg-white/10 p-6 rounded-2xl border border-white/10">
                 <label className="block text-xs uppercase tracking-widest opacity-80 mb-2">Harga Jual Yang Direncanakan (Rp)</label>
                 <input type="number" value={hargaJual || ''} onChange={e => setHargaJual(Number(e.target.value))} className="w-full bg-white/20 border-none rounded-xl py-3 px-4 text-white placeholder-white/40 outline-none focus:ring-2 ring-white/50 text-xl font-medium mb-6" placeholder="0" />
                 
-                <div className="flex justify-between items-end">
+                <div className="flex justify-between items-end mb-4">
                   <div>
                     <p className="text-[10px] uppercase tracking-widest opacity-60 mb-1">Estimasi Profit (Bersih)</p>
                     <p className={`text-3xl font-light ${estimatedProfit > 0 ? 'text-green-400' : estimatedProfit < 0 ? 'text-red-400' : ''}`}>Rp {Math.round(estimatedProfit).toLocaleString('id-ID')}</p>
@@ -165,6 +271,16 @@ export default function AdminProductForm() {
                      <p className={`text-xl font-mono ${parseFloat(profitMargin) > 30 ? 'text-green-400' : 'text-yellow-400'}`}>{profitMargin}%</p>
                   </div>
                 </div>
+
+                {allowGiftBox && giftBoxPrice > 0 && (
+                  <div className="border-t border-white/20 pt-4 mt-2">
+                    <p className="text-[10px] uppercase tracking-widest text-green-300 mb-1">Jika Dibeli + Gift Box (Tambahan {giftBoxPrice.toLocaleString('id-ID')} di Harga Jual)</p>
+                    <div className="flex justify-between items-end">
+                      <p className="text-lg font-light text-green-300">Rp {Math.round(estimatedProfit).toLocaleString('id-ID')} <span className="text-xs opacity-70">(Profit Tetap)</span></p>
+                      <p className="text-sm font-mono text-green-300">Harga Jual: Rp {Math.round(hargaJual + giftBoxPrice).toLocaleString('id-ID')}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

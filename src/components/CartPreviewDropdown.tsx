@@ -90,8 +90,8 @@ export default function CartPreviewDropdown() {
       <div className="absolute top-full right-0 pt-4 w-80 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
         <div className="bg-white/95 backdrop-blur-xl border border-black/5 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
           
-          <div className="px-4 py-3 border-b border-black/5 flex justify-between items-center bg-black/5">
-            <span className="text-xs uppercase tracking-widest font-medium">Keranjang ({cartCount})</span>
+          <div className="px-4 py-3 border-b border-black/5 flex justify-between items-center bg-white">
+            <span className="text-xs font-medium text-ink">Keranjang ({cartCount})</span>
           </div>
 
           {groupedCart.length === 0 ? (
@@ -129,7 +129,10 @@ export default function CartPreviewDropdown() {
                           <h4 className="text-xs font-medium line-clamp-1 pr-2">{product.product_name}</h4>
                           <span className="text-[10px] font-semibold bg-black text-white px-2 py-0.5 rounded-full flex-shrink-0">{product.total_quantity}</span>
                         </div>
-                        <span className="text-[10px] font-semibold mt-1">Rp {(product.price * product.total_quantity).toLocaleString('id-ID')}</span>
+                        <div className="flex flex-col mt-1">
+                          <span className="text-[10px] text-gray-500 font-light mb-0.5">Rp {product.price.toLocaleString('id-ID')} / pcs</span>
+                          <span className="text-[10px] font-semibold">Rp {(product.price * product.total_quantity).toLocaleString('id-ID')}</span>
+                        </div>
                         
                         {/* Variations map */}
                         <div className="mt-2 space-y-1">

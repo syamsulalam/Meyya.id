@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
 import CatalogProductCard from '../components/CatalogProductCard';
+import CategorySlider from '../components/CategorySlider';
 
 export default function Home() {
   const [searchParams] = useSearchParams();
@@ -36,31 +37,9 @@ export default function Home() {
 
   return (
     <div className="w-full">
-      {/* Hero Banner - Only on main page */}
+      {/* Category Slider - Only on main page */}
       {!category && (
-        <div className="px-4 mb-20 max-w-7xl mx-auto">
-          <div className="relative w-full h-auto glass-panel overflow-hidden flex flex-col items-center justify-center text-center px-4 py-24 md:py-32 rounded-[40px]">
-            {/* Soft decorative background elements */}
-            <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-orange-100/30 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-rose-100/30 blur-3xl pointer-events-none" />
-            
-            <div className="relative z-10 max-w-2xl flex flex-col items-center">
-              <span className="text-xs uppercase tracking-[0.2em] mb-6 inline-block opacity-70">
-                Koleksi Musim Semi/Panas (<i>Spring/Summer Collection</i>)
-              </span>
-              <h1 className="text-5xl md:text-7xl font-light mb-6 leading-[1.1] tracking-tight">
-                Keanggunan di <br/>
-                Setiap Naungan (<i>Drape</i>)
-              </h1>
-              <p className="text-lg opacity-70 mb-10 font-light max-w-md mx-auto leading-relaxed">
-                Rasakan mode sopan (<i>modest fashion</i>) yang didefinisikan ulang. Menggunakan material premium, buatan tangan yang cermat (<i>meticulous craftsmanship</i>), dan estetika abadi (<i>timeless aesthetic</i>) untuk muslimah modern.
-              </p>
-              <a href="#katalog" className="glass-button">
-                Jelajahi Koleksi
-              </a>
-            </div>
-          </div>
-        </div>
+        <CategorySlider />
       )}
 
       {/* Catalog */}

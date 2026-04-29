@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Tag } from 'lucide-react';
+import { Plus, Trash2, Tag, Upload } from 'lucide-react';
 
 export default function AdminCategoryManager() {
   const [categories, setCategories] = useState([
-    { id: 1, name: 'Pashmina', slug: 'pashmina', count: 45 },
-    { id: 2, name: 'Abaya', slug: 'abaya', count: 12 },
-    { id: 3, name: 'Khimar', slug: 'khimar', count: 30 },
-    { id: 4, name: 'Inner', slug: 'inner', count: 10 },
-    { id: 5, name: 'Aksesoris', slug: 'aksesoris', count: 8 },
+    { id: 1, name: 'Pashmina', slug: 'pashmina', count: 45, imagePreview: 'https://images.unsplash.com/photo-1589465885857-44edb59bbcdb?auto=format&fit=crop&q=80&w=800' },
+    { id: 2, name: 'Abaya', slug: 'abaya', count: 12, imagePreview: 'https://images.unsplash.com/photo-1627914225226-8051db55c117?auto=format&fit=crop&q=80&w=800' },
+    { id: 3, name: 'Khimar', slug: 'khimar', count: 30, imagePreview: 'https://images.unsplash.com/photo-1610427921319-5eb874d8b6da?auto=format&fit=crop&q=80&w=800' },
+    { id: 4, name: 'Inner', slug: 'inner', count: 10, imagePreview: 'https://images.unsplash.com/photo-1632734346904-7c30a213fd0d?auto=format&fit=crop&q=80&w=800' },
+    { id: 5, name: 'Aksesoris', slug: 'aksesoris', count: 8, imagePreview: 'https://plus.unsplash.com/premium_photo-1675107359570-87efced5d045?auto=format&fit=crop&q=80&w=800' },
   ]);
   const [newCat, setNewCat] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,9 +27,11 @@ export default function AdminCategoryManager() {
       id: Date.now(), 
       name: newCat, 
       slug: newCat.toLowerCase().replace(/\s+/g, '-'),
-      count: 0 
+      count: 0,
+      imagePreview: previewUrl || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&auto=format&fit=crop&q=60' // default placeholder
     }]);
     setNewCat('');
+    setPreviewUrl(null);
   };
 
   const handleDelete = (id: number) => {
@@ -55,6 +66,25 @@ export default function AdminCategoryManager() {
         <div className="glass-panel p-8 rounded-3xl h-fit bg-white/40">
            <h3 className="text-sm uppercase tracking-widest font-semibold mb-6 flex items-center gap-2"><Plus size={16}/> Tambah Kategori Baru</h3>
            <form onSubmit={handleAdd} className="space-y-4">
+             <div>
+               <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Foto Kategori (Opsional)</label>
+               <div className="flex items-center gap-4">
+                 <div className="w-16 h-16 rounded-xl border border-black/10 overflow-hidden bg-black/5 flex items-center justify-center flex-shrink-0">
+                   {previewUrl ? (
+                     <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                   ) : (
+                     <Upload size={20} className="opacity-20" />
+                   )}
+                 </div>
+                 <div className="flex-1">
+                   <label className="cursor-pointer border border-black/10 hover:border-black/30 bg-white/50 px-4 py-2 rounded-xl text-xs font-medium transition-colors inline-block text-ink">
+                     <span className="hidden md:inline">Pilih Foto .jpg/.png</span>
+                     <span className="md:hidden">Pilih Foto</span>
+                     <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                   </label>
+                 </div>
+               </div>
+             </div>
              <div>
                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Nama Kategori</label>
                <input 

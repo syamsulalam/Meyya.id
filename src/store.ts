@@ -11,10 +11,17 @@ type CartItem = {
   image_url: string;
 };
 
+export interface ColorDefinition {
+  name: string;
+  hex: string;
+}
+
 interface AppState {
   cart: CartItem[];
   wishlist: number[];
   user: { id: string; role: 'customer' | 'admin'; name?: string; email?: string } | null;
+  globalColors: ColorDefinition[];
+  addGlobalColor: (color: ColorDefinition) => void;
   addToCart: (item: CartItem) => void;
   decreaseQuantity: (index: number) => void;
   removeFromCart: (index: number) => void;
@@ -30,6 +37,17 @@ export const useStore = create<AppState>()(
       cart: [],
       wishlist: [],
       user: null,
+      globalColors: [
+        { name: 'Hitam', hex: '#000000' },
+        { name: 'Nude', hex: '#E3C2B0' },
+        { name: 'Sage', hex: '#8A9A86' },
+        { name: 'Putih', hex: '#FFFFFF' },
+        { name: 'Navy', hex: '#000080' },
+      ],
+      addGlobalColor: (color) =>
+        set((state) => ({
+          globalColors: [...state.globalColors, color]
+        })),
       addToCart: (item) =>
         set((state) => {
           const existingIndex = state.cart.findIndex(

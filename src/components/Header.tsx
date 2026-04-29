@@ -80,7 +80,7 @@ export default function Header() {
             <Show when="signed-in">
                {/* Custom Profile Indicator & Dropdown on Hover */}
                <div className="relative group">
-                 <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group/tooltip">
+                 <Link to={localUser?.role === 'admin' || clerkUser?.publicMetadata?.role === 'admin' ? "/admin" : "/profil"} className="p-2 hover:bg-black/5 rounded-full transition-colors relative flex flex-col items-center group/tooltip">
                     <User size={20} strokeWidth={1.5} />
                     <span className="absolute top-0 right-0 bg-black text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white uppercase">
                       {clerkUser?.firstName?.charAt(0) || clerkUser?.emailAddresses[0]?.emailAddress?.charAt(0) || '@'}
@@ -101,11 +101,11 @@ export default function Header() {
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        <Link to={localUser?.role === 'admin' ? "/admin" : "/profil?tab=akun"} className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors text-xs font-medium">
+                        <Link to={localUser?.role === 'admin' || clerkUser?.publicMetadata?.role === 'admin' ? "/admin" : "/profil?tab=akun"} className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors text-xs font-medium">
                           <User size={16} strokeWidth={1.5} />
-                          {localUser?.role === 'admin' ? "Admin Dashboard" : "Akun Saya"}
+                          {localUser?.role === 'admin' || clerkUser?.publicMetadata?.role === 'admin' ? "Admin Dashboard" : "Akun Saya"}
                         </Link>
-                        {localUser?.role !== 'admin' && (
+                        {localUser?.role !== 'admin' && clerkUser?.publicMetadata?.role !== 'admin' && (
                           <>
                             <Link to="/profil?tab=status" className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors text-xs font-medium">
                               <Package size={16} strokeWidth={1.5} />
@@ -190,7 +190,7 @@ export default function Header() {
 
                 <div className="h-px bg-black/10 my-1 mx-2"></div>
 
-                <Link to={localUser?.role === 'admin' ? "/admin" : "/profil"} className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors">
+                <Link to={localUser?.role === 'admin' || clerkUser?.publicMetadata?.role === 'admin' ? "/admin" : "/profil"} className="flex items-center gap-3 p-3 hover:bg-black/5 rounded-xl transition-colors">
                   <User size={18} strokeWidth={1.5} />
                   <span className="text-xs uppercase tracking-widest font-medium">Akun Saya</span>
                 </Link>

@@ -7,20 +7,30 @@ import AdminProductForm from '../components/admin/AdminProductForm';
 import AdminCategoryManager from '../components/admin/AdminCategoryManager';
 import AdminCRMManager from '../components/admin/AdminCRMManager';
 import Tooltip from '../components/Tooltip';
+import { useUser } from '@clerk/react';
 
 export default function AdminDashboard() {
-  const { user } = useStore();
+  const { user: localUser } = useStore();
+  const { user: clerkUser, isLoaded } = useUser();
   const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'dashboard' | 'produk' | 'kategori' | 'crm'>('crm');
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
-      navigate('/');
+    if (isLoaded) {
+      const isLocalAdmin = localUser?.role === 'admin';
+      const isClerkAdmin = clerkUser?.publicMetadata?.role === 'admin';
+      if (!isLocalAdmin && !isClerkAdmin) {
+        navigate('/');
+      }
     }
-  }, [user, navigate]);
+  }, [localUser, clerkUser, isLoaded, navigate]);
 
-  if (!user || user.role !== 'admin') return null;
+  if (!isLoaded) return null;
+  const isLocalAdmin = localUser?.role === 'admin';
+  const isClerkAdmin = clerkUser?.publicMetadata?.role === 'admin';
+  
+  if (!isLocalAdmin && !isClerkAdmin) return null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 md:py-20 w-full flex-1">
