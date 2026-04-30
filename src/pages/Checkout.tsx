@@ -46,7 +46,7 @@ export default function Checkout() {
   const [orderComplete, setOrderComplete] = useState<any>(null);
 
   const { data: recommendationsData } = useSWR('/api/products?limit=3', fetcher);
-  const recommendedProducts = recommendationsData?.products || [];
+  const recommendedProducts = Array.isArray(recommendationsData) ? recommendationsData : (recommendationsData?.products || []);
 
   // Derive cart specs
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);

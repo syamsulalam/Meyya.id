@@ -18,11 +18,16 @@ export default function Home() {
     fetch('/api/products')
       .then(res => res.json())
       .then(data => {
+        const arr = Array.isArray(data) ? data : [];
         if (category) {
-          setProducts(data.filter((p: any) => p.category_name.toLowerCase() === category.toLowerCase()));
+          setProducts(arr.filter((p: any) => p.category_name?.toLowerCase() === category.toLowerCase()));
         } else {
-          setProducts(data);
+          setProducts(arr);
         }
+        setLoading(false);
+      })
+      .catch(() => {
+        setProducts([]);
         setLoading(false);
       });
   }, [category]);

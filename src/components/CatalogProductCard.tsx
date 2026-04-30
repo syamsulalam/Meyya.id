@@ -138,7 +138,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
               <div className="flex flex-col gap-3">
                 <span className="text-xs uppercase tracking-widest font-semibold text-center mb-2">Pilih Warna</span>
                 <div className="flex flex-wrap justify-center gap-3">
-                  {product.colors?.map((c: any) => (
+                  {(Array.isArray(product.colors) ? product.colors : []).map((c: any) => (
                     <button
                       key={c.hex_code}
                       onClick={() => setSelectedColor(c)}
@@ -168,7 +168,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
               <div className="flex flex-col gap-3">
                 <span className="text-xs uppercase tracking-widest font-semibold text-center mb-2">Pilih Ukuran</span>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {product.sizes?.map((s: any) => (
+                  {(Array.isArray(product.sizes) ? product.sizes : []).map((s: any) => (
                     <button
                       key={s.size_name}
                       onClick={() => setSelectedSize(s.size_name)}
@@ -197,7 +197,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
         ) : (
           <>
             {/* Color preview circles (Hidden on group-hover) */}
-            {product.colors?.length > 0 && (
+            {Array.isArray(product.colors) && product.colors.length > 0 && (
               <div className="absolute bottom-4 left-0 right-0 px-4 z-20 flex justify-center gap-1.5 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
                 {product.colors.slice(0, 5).map((c: any, index: number) => (
                   <div 

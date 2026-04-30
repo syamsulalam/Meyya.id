@@ -103,7 +103,7 @@ export default function ProductDetail() {
             Warna: {selectedColor?.color_name}
           </p>
           <div className="flex gap-3">
-            {product.colors?.map((c: any) => (
+            {(Array.isArray(product.colors) ? product.colors : []).map((c: any) => (
               <button
                 key={c.hex_code}
                 onClick={() => setSelectedColor(c)}
@@ -122,11 +122,11 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {product.sizes?.length > 0 && (
+        {Array.isArray(product.sizes) && product.sizes.length > 0 && (
           <div className="mb-8">
             <p className="text-sm text-gray-600 mb-4 font-medium uppercase tracking-wider">Ukuran</p>
             <div className="flex gap-3">
-              {product.sizes.map((s: any) => (
+              {(Array.isArray(product.sizes) ? product.sizes : []).map((s: any) => (
                 <button
                   key={s.size_name}
                   onClick={() => setSelectedSize(s.size_name)}
