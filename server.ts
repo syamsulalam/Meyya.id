@@ -4,9 +4,14 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
+import multer from 'multer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Configure multer for local file uploads
+const upload = multer({ dest: path.join(__dirname, 'public/uploads') });
+
 
 async function startServer() {
   const app = express();
@@ -23,9 +28,28 @@ async function startServer() {
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
     db.exec(schemaSql);
   }
-
+  
+  // Cleanup dummy images
+  db.exec(`
+    UPDATE products SET image_url = NULL WHERE image_url LIKE '%unsplash%';
+    UPDATE categories SET image_url = NULL WHERE image_url LIKE '%unsplash%';
+  `);
 
   // API Routes
+  app.post('/api/upload', upload.single('file'), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+      
+      // To emulate R2, return the local server relative URL to access the public dir
+      const fileUrl = `/uploads/${req.file.filename}`;
+      res.json({ url: fileUrl });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get('/api/products', (req, res) => {
     try {
       const products = db.prepare('SELECT p.*, c.name as category_name FROM products p JOIN categories c ON p.category_id = c.id WHERE is_active = 1').all() as any[];
@@ -370,7 +394,9 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(__dirname, 'dist');
+    const publicPath = path.join(__dirname, 'public');
     app.use(express.static(distPath));
+    app.use(express.static(publicPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });

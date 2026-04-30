@@ -58,15 +58,21 @@ export default function ProductDetail() {
         <div className="aspect-[3/4] rounded-[2rem] glass-panel overflow-hidden relative p-4 group">
           {/* Inner image container */}
           <div className="w-full h-full relative rounded-xl overflow-hidden bg-transparent">
-            <img 
-              src={product.image_url} 
-              alt={product.name} 
-              className="w-full h-full object-cover relative z-10 transition-transform duration-700 ease-out group-hover:scale-105"
-              referrerPolicy="no-referrer"
-              style={{
-                mixBlendMode: 'multiply'
-              }}
-            />
+            {product.image_url ? (
+              <img 
+                src={product.image_url} 
+                alt={product.name} 
+                className="w-full h-full object-cover relative z-10 transition-transform duration-700 ease-out group-hover:scale-105"
+                referrerPolicy="no-referrer"
+                style={{
+                  mixBlendMode: 'multiply'
+                }}
+              />
+            ) : (
+              <div className="w-full h-full relative z-10 flex flex-col items-center justify-center bg-black/5 text-black/20 group-hover:scale-105 transition-transform duration-700 ease-out">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+              </div>
+            )}
             {/* The color layer sitting behind/mixing with the image */}
             <div 
               className="absolute inset-0 z-0 transition-colors duration-500 ease-out"

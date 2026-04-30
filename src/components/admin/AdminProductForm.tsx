@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, Settings, Plus, Check, Edit2, Package } from 'lucide-react';
 import { useStore } from '../../store';
 import useSWR from 'swr';
@@ -32,6 +32,32 @@ export default function AdminProductForm() {
   const [biayaLumpsum, setBiayaLumpsum] = useState(0);
   
   const [hargaJual, setHargaJual] = useState(0);
+  
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const localUrl = URL.createObjectURL(file);
+      setImageUrl(localUrl); // immediate preview
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.url) {
+          setImageUrl(data.url);
+        }
+      } catch (err) {
+        console.error('Upload failed', err);
+        alert('Gagal upload gambar');
+      }
+    }
+  };
   
   // Custom Color State
   const [selectedColorNames, setSelectedColorNames] = useState<string[]>([]);
@@ -68,6 +94,7 @@ export default function AdminProductForm() {
     setStock(p.stock || 0);
     setWeight(p.weight || 250);
     setHargaJual(p.base_price || 0);
+    setImageUrl(p.image_url || null);
     
     // reset breakdown
     setHargaKainRoll(0);
@@ -115,6 +142,7 @@ export default function AdminProductForm() {
     setWeight(250);
     setBiayaLumpsum(0);
     setSelectedColorNames([]);
+    setImageUrl(null);
   };
 
   const handleSubmit = async () => {
@@ -128,7 +156,7 @@ export default function AdminProductForm() {
         weight,
         base_price: hargaJual,
         production_cost: totalCostSatuan,
-        image_url: 'https://images.unsplash.com/photo-1584273143981-41c073dfe8f8?auto=format&fit=crop&q=80&w=600', // placeholder
+        image_url: imageUrl || '', 
         is_active: 1,
         colors: selectedColorNames.map(name => {
           const c = globalColors.find(gc => gc.name === name);
@@ -210,11 +238,25 @@ export default function AdminProductForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Foto Produk</label>
-               <div className="border-2 border-dashed border-black/20 rounded-3xl p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/50 transition-colors">
-                  <Upload className="opacity-30 mb-4" size={32} />
-                  <p className="text-sm font-medium">Klik untuk upload foto</p>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB</p>
-               </div>
+               
+               {imageUrl ? (
+                 <div className="relative border border-black/10 rounded-3xl overflow-hidden mb-4 group aspect-video md:aspect-[21/9]">
+                   <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                     <label className="bg-white text-ink px-4 py-2 rounded-xl text-sm font-medium cursor-pointer shadow-lg hover:bg-black/5">
+                        Ganti Foto
+                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                     </label>
+                   </div>
+                 </div>
+               ) : (
+                 <label className="border-2 border-dashed border-black/20 rounded-3xl p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/50 transition-colors">
+                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                    <Upload className="opacity-30 mb-4" size={32} />
+                    <p className="text-sm font-medium">Klik untuk upload foto</p>
+                    <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB</p>
+                 </label>
+               )}
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Nama Produk</label>
