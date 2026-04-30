@@ -53,11 +53,11 @@ Untuk menjadi platform *e-commerce* tingkat lanjut, Meyya.id membutuhkan beberap
 *Fokus: Menerima uang riil dan melihat transaksi secara jelas.*
 
 - [x] Selesaikan semua antarmuka UI/UX.
-- [ ] Terapkan schema D1 Cloudflare sepenuhnya ke Cloudflare Pages Functions.
-- [ ] Buat Integrasi API.co.id (API Ongkir) ke backend Functions.
-- [ ] Integrasi Webhook Clerk ke D1 untuk membuat `user` secara otomatis.
-- [ ] Simpan Order ke Database (dengan status `PENDING`).
-- [ ] Admin panel membaca data dari Database riil.
+- [x] Terapkan schema D1 Cloudflare sepenuhnya ke Cloudflare Pages Functions.
+- [x] Buat Integrasi API.co.id (API Ongkir) ke backend Functions.
+- [x] Integrasi Webhook Clerk ke D1 untuk membuat `user` secara otomatis.
+- [x] Simpan Order ke Database (dengan status `PENDING`).
+- [x] Admin panel membaca data dari Database riil (Kategori, Produk, Orders).
 - **Goal:** Anda bisa memproses penjualan dengan metode `TRANSFER BANK` secara manual (admin ubah status ke `PAID`).
 
 ### Fase 2: Otomatisasi & Pemasaran

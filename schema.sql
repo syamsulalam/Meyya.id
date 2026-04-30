@@ -8,6 +8,7 @@ DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS user_addresses;
 DROP TABLE IF EXISTS shipping_settings;
 DROP TABLE IF EXISTS vouchers;
+DROP TABLE IF EXISTS voucher_usages;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS order_items;
 DROP TABLE IF EXISTS wishlists;
@@ -15,7 +16,8 @@ DROP TABLE IF EXISTS wishlists;
 CREATE TABLE categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   slug TEXT UNIQUE,
-  name TEXT
+  name TEXT,
+  image_url TEXT
 );
 
 CREATE TABLE products (
@@ -28,6 +30,8 @@ CREATE TABLE products (
   base_price INTEGER,
   production_cost INTEGER,
   weight INTEGER DEFAULT 250, -- Berat satuan (Fix for expedition API) dalam gram
+  stock INTEGER DEFAULT 0,
+  last_stock_update DATETIME,
   is_active INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -46,16 +50,21 @@ CREATE TABLE product_sizes (
 );
 
 CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  email TEXT,
+  clerk_id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  first_name TEXT,
+  last_name TEXT,
   phone_wa TEXT,
   role TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  last_login_at DATETIME,
+  joined_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE user_addresses (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id TEXT PRIMARY KEY,
   user_id TEXT,
+  label TEXT,
+  icon TEXT,
   recipient_name TEXT,
   recipient_phone TEXT,
   province_code TEXT,
@@ -64,11 +73,10 @@ CREATE TABLE user_addresses (
   regency_name TEXT,
   district_code TEXT,
   district_name TEXT,
-  village_code TEXT, -- Important for API.CO.ID (10 Digits)
+  village_code TEXT,
   village_name TEXT,
-  postal_code TEXT,
   street_address TEXT,
-  is_default INTEGER
+  is_default INTEGER DEFAULT 0
 );
 
 CREATE TABLE shipping_settings (
@@ -79,31 +87,41 @@ CREATE TABLE shipping_settings (
 );
 
 CREATE TABLE vouchers (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  code TEXT UNIQUE,
+  code TEXT PRIMARY KEY,
   discount_type TEXT,
-  discount_value INTEGER,
-  min_purchase INTEGER,
+  discount_value numeric,
+  min_purchase numeric DEFAULT 0,
+  max_discount numeric,
   valid_from DATETIME,
   valid_until DATETIME,
   usage_limit INTEGER,
-  used_count INTEGER DEFAULT 0
+  used_count INTEGER DEFAULT 0,
+  target_user_role TEXT DEFAULT 'all'
+);
+
+CREATE TABLE voucher_usages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  voucher_code TEXT,
+  clerk_id TEXT,
+  order_id TEXT,
+  used_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE orders (
   id TEXT PRIMARY KEY,
-  user_id TEXT,
-  address_snapshot TEXT, -- Disimpan copy dari data user_addresses
-  subtotal INTEGER,
-  shipping_cost INTEGER,
-  shipping_discount INTEGER,
-  product_discount INTEGER,
-  voucher_id INTEGER,
-  unique_code INTEGER,
-  total_paid INTEGER,
-  total_profit INTEGER,
+  clerk_id TEXT,
+  address_snapshot TEXT,
   status TEXT,
-  receipt_number TEXT,
+  payment_method TEXT,
+  subtotal numeric,
+  shipping_cost numeric,
+  admin_fee numeric DEFAULT 0,
+  order_bump numeric DEFAULT 0,
+  unique_code numeric DEFAULT 0,
+  discount_amount numeric DEFAULT 0,
+  total_paid numeric,
+  voucher_code TEXT,
+  note TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

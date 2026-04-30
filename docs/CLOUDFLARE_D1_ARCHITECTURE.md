@@ -7,9 +7,11 @@ Dokumen ini merangkum rancangan arsitektur Cloudflare D1 untuk aplikasi MEYYA.ID
 Untuk mengakomodasi fitur ekspedisi, berat produk, dan integrasi keranjang, kita perlu menambahkan beberapa kolom dan tabel baru pada skema database yang sudah ada.
 
 ### Tabel `products` (Update)
-Perlu penambahan kolom `weight` (berat satuan dalam gram atau kilogram).
+Perlu penambahan kolom `weight` (berat satuan dalam gram atau kilogram), serta informasi stok yang bisa dikedit oleh admin.
 ```sql
 ALTER TABLE products ADD COLUMN weight INTEGER DEFAULT 250; -- Default 250 gram
+ALTER TABLE products ADD COLUMN stock INTEGER DEFAULT 0;
+ALTER TABLE products ADD COLUMN last_stock_update DATETIME;
 ```
 
 ### Tabel `categories` (Update)

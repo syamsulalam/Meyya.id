@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Tag, Upload, Edit, X, Check } from 'lucide-react';
+import useSWR, { mutate } from 'swr';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function AdminCategoryManager() {
-  const [categories, setCategories] = useState([
-    { id: 1, name: 'Pashmina', slug: 'pashmina', count: 45, imagePreview: 'https://images.unsplash.com/photo-1589465885857-44edb59bbcdb?auto=format&fit=crop&q=80&w=800' },
-    { id: 2, name: 'Abaya', slug: 'abaya', count: 12, imagePreview: 'https://images.unsplash.com/photo-1627914225226-8051db55c117?auto=format&fit=crop&q=80&w=800' },
-    { id: 3, name: 'Khimar', slug: 'khimar', count: 30, imagePreview: 'https://images.unsplash.com/photo-1610427921319-5eb874d8b6da?auto=format&fit=crop&q=80&w=800' },
-    { id: 4, name: 'Inner', slug: 'inner', count: 10, imagePreview: 'https://images.unsplash.com/photo-1632734346904-7c30a213fd0d?auto=format&fit=crop&q=80&w=800' },
-    { id: 5, name: 'Aksesoris', slug: 'aksesoris', count: 8, imagePreview: 'https://plus.unsplash.com/premium_photo-1675107359570-87efced5d045?auto=format&fit=crop&q=80&w=800' },
-  ]);
+  const { data: categories, error } = useSWR('/api/categories', fetcher);
+  
   const [newCat, setNewCat] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
@@ -19,6 +17,7 @@ export default function AdminCategoryManager() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Dummy visual update, in reality you upload to storage
       const url = URL.createObjectURL(file);
       if (isEdit) {
         setEditPreviewUrl(url);
@@ -28,43 +27,65 @@ export default function AdminCategoryManager() {
     }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCat.trim()) return;
-    setCategories([...categories, { 
-      id: Date.now(), 
-      name: newCat, 
-      slug: newCat.toLowerCase().replace(/\s+/g, '-'),
-      count: 0,
-      imagePreview: previewUrl || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&auto=format&fit=crop&q=60' // default placeholder
-    }]);
-    setNewCat('');
-    setPreviewUrl(null);
+    
+    try {
+      await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCat,
+          slug: newCat.toLowerCase().replace(/\s+/g, '-'),
+          image_url: previewUrl || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&auto=format&fit=crop&q=60'
+        })
+      });
+      mutate('/api/categories');
+      setNewCat('');
+      setPreviewUrl(null);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleDelete = (id: number) => {
-    setCategories(categories.filter(c => c.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      if (!confirm('Hapus kategori ini?')) return;
+      await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+      mutate('/api/categories');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const startEdit = (cat: any) => {
     setEditingId(cat.id);
     setEditName(cat.name);
-    setEditPreviewUrl(cat.imagePreview);
+    setEditPreviewUrl(cat.image_url);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
   };
 
-  const saveEdit = (id: number) => {
+  const saveEdit = async (cat: any) => {
     if (!editName.trim()) return;
-    setCategories(categories.map(c => c.id === id ? {
-      ...c,
-      name: editName,
-      slug: editName.toLowerCase().replace(/\s+/g, '-'),
-      imagePreview: editPreviewUrl || c.imagePreview
-    } : c));
-    setEditingId(null);
+    try {
+      await fetch(`/api/categories/${cat.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          slug: editName.toLowerCase().replace(/\s+/g, '-'),
+          image_url: editPreviewUrl || cat.image_url
+        })
+      });
+      mutate('/api/categories');
+      setEditingId(null);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -74,7 +95,7 @@ export default function AdminCategoryManager() {
         <div className="glass-panel p-8 rounded-3xl bg-white/40">
           <h3 className="text-sm uppercase tracking-widest font-semibold mb-6 flex items-center gap-2"><Tag size={16}/> Daftar Kategori</h3>
           <ul className="space-y-3">
-            {categories.map(cat => (
+            {categories?.map((cat: any) => (
               <li key={cat.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white/50 p-4 rounded-2xl border border-black/5 gap-4">
                 {editingId === cat.id ? (
                   <div className="flex-1 w-full space-y-3">
@@ -99,15 +120,15 @@ export default function AdminCategoryManager() {
                      />
                      <div className="flex gap-2 justify-end w-full">
                         <button onClick={cancelEdit} className="text-gray-500 hover:bg-black/5 p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"><X size={14} /> Batal</button>
-                        <button onClick={() => saveEdit(cat.id)} className="bg-ink text-white p-2 px-3 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"><Check size={14} /> Simpan</button>
+                        <button onClick={() => saveEdit(cat)} className="bg-ink text-white p-2 px-3 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"><Check size={14} /> Simpan</button>
                      </div>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center gap-4">
-                      {cat.imagePreview && (
+                      {cat.image_url && (
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/5 flex-shrink-0">
-                          <img src={cat.imagePreview} alt={cat.name} className="w-full h-full object-cover" />
+                          <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover" />
                         </div>
                       )}
                       <div>
@@ -128,7 +149,7 @@ export default function AdminCategoryManager() {
                 )}
               </li>
             ))}
-            {categories.length === 0 && <p className="text-center text-sm text-gray-500 py-4">Belum ada kategori</p>}
+            {(!categories || categories.length === 0) && <p className="text-center text-sm text-gray-500 py-4">Belum ada kategori</p>}
           </ul>
         </div>
         
