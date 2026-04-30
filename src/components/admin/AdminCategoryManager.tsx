@@ -2,7 +2,15 @@ import React, { useState } from 'react';
 import { Plus, Trash2, Tag, Upload, Edit, X, Check } from 'lucide-react';
 import useSWR, { mutate } from 'swr';
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+const fetcher = async (url: string) => {
+  const r = await fetch(url);
+  if (!r.ok) {
+    let err;
+    try { err = await r.json(); } catch { err = { error: 'Terjadi kesalahan' }; }
+    throw new Error(err.error || 'Terjadi kesalahan');
+  }
+  return r.json();
+};
 
 export default function AdminCategoryManager() {
   const { data: categories, error } = useSWR('/api/categories', fetcher);
@@ -95,7 +103,7 @@ export default function AdminCategoryManager() {
         <div className="glass-panel p-8 rounded-3xl bg-white/40">
           <h3 className="text-sm uppercase tracking-widest font-semibold mb-6 flex items-center gap-2"><Tag size={16}/> Daftar Kategori</h3>
           <ul className="space-y-3">
-            {categories?.map((cat: any) => (
+            {(Array.isArray(categories) ? categories : [])?.map((cat: any) => (
               <li key={cat.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white/50 p-4 rounded-2xl border border-black/5 gap-4">
                 {editingId === cat.id ? (
                   <div className="flex-1 w-full space-y-3">

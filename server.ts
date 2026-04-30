@@ -52,7 +52,7 @@ async function startServer() {
 
   app.get('/api/products', (req, res) => {
     try {
-      const products = db.prepare('SELECT p.*, c.name as category_name FROM products p JOIN categories c ON p.category_id = c.id WHERE is_active = 1').all() as any[];
+      const products = db.prepare('SELECT p.*, c.name as category_name FROM products p JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1').all() as any[];
       
       for (const p of products) {
         p.colors = db.prepare('SELECT color_name, hex_code FROM product_colors WHERE product_id = ?').all(p.id);

@@ -4,7 +4,19 @@ import { useStore } from '../../store';
 import useSWR from 'swr';
 import { mutate } from 'swr';
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+const fetcher = async (url: string) => {
+  const r = await fetch(url);
+  if (!r.ok) {
+    let err;
+    try {
+      err = await r.json();
+    } catch {
+      err = { error: 'Terjadi kesalahan pada server' };
+    }
+    throw new Error(err.error || 'Terjadi kesalahan pada server');
+  }
+  return r.json();
+};
 
 export default function AdminProductForm() {
   const { globalColors, addGlobalColor } = useStore();
@@ -202,7 +214,7 @@ export default function AdminProductForm() {
             </tr>
           </thead>
           <tbody>
-            {products?.map((p: any) => (
+            {(Array.isArray(products) ? products : [])?.map((p: any) => (
               <tr key={p.id} className="border-b border-black/5 last:border-0">
                 <td className="py-4 font-medium">{p.name}</td>
                 <td className="py-4">{p.category_name}</td>

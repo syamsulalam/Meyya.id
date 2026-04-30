@@ -7,7 +7,7 @@ export async function onRequestGet(context: any) {
       SELECT p.*, c.name as category_name 
       FROM products p 
       JOIN categories c ON p.category_id = c.id 
-      WHERE is_active = 1
+      WHERE p.is_active = 1
     `).all();
 
     // Loop satu per satu untuk narik data arrays (Colors and Sizes)

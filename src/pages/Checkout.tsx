@@ -4,7 +4,15 @@ import useSWR from 'swr';
 import { useStore } from '../store';
 import { Loader2 } from 'lucide-react';
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+const fetcher = async (url: string) => {
+  const r = await fetch(url);
+  if (!r.ok) {
+    let err;
+    try { err = await r.json(); } catch { err = { error: 'Error' }; }
+    throw new Error(err.error || 'Error');
+  }
+  return r.json();
+};
 
 export default function Checkout() {
   const { cart, user, clearCart, addToCart, savedAddresses } = useStore();
