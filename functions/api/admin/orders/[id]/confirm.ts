@@ -3,7 +3,7 @@ export async function onRequestPost(context: any) {
   const id = params.id;
 
   try {
-    await env.MEYYA_DB.prepare("UPDATE orders SET status = 'PAID' WHERE id = ?").bind(id).run();
+    await env.MEYYA_DB.prepare("UPDATE orders SET status = 'processing' WHERE id = ?").bind(id).run();
 
     return new Response(JSON.stringify({ success: true, message: 'Order marked as paid' }), {
       headers: { 'Content-Type': 'application/json' },
