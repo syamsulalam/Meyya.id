@@ -20,7 +20,7 @@ const fetcher = async (url: string) => {
 
 export default function AdminProductForm() {
   const { globalColors, addGlobalColor } = useStore();
-  const { data: products, error } = useSWR('/api/products', fetcher);
+  const { data: products, error, isLoading } = useSWR('/api/products', fetcher);
   
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -206,6 +206,11 @@ export default function AdminProductForm() {
       
       {/* Product List */}
       <div className="bg-white/40 border border-black/5 rounded-2xl p-4 mb-12 overflow-x-auto">
+        <div className="mb-4">
+           {isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database (D1)...</span>}
+           {error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database: {error.message}</span>}
+           {products && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({products.length} produk ditemukan)</span>}
+        </div>
         <table className="w-full text-sm text-left">
           <thead>
             <tr className="border-b border-black/10 text-xs uppercase tracking-widest opacity-60">

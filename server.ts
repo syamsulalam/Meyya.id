@@ -35,12 +35,6 @@ async function startServer() {
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
     db.exec(schemaSql);
   }
-  
-  // Cleanup dummy images
-  db.exec(`
-    UPDATE products SET image_url = NULL WHERE image_url LIKE '%unsplash%';
-    UPDATE categories SET image_url = NULL WHERE image_url LIKE '%unsplash%';
-  `);
 
   // API Routes
   app.post('/api/upload', upload.single('file'), (req, res) => {

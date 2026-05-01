@@ -16,7 +16,10 @@ export default function Home() {
 
   useEffect(() => {
     fetch('/api/products')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('API return error');
+        return res.json();
+      })
       .then(data => {
         const arr = Array.isArray(data) ? data : [];
         if (category) {
@@ -26,7 +29,8 @@ export default function Home() {
         }
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Failed to load products:', err);
         setProducts([]);
         setLoading(false);
       });
