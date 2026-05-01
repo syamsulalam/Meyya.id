@@ -199,7 +199,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
             {/* Color preview circles (Hidden on group-hover) */}
             {Array.isArray(product.colors) && product.colors.length > 0 && (
               <div className="absolute bottom-4 left-0 right-0 px-4 z-20 flex justify-center gap-1.5 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
-                {product.colors.slice(0, 5).map((c: any, index: number) => (
+                {(Array.isArray(product.colors) ? product.colors : []).slice(0, 5).map((c: any, index: number) => (
                   <div 
                     key={index}
                     className="w-4 h-4 rounded-full border border-black/10 shadow-sm"

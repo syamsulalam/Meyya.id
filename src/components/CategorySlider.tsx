@@ -1,6 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 
 const categories = [
   { id: 'pashmina', name: 'Pashmina', image: 'https://images.unsplash.com/photo-1589465885857-44edb59bbcdb?auto=format&fit=crop&q=80&w=800' },
@@ -9,6 +9,36 @@ const categories = [
   { id: 'inner', name: 'Inner', image: 'https://images.unsplash.com/photo-1632734346904-7c30a213fd0d?auto=format&fit=crop&q=80&w=800' },
   { id: 'aksesoris', name: 'Aksesoris', image: 'https://plus.unsplash.com/premium_photo-1675107359570-87efced5d045?auto=format&fit=crop&q=80&w=800' },
 ];
+
+function CategoryCard({ category }: { category: any }) {
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <Link 
+      key={category.id} 
+      to={`/?kategori=${category.id}#katalog`}
+      className="flex-shrink-0 w-[240px] md:w-[320px] aspect-[4/5] snap-start relative rounded-3xl overflow-hidden group/card shadow-sm hover:shadow-xl transition-all duration-500 bg-gray-100 flex items-center justify-center"
+    >
+      <div className="absolute inset-0 bg-black/20 group-hover/card:bg-black/10 transition-colors z-10" />
+      {(!category.image || hasError) ? (
+         <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
+           <ImageOff size={48} className="opacity-50" />
+         </div>
+      ) : (
+        <img 
+          src={category.image} 
+          alt={category.name} 
+          onError={() => setHasError(true)}
+          className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-700 ease-out"
+        />
+      )}
+      <div className="absolute inset-x-0 bottom-0 p-6 z-20 flex flex-col justify-end">
+        <h3 className="text-2xl font-light text-white mb-2 translate-y-2 group-hover/card:translate-y-0 transition-transform duration-500">{category.name}</h3>
+        <div className="h-0.5 w-8 bg-white opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 delay-100"></div>
+      </div>
+    </Link>
+  )
+}
 
 export default function CategorySlider() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -43,22 +73,7 @@ export default function CategorySlider() {
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {categories.map((category) => (
-          <Link 
-            key={category.id} 
-            to={`/?kategori=${category.id}#katalog`}
-            className="flex-shrink-0 w-[240px] md:w-[320px] aspect-[4/5] snap-start relative rounded-3xl overflow-hidden group/card shadow-sm hover:shadow-xl transition-all duration-500"
-          >
-            <div className="absolute inset-0 bg-black/20 group-hover/card:bg-black/10 transition-colors z-10" />
-            <img 
-              src={category.image} 
-              alt={category.name} 
-              className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-700 ease-out"
-            />
-            <div className="absolute inset-x-0 bottom-0 p-6 z-20 flex flex-col justify-end">
-              <h3 className="text-2xl font-light text-white mb-2 translate-y-2 group-hover/card:translate-y-0 transition-transform duration-500">{category.name}</h3>
-              <div className="h-0.5 w-8 bg-white opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 delay-100"></div>
-            </div>
-          </Link>
+          <CategoryCard key={category.id} category={category} />
         ))}
       </div>
     </div>

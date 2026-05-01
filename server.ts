@@ -18,6 +18,13 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+  
+  // Explicitly serve uploads folder for both dev and prod
+  const uploadsPath = path.join(__dirname, 'public/uploads');
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsPath));
 
   // Database initialization
   const db = new Database('meyya.db');

@@ -18,13 +18,16 @@ import ErrorBoundaryPage from './pages/ErrorBoundaryPage';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import { AuthenticateWithRedirectCallback } from '@clerk/react';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const Layout = () => (
   <div className="min-h-screen flex flex-col">
     <ScrollToTop />
     <Header />
     <main className="flex-1 flex flex-col pt-8">
-      <Outlet />
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
     </main>
     <Footer />
   </div>

@@ -22,15 +22,39 @@ export default function AdminCategoryManager() {
   const [editName, setEditName] = useState('');
   const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Dummy visual update, in reality you upload to storage
-      const url = URL.createObjectURL(file);
+      // Show loading visually (optional)
+      const loadingPlaceholder = 'https://placehold.co/150x150?text=Uploading...';
       if (isEdit) {
-        setEditPreviewUrl(url);
+        setEditPreviewUrl(loadingPlaceholder);
       } else {
-        setPreviewUrl(url);
+        setPreviewUrl(loadingPlaceholder);
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        
+        if (data.url) {
+          if (isEdit) {
+            setEditPreviewUrl(data.url);
+          } else {
+            setPreviewUrl(data.url);
+          }
+        } else {
+          alert('Gagal mengupload gambar');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Terjadi kesalahan saat upload gambar');
       }
     }
   };

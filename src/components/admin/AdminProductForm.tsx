@@ -121,11 +121,11 @@ export default function AdminProductForm() {
     setBiayaPackaging(0);
     setBiayaLumpsum(p.production_cost || 0);
     
-    const colors = p.colors ? p.colors.map((c: any) => c.color_name) : [];
+    const colors = Array.isArray(p.colors) ? p.colors.map((c: any) => c.color_name) : [];
     setSelectedColorNames(colors);
     
     // Update global colors if some are missing from global
-    if (p.colors) {
+    if (Array.isArray(p.colors)) {
       for (const c of p.colors) {
         if (!globalColors.find(gc => gc.name === c.color_name)) {
           addGlobalColor({ name: c.color_name, hex: c.hex_code });

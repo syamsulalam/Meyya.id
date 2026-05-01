@@ -497,7 +497,7 @@ export default function Checkout() {
                        </div>
                        <div className="flex-1">
                          <p className="text-xs font-semibold text-ink line-clamp-1">{product.name}</p>
-                         <p className="text-xs text-orange-700 font-bold mt-1">Rp {product.price.toLocaleString('id-ID')}</p>
+                         <p className="text-xs text-orange-700 font-bold mt-1">Rp {(product.base_price || 0).toLocaleString('id-ID')}</p>
                        </div>
                        <button 
                          type="button" 
@@ -506,11 +506,11 @@ export default function Checkout() {
                             addToCart({
                               product_id: product.id,
                               product_name: product.name,
-                              color: product.colors[0]?.name || 'Default',
-                              size: product.sizes[0] || 'Default',
-                              price: product.price,
+                              color: Array.isArray(product.colors) && product.colors.length > 0 ? product.colors[0].color_name : 'Default',
+                              size: Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes[0] : 'Default',
+                              price: product.base_price || product.price || 0,
                               quantity: 1,
-                              image_url: product.images[0]
+                              image_url: product.image_url || ''
                             });
                          }}
                        >
