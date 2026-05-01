@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Settings, Plus, Check, Edit2, Package } from 'lucide-react';
+import { Upload, Settings, Plus, Check, Edit2, Package, X } from 'lucide-react';
 import { useStore } from '../../store';
 import useSWR from 'swr';
 import { mutate } from 'swr';
@@ -21,6 +21,8 @@ const fetcher = async (url: string) => {
 export default function AdminProductForm() {
   const { globalColors, addGlobalColor } = useStore();
   const { data: products, error, isLoading } = useSWR('/api/products', fetcher);
+  const { data: dbCategories } = useSWR('/api/categories', fetcher);
+  const categories = Array.isArray(dbCategories) ? dbCategories : [];
   
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -29,6 +31,9 @@ export default function AdminProductForm() {
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState(1);
+  const [isPreorder, setIsPreorder] = useState(false);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>(['All Size']);
+  const AVAILABLE_SIZES = ['All Size', 'S', 'M', 'L', 'XL', 'XXL', 'Standard', 'Jumbo'];
   const [stock, setStock] = useState(0);
   const [weight, setWeight] = useState(250);
   
@@ -77,6 +82,11 @@ export default function AdminProductForm() {
   const [showAddColor, setShowAddColor] = useState(false);
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('#000000');
+  
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatSlug, setNewCatSlug] = useState('');
+  const [newCatImg, setNewCatImg] = useState('');
 
   // Gift Box state
   const [allowGiftBox, setAllowGiftBox] = useState(false);
@@ -105,7 +115,12 @@ export default function AdminProductForm() {
     setSlug(p.slug || '');
     setDescription(p.description || '');
     setCategoryId(p.category_id || 1);
+    setIsPreorder(p.is_preorder === 1);
     setStock(p.stock || 0);
+
+    // update sizes
+    const sizes = Array.isArray(p.sizes) ? p.sizes.map((s: any) => s.size_name || s) : ['All Size'];
+    setSelectedSizes(sizes);
     setWeight(p.weight || 250);
     setHargaJual(p.base_price || 0);
     setImageUrl(p.image_url || null);
@@ -157,7 +172,31 @@ export default function AdminProductForm() {
     setWeight(250);
     setBiayaLumpsum(0);
     setSelectedColorNames([]);
+    setCategoryId(1);
+    setIsPreorder(false);
+    setSelectedSizes(['All Size']);
     setImageUrl(null);
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCatName || !newCatSlug) return alert('Nama dan slug harus diisi');
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCatName, slug: newCatSlug, image_url: newCatImg })
+      });
+      if (!res.ok) throw new Error('Gagal tambah kategori');
+      const data = await res.json();
+      mutate('/api/categories');
+      setCategoryId(data.id);
+      setShowAddCategory(false);
+      setNewCatName('');
+      setNewCatSlug('');
+      setNewCatImg('');
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   const handleSubmit = async () => {
@@ -173,6 +212,8 @@ export default function AdminProductForm() {
         production_cost: totalCostSatuan,
         image_url: imageUrl || '', 
         is_active: 1,
+        is_preorder: isPreorder ? 1 : 0,
+        sizes: selectedSizes,
         colors: selectedColorNames.map(name => {
           const c = globalColors.find(gc => gc.name === name);
           return { color_name: name, hex_code: c?.hex || '#000000' }
@@ -242,16 +283,16 @@ export default function AdminProductForm() {
         </table>
       </div>
 
-      <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4">
+      <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => !isEditing && setShowForm(!showForm)}>
         <h2 className="text-2xl font-light font-heading text-ink">
           {isEditing ? 'Edit Produk' : 'Tambah Produk Baru'}
         </h2>
         <div>
           {isEditing ? (
-            <button onClick={resetForm} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5">Batal Edit</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); resetForm(); }} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5">Batal Edit</button>
           ) : (
-            <button onClick={() => setShowForm(!showForm)} className="inline-flex flex-shrink-0 items-center justify-center gap-2 bg-ink text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-black/80 transition-colors">
-              {showForm ? 'Tutup Form' : <><Plus size={16} /> Tambah Produk</>}
+            <button type="button" onClick={(e) => { e.stopPropagation(); setShowForm(!showForm); }} className="inline-flex flex-shrink-0 items-center justify-center gap-2 bg-ink text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-black/80 transition-colors">
+              {showForm ? <><X size={16} /> Tutup Form</> : <><Plus size={16} /> Tambah Produk</>}
             </button>
           )}
         </div>
@@ -289,24 +330,97 @@ export default function AdminProductForm() {
               <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Nama Produk</label>
               <input type="text" value={productName} onChange={e => setProductName(e.target.value)} placeholder="Mis: Pashmina Silk Premium" className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm" />
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Kategori Produk</label>
-              <select value={categoryId} onChange={e => setCategoryId(Number(e.target.value))} className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm">
-                <option value={1}>Pashmina</option>
-                <option value={2}>Abaya</option>
-                <option value={3}>Khimar</option>
-                <option value={4}>Inner</option>
-                <option value={5}>Aksesoris</option>
+            <div className="bg-white/40 p-4 rounded-xl border border-black/5">
+              <label className="block text-xs uppercase tracking-widest opacity-60 mb-3">Kategori Produk</label>
+              <select value={categoryId} onChange={e => setCategoryId(Number(e.target.value))} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-ink/50 text-sm appearance-none cursor-pointer hover:border-black/30 transition-colors shadow-sm mb-3">
+                {categories.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
               </select>
+              
+              <button type="button" onClick={() => setShowAddCategory(!showAddCategory)} className="text-xs font-medium text-ink/70 hover:text-ink flex items-center gap-1 transition-colors">
+                <Plus size={14} /> Tambah Kategori Baru
+              </button>
+              
+              {showAddCategory && (
+                <div className="mt-3 p-3 bg-white rounded-xl border border-black/10 space-y-3 slide-down">
+                  <div>
+                    <label className="block text-[10px] uppercase opacity-60 mb-1">Nama Kategori</label>
+                    <input type="text" value={newCatName} onChange={e => { setNewCatName(e.target.value); setNewCatSlug(e.target.value.toLowerCase().replace(/\s+/g, '-')); }} placeholder="Mis: Gamis" className="w-full bg-black/5 border-none rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ink" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase opacity-60 mb-1">Slug (Otomatis)</label>
+                    <input type="text" value={newCatSlug} onChange={e => setNewCatSlug(e.target.value)} placeholder="Mis: gamis" className="w-full bg-black/5 border-none rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ink" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase opacity-60 mb-1">Upload Gambar Kategori</label>
+                    {newCatImg ? (
+                      <div className="relative aspect-[4/5] w-24 rounded-lg overflow-hidden group">
+                        <img src={newCatImg} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer">
+                           <label className="text-white text-xs cursor-pointer">
+                             Ganti
+                             <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                               const file = e.target.files?.[0];
+                               if (!file) return;
+                               const f = new FormData(); f.append('file', file);
+                               const res = await fetch('/api/upload', { method: 'POST', body: f });
+                               const d = await res.json();
+                               if (d.url) setNewCatImg(d.url);
+                             }} />
+                           </label>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="block w-full py-2 bg-black/5 rounded-lg border border-dashed border-black/20 text-center cursor-pointer hover:bg-black/10 transition-colors">
+                        <span className="text-xs opacity-70">Pilih Gambar</span>
+                        <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                           const file = e.target.files?.[0];
+                           if (!file) return;
+                           const f = new FormData(); f.append('file', file);
+                           const res = await fetch('/api/upload', { method: 'POST', body: f });
+                           const d = await res.json();
+                           if (d.url) setNewCatImg(d.url);
+                        }} />
+                      </label>
+                    )}
+                  </div>
+                  <button type="button" onClick={handleAddCategory} className="w-full bg-ink text-white py-2 rounded-lg text-sm hover:bg-black/80 transition-colors">Simpan Kategori</button>
+                </div>
+              )}
             </div>
             <div className="flex gap-4">
               <div className="flex-1">
-                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2 flex items-center gap-1">Stok Fisik</label>
-                <input type="number" value={stock} onChange={e => setStock(Number(e.target.value))} placeholder="0" className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm font-mono" />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs uppercase tracking-widest opacity-60 flex items-center gap-1">Stok Fisik</label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={isPreorder} onChange={e => setIsPreorder(e.target.checked)} className="rounded border-black/20 text-ink focus:ring-ink" />
+                    <span className="text-[10px] uppercase font-bold text-ink/70">Sistem Pre-order</span>
+                  </label>
+                </div>
+                <input type="number" disabled={isPreorder} value={isPreorder ? 0 : stock} onChange={e => setStock(Number(e.target.value))} placeholder="0" className={`w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm font-mono ${isPreorder ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                {isPreorder && <p className="text-[10px] opacity-50 mt-1">Stok tidak dibatasi untuk pre-order</p>}
               </div>
               <div className="flex-1">
                  <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Berat / Gram</label>
                  <input type="number" value={weight} onChange={e => setWeight(Number(e.target.value))} placeholder="250" className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm font-mono" />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-4">
+              <label className="block text-xs uppercase tracking-widest opacity-60">Ukuran Tersedia (Size)</label>
+              <div className="flex flex-wrap gap-2">
+                 {AVAILABLE_SIZES.map(s => {
+                    const isSelected = selectedSizes.includes(s);
+                    return (
+                      <button type="button" key={s} onClick={() => {
+                        if (isSelected) setSelectedSizes(selectedSizes.filter(x => x !== s));
+                        else setSelectedSizes([...selectedSizes, s]);
+                      }} className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${isSelected ? 'border-ink bg-ink text-white shadow-md' : 'border-black/10 hover:border-black/30 bg-white/50'}`}>
+                        {s}
+                      </button>
+                    )
+                 })}
               </div>
             </div>
             

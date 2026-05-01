@@ -21,12 +21,15 @@ export default function Profile() {
   type TabType = 'akun' | 'status' | 'riwayat' | 'terakhir' | 'voucher' | 'bantuan' | 'rekomendasi';
   
   const tabFromUrl = searchParams.get('tab') as TabType | null;
-  const [activeTab, setActiveTabState] = useState<TabType>(tabFromUrl || 'akun');
+  const [activeTab, setActiveTabState] = useState<TabType>(() => {
+    return tabFromUrl || (localStorage.getItem('profileActiveTab') as TabType) || 'akun';
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTabState(tabFromUrl);
+      localStorage.setItem('profileActiveTab', tabFromUrl);
     }
   }, [tabFromUrl]);
 
@@ -39,6 +42,7 @@ export default function Profile() {
   const setActiveTab = (tab: TabType) => {
     setActiveTabState(tab);
     setSearchParams({ tab });
+    localStorage.setItem('profileActiveTab', tab);
   };
   const [isBlockerOpen, setIsBlockerOpen] = useState(false);
 

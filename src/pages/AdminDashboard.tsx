@@ -16,7 +16,14 @@ export default function AdminDashboard() {
   const { user: clerkUser, isLoaded } = useUser();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing'>('marketing');
+  const [activeTab, setActiveTabState] = useState<'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing'>(() => {
+    return (localStorage.getItem('adminActiveTab') as any) || 'marketing';
+  });
+
+  const setActiveTab = (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing') => {
+    setActiveTabState(tab);
+    localStorage.setItem('adminActiveTab', tab);
+  };
 
   useEffect(() => {
     if (isLoaded) {

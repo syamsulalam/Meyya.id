@@ -1,26 +1,26 @@
 -- D1 Database Schema Dump untuk MEYYA.ID
 
-DROP TABLE IF EXISTS categories;
-DROP TABLE IF EXISTS products;
-DROP TABLE IF EXISTS product_colors;
-DROP TABLE IF EXISTS product_sizes;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS user_addresses;
-DROP TABLE IF EXISTS shipping_settings;
-DROP TABLE IF EXISTS vouchers;
-DROP TABLE IF EXISTS voucher_usages;
-DROP TABLE IF EXISTS orders;
-DROP TABLE IF EXISTS order_items;
-DROP TABLE IF EXISTS wishlists;
+-- DROP TABLE IF EXISTS categories;
+-- DROP TABLE IF EXISTS products;
+-- DROP TABLE IF EXISTS product_colors;
+-- DROP TABLE IF EXISTS product_sizes;
+-- DROP TABLE IF EXISTS users;
+-- DROP TABLE IF EXISTS user_addresses;
+-- DROP TABLE IF EXISTS shipping_settings;
+-- DROP TABLE IF EXISTS vouchers;
+-- DROP TABLE IF EXISTS voucher_usages;
+-- DROP TABLE IF EXISTS orders;
+-- DROP TABLE IF EXISTS order_items;
+-- DROP TABLE IF EXISTS wishlists;
 
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   slug TEXT UNIQUE,
   name TEXT,
   image_url TEXT
 );
 
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   category_id INTEGER,
   name TEXT,
@@ -33,23 +33,24 @@ CREATE TABLE products (
   stock INTEGER DEFAULT 0,
   last_stock_update DATETIME,
   is_active INTEGER,
+  is_preorder INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE product_colors (
+CREATE TABLE IF NOT EXISTS product_colors (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   product_id INTEGER,
   color_name TEXT,
   hex_code TEXT
 );
 
-CREATE TABLE product_sizes (
+CREATE TABLE IF NOT EXISTS product_sizes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   product_id INTEGER,
   size_name TEXT
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   clerk_id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
   first_name TEXT,
@@ -60,7 +61,7 @@ CREATE TABLE users (
   joined_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE user_addresses (
+CREATE TABLE IF NOT EXISTS user_addresses (
   id TEXT PRIMARY KEY,
   user_id TEXT,
   label TEXT,
@@ -79,14 +80,14 @@ CREATE TABLE user_addresses (
   is_default INTEGER DEFAULT 0
 );
 
-CREATE TABLE shipping_settings (
+CREATE TABLE IF NOT EXISTS shipping_settings (
   id INTEGER PRIMARY KEY,
   origin_village_code TEXT,
   origin_village_name TEXT,
   active_couriers TEXT -- Menampung array list dari JSON "["JNE", "SiCepat", "SAP"]"
 );
 
-CREATE TABLE vouchers (
+CREATE TABLE IF NOT EXISTS vouchers (
   code TEXT PRIMARY KEY,
   discount_type TEXT,
   discount_value numeric,
@@ -99,7 +100,7 @@ CREATE TABLE vouchers (
   target_user_role TEXT DEFAULT 'all'
 );
 
-CREATE TABLE voucher_usages (
+CREATE TABLE IF NOT EXISTS voucher_usages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   voucher_code TEXT,
   clerk_id TEXT,
@@ -107,7 +108,7 @@ CREATE TABLE voucher_usages (
   used_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
   clerk_id TEXT,
   address_snapshot TEXT,
@@ -125,7 +126,7 @@ CREATE TABLE orders (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE order_items (
+CREATE TABLE IF NOT EXISTS order_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id TEXT,
   product_id INTEGER,
@@ -137,7 +138,7 @@ CREATE TABLE order_items (
   hpp_at_purchase INTEGER
 );
 
-CREATE TABLE wishlists (
+CREATE TABLE IF NOT EXISTS wishlists (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT,
   product_id INTEGER

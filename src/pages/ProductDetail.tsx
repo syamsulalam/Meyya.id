@@ -96,7 +96,19 @@ export default function ProductDetail() {
         <h1 className="text-4xl md:text-5xl font-light mb-4" style={{fontFamily: 'var(--font-heading)'}}>
           {product.name}
         </h1>
-        <p className="text-2xl mb-8">Rp {product.base_price.toLocaleString('id-ID')}</p>
+        <p className="text-2xl mb-4">Rp {product.base_price.toLocaleString('id-ID')}</p>
+        
+        {product.is_preorder === 1 ? (
+          <div className="mb-6 inline-block bg-ink text-white text-xs uppercase tracking-widest font-bold px-4 py-1.5 rounded-full shadow-sm">
+            Tersedia untuk Pre-Order
+          </div>
+        ) : product.stock === 0 ? (
+          <div className="mb-6 inline-block bg-red-500 text-white text-xs uppercase tracking-widest font-bold px-4 py-1.5 rounded-full shadow-sm">
+            Stok Habis
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 mb-6 font-mono">Tersedia {product.stock} pcs</p>
+        )}
         
         <div className="mb-8">
           <p className="text-sm text-gray-600 mb-4 font-medium uppercase tracking-wider">
@@ -150,11 +162,16 @@ export default function ProductDetail() {
 
         <div className="flex gap-4 mt-8 pt-4">
           <button 
+            disabled={product.stock === 0 && product.is_preorder !== 1}
             onClick={handleAddToCart}
-            className="flex-1 glass-button flex items-center justify-center gap-2 py-4 text-base"
+            className={`flex-1 flex items-center justify-center gap-2 py-4 text-base transition-colors ${
+               product.stock === 0 && product.is_preorder !== 1 
+               ? 'bg-black/10 text-black/40 cursor-not-allowed rounded-full' 
+               : 'glass-button'
+            }`}
           >
             <ShoppingBag size={20} />
-            Tambah ke Keranjang
+            {product.stock === 0 && product.is_preorder !== 1 ? 'Stok Habis' : product.is_preorder === 1 ? 'Pre-Order Sekarang' : 'Tambah ke Keranjang'}
           </button>
         </div>
 

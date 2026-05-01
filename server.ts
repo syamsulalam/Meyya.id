@@ -81,14 +81,21 @@ async function startServer() {
 
   app.post('/api/products', (req, res) => {
     try {
-      const { name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active, colors } = req.body;
-      const stmt = db.prepare('INSERT INTO products (name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, last_stock_update, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)');
-      const info = stmt.run(name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active);
+      const { name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder, colors, sizes } = req.body;
+      const stmt = db.prepare('INSERT INTO products (name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, last_stock_update, is_active, is_preorder) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)');
+      const info = stmt.run(name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder || 0);
       
       if (colors && colors.length > 0) {
         const insertColor = db.prepare('INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (?, ?, ?)');
         for (const c of colors) {
           insertColor.run(info.lastInsertRowid, c.color_name, c.hex_code);
+        }
+      }
+      
+      if (sizes && sizes.length > 0) {
+        const insertSize = db.prepare('INSERT INTO product_sizes (product_id, size_name) VALUES (?, ?)');
+        for (const s of sizes) {
+          insertSize.run(info.lastInsertRowid, s);
         }
       }
       
@@ -101,11 +108,11 @@ async function startServer() {
   app.put('/api/products/:id', (req, res) => {
     try {
       const { id } = req.params;
-      const { name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active, colors } = req.body;
+      const { name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder, colors, sizes } = req.body;
       
       // Update basic fields
-      const stmt = db.prepare('UPDATE products SET name = ?, category_id = ?, slug = ?, description = ?, image_url = ?, base_price = ?, production_cost = ?, weight = ?, is_active = ? WHERE id = ?');
-      stmt.run(name, category_id, slug, description, image_url, base_price, production_cost, weight, is_active, id);
+      const stmt = db.prepare('UPDATE products SET name = ?, category_id = ?, slug = ?, description = ?, image_url = ?, base_price = ?, production_cost = ?, weight = ?, is_active = ?, is_preorder = ? WHERE id = ?');
+      stmt.run(name, category_id, slug, description, image_url, base_price, production_cost, weight, is_active, is_preorder || 0, id);
 
       // Handle stock and stock update time separately
       const currentProduct = db.prepare('SELECT stock FROM products WHERE id = ?').get(id) as any;
@@ -119,6 +126,15 @@ async function startServer() {
         const insertColor = db.prepare('INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (?, ?, ?)');
         for (const c of colors) {
           insertColor.run(id, c.color_name, c.hex_code);
+        }
+      }
+
+      // Re-insert sizes
+      if (sizes) {
+        db.prepare('DELETE FROM product_sizes WHERE product_id = ?').run(id);
+        const insertSize = db.prepare('INSERT INTO product_sizes (product_id, size_name) VALUES (?, ?)');
+        for (const s of sizes) {
+          insertSize.run(id, s);
         }
       }
 

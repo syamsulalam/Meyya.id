@@ -113,6 +113,17 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
         )}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500"></div>
         
+        {/* Status Badge */}
+        {product.is_preorder === 1 ? (
+          <div className="absolute top-4 left-4 z-20 bg-ink/90 text-white text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm border border-white/10">
+            Pre-Order
+          </div>
+        ) : product.stock === 0 ? (
+          <div className="absolute top-4 left-4 z-20 bg-red-500/90 text-white text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm border border-white/10">
+            Habis
+          </div>
+        ) : null}
+
         {/* Wishlist Button */}
         <button 
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleWishlist(product.id); }}
@@ -217,20 +228,31 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
             
             {/* Default Quick Actions overlay (Hidden by default, shown on group-hover) */}
             <div className="absolute bottom-4 left-0 right-0 px-4 z-20 flex justify-center gap-2 translate-y-8 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-              <button 
-                onClick={startQuickAdd}
-                className="bg-white/90 backdrop-blur p-2.5 rounded-full hover:bg-black hover:text-white transition-colors shadow-sm"
-                title="Tambah ke Keranjang"
-              >
-                <ShoppingCart size={18} />
-              </button>
-              <button 
-                onClick={handleBuyNow}
-                className="bg-ink text-white px-4 py-2.5 rounded-full text-xs font-medium tracking-widest uppercase hover:bg-black/80 transition-colors shadow-sm flex items-center gap-2 flex-1 justify-center whitespace-nowrap"
-                title="Beli Langsung"
-              >
-                <CreditCard size={16} className="hidden sm:block" /> Beli
-              </button>
+              {product.stock === 0 && product.is_preorder !== 1 ? (
+                <button 
+                  disabled
+                  className="bg-white/90 backdrop-blur text-red-500 px-4 py-2.5 rounded-full text-xs font-medium tracking-widest uppercase cursor-not-allowed shadow-sm w-full text-center"
+                >
+                  Stok Habis
+                </button>
+              ) : (
+                <>
+                  <button 
+                    onClick={startQuickAdd}
+                    className="bg-white/90 backdrop-blur p-2.5 rounded-full hover:bg-black hover:text-white transition-colors shadow-sm"
+                    title="Tambah ke Keranjang"
+                  >
+                    <ShoppingCart size={18} />
+                  </button>
+                  <button 
+                    onClick={handleBuyNow}
+                    className="bg-ink text-white px-4 py-2.5 rounded-full text-xs font-medium tracking-widest uppercase hover:bg-black/80 transition-colors shadow-sm flex items-center gap-2 flex-1 justify-center whitespace-nowrap"
+                    title="Beli Langsung"
+                  >
+                    <CreditCard size={16} className="hidden sm:block" /> {product.is_preorder === 1 ? 'Pre-Order' : 'Beli'}
+                  </button>
+                </>
+              )}
             </div>
           </>
         )}
