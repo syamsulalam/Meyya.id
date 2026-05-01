@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   slug TEXT UNIQUE,
   name TEXT,
-  image_url TEXT
+  image_url TEXT,
+  has_colors INTEGER DEFAULT 0,
+  has_sizes INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -147,67 +149,82 @@ CREATE TABLE IF NOT EXISTS wishlists (
 
 -- ================= SEEDER (Data Awal) =================
 
-INSERT INTO categories (slug, name) VALUES ('pashmina', 'Pashmina');
-INSERT INTO categories (slug, name) VALUES ('abaya', 'Abaya');
-INSERT INTO categories (slug, name) VALUES ('khimar', 'Khimar');
-INSERT INTO categories (slug, name) VALUES ('inner', 'Inner');
-INSERT INTO categories (slug, name) VALUES ('aksesoris', 'Aksesoris');
+INSERT OR IGNORE INTO categories (slug, name) VALUES ('pashmina', 'Pashmina');
+INSERT OR IGNORE INTO categories (slug, name) VALUES ('abaya', 'Abaya');
+INSERT OR IGNORE INTO categories (slug, name) VALUES ('khimar', 'Khimar');
+INSERT OR IGNORE INTO categories (slug, name) VALUES ('inner', 'Inner');
+INSERT OR IGNORE INTO categories (slug, name) VALUES ('aksesoris', 'Aksesoris');
 
 /* Settings Expedisi Default - Harus diedit via Admin / Database */
-INSERT INTO shipping_settings (id, origin_village_code, origin_village_name, active_couriers) 
+INSERT OR IGNORE INTO shipping_settings (id, origin_village_code, origin_village_name, active_couriers) 
 VALUES (1, '3174050001', 'GROGOL UTARA', '["JNE", "SiCepat", "JT", "paxel"]');
 
 /* Product 1: Pashmina Silk */
-INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+INSERT OR IGNORE INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
 VALUES (1, 'Pashmina Silk Premium', 'pashmina-silk-premium', 'Pashmina silk premium dengan drape yang indah dan sentuhan mewah.', 'https://images.unsplash.com/photo-1584273143981-41c073dfe8f8?auto=format&fit=crop&q=80&w=600', 150000, 80000, 1, 150);
 
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (1, 'Dusty Pink', '#DCAE96');
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (1, 'Olive Green', '#808000');
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (1, 'Navy Blue', '#000080');
-INSERT INTO product_sizes (product_id, size_name) VALUES (1, 'All Size');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (1, 'Dusty Pink', '#DCAE96');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (1, 'Olive Green', '#808000');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (1, 'Navy Blue', '#000080');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (1, 'All Size');
 
 /* Product 2: Classic Abaya */
-INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+INSERT OR IGNORE INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
 VALUES (2, 'Abaya Noir Classic', 'abaya-noir-classic', 'Abaya berpotongan klasik (classic cut) yang elegan.', 'https://images.unsplash.com/photo-1610486808796-039c36ec3b2a?auto=format&fit=crop&q=80&w=600', 450000, 200000, 1, 600);
 
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (2, 'Midnight Black', '#1a1a1a');
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (2, 'Maroon', '#800000');
-INSERT INTO product_sizes (product_id, size_name) VALUES (2, 'S');
-INSERT INTO product_sizes (product_id, size_name) VALUES (2, 'M');
-INSERT INTO product_sizes (product_id, size_name) VALUES (2, 'L');
-INSERT INTO product_sizes (product_id, size_name) VALUES (2, 'XL');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (2, 'Midnight Black', '#1a1a1a');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (2, 'Maroon', '#800000');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (2, 'S');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (2, 'M');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (2, 'L');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (2, 'XL');
 
 /* Product 3: Flowy Khimar */
-INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+INSERT OR IGNORE INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
 VALUES (3, 'Khimar Flowy Voile', 'khimar-flowy-voile', 'Khimar layer ganda yang sangat jatuh (flowy).', 'https://images.unsplash.com/photo-1594911772125-07fc7a2d8d9f?q=80&w=600&auto=format&fit=crop', 220000, 110000, 1, 300);
 
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (3, 'Soft Charcoal', '#36454F');
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (3, 'Warm Sand', '#E0C5A0');
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (3, 'Pure White', '#FFFFFF');
-INSERT INTO product_sizes (product_id, size_name) VALUES (3, 'Standard');
-INSERT INTO product_sizes (product_id, size_name) VALUES (3, 'Jumbo');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (3, 'Soft Charcoal', '#36454F');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (3, 'Warm Sand', '#E0C5A0');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (3, 'Pure White', '#FFFFFF');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (3, 'Standard');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (3, 'Jumbo');
 
 /* Product 4: Abaya Outer */
-INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+INSERT OR IGNORE INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
 VALUES (2, 'Abaya Outer Signature', 'abaya-outer-signature', 'Outer abaya dengan detail bordir (embroidery) premium.', 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=600&auto=format&fit=crop', 600000, 250000, 1, 450);
 
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (4, 'Emerald', '#50C878');
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (4, 'Taupe', '#483C32');
-INSERT INTO product_sizes (product_id, size_name) VALUES (4, 'All Size');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (4, 'Emerald', '#50C878');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (4, 'Taupe', '#483C32');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (4, 'All Size');
 
 /* Product 5: Inner Rajut */
-INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+INSERT OR IGNORE INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
 VALUES (4, 'Inner Ninja Premium', 'inner-ninja-premium', 'Ciput ninja rajut anti pusing. Fleksibel, menyerap keringat.', 'https://images.unsplash.com/photo-1574682701768-fa24597b4a2c?q=80&w=600&auto=format&fit=crop', 50000, 20000, 1, 80);
 
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (5, 'Black', '#000000');
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (5, 'Nude', '#E3BC9A');
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (5, 'Dark Grey', '#A9A9A9');
-INSERT INTO product_sizes (product_id, size_name) VALUES (5, 'All Size');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (5, 'Black', '#000000');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (5, 'Nude', '#E3BC9A');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (5, 'Dark Grey', '#A9A9A9');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (5, 'All Size');
 
 /* Product 6: Aksesoris Brooch */
-INSERT INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
+INSERT OR IGNORE INTO products (category_id, name, slug, description, image_url, base_price, production_cost, is_active, weight)
 VALUES (5, 'Vintage Pearl Brooch', 'vintage-pearl-brooch', 'Bros mutiara elegan (elegant pearl brooch) untuk mempercantik tampilan hijab.', 'https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?q=80&w=600&auto=format&fit=crop', 120000, 50000, 1, 50);
 
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (6, 'Gold/Pearl', '#FFD700');
-INSERT INTO product_colors (product_id, color_name, hex_code) VALUES (6, 'Silver/Pearl', '#C0C0C0');
-INSERT INTO product_sizes (product_id, size_name) VALUES (6, 'All Fit');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (6, 'Gold/Pearl', '#FFD700');
+INSERT OR IGNORE INTO product_colors (product_id, color_name, hex_code) VALUES (6, 'Silver/Pearl', '#C0C0C0');
+INSERT OR IGNORE INTO product_sizes (product_id, size_name) VALUES (6, 'All Fit');
+
+CREATE TABLE IF NOT EXISTS category_attributes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  category_id INTEGER,
+  name TEXT NOT NULL,
+  options TEXT,
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS product_attributes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER,
+  attribute_name TEXT NOT NULL,
+  attribute_value TEXT,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);

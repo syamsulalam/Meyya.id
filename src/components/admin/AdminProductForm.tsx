@@ -25,7 +25,7 @@ export default function AdminProductForm() {
   const categories = Array.isArray(dbCategories) ? dbCategories : [];
   
   const [isEditing, setIsEditing] = useState<number | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [formStep, setFormStep] = useState<'list' | 'select-category' | 'form'>('list');
   
   const [productName, setProductName] = useState('');
   const [slug, setSlug] = useState('');
@@ -36,6 +36,7 @@ export default function AdminProductForm() {
   const AVAILABLE_SIZES = ['All Size', 'S', 'M', 'L', 'XL', 'XXL', 'Standard', 'Jumbo'];
   const [stock, setStock] = useState(0);
   const [weight, setWeight] = useState(250);
+  const [customAttributes, setCustomAttributes] = useState<Record<string, string>>({});
   
   const [hargaKainRoll, setHargaKainRoll] = useState(0);
   const [yieldKain, setYieldKain] = useState(1);
@@ -110,7 +111,7 @@ export default function AdminProductForm() {
   
   const handleEdit = (p: any) => {
     setIsEditing(p.id);
-    setShowForm(true);
+    setFormStep('form');
     setProductName(p.name);
     setSlug(p.slug || '');
     setDescription(p.description || '');
@@ -124,6 +125,15 @@ export default function AdminProductForm() {
     setWeight(p.weight || 250);
     setHargaJual(p.base_price || 0);
     setImageUrl(p.image_url || null);
+    
+    // attributes mapping
+    const attrs: Record<string, string> = {};
+    if (Array.isArray(p.attributes)) {
+       for (const a of p.attributes) {
+          attrs[a.attribute_name] = a.attribute_value;
+       }
+    }
+    setCustomAttributes(attrs);
     
     // reset breakdown
     setHargaKainRoll(0);
@@ -163,7 +173,7 @@ export default function AdminProductForm() {
 
   const resetForm = () => {
     setIsEditing(null);
-    setShowForm(false);
+    setFormStep('list');
     setProductName('');
     setSlug('');
     setDescription('');
@@ -172,10 +182,10 @@ export default function AdminProductForm() {
     setWeight(250);
     setBiayaLumpsum(0);
     setSelectedColorNames([]);
-    setCategoryId(1);
     setIsPreorder(false);
     setSelectedSizes(['All Size']);
     setImageUrl(null);
+    setCustomAttributes({});
   };
 
   const handleAddCategory = async () => {
@@ -214,6 +224,10 @@ export default function AdminProductForm() {
         is_active: 1,
         is_preorder: isPreorder ? 1 : 0,
         sizes: selectedSizes,
+        attributes: Object.keys(customAttributes).map(k => ({
+           attribute_name: k,
+           attribute_value: customAttributes[k]
+        })),
         colors: selectedColorNames.map(name => {
           const c = globalColors.find(gc => gc.name === name);
           return { color_name: name, hex_code: c?.hex || '#000000' }
@@ -283,7 +297,7 @@ export default function AdminProductForm() {
         </table>
       </div>
 
-      <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => !isEditing && setShowForm(!showForm)}>
+      <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => !isEditing && setFormStep(formStep === 'list' ? 'select-category' : 'list')}>
         <h2 className="text-2xl font-light font-heading text-ink">
           {isEditing ? 'Edit Produk' : 'Tambah Produk Baru'}
         </h2>
@@ -291,15 +305,59 @@ export default function AdminProductForm() {
           {isEditing ? (
             <button type="button" onClick={(e) => { e.stopPropagation(); resetForm(); }} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5">Batal Edit</button>
           ) : (
-            <button type="button" onClick={(e) => { e.stopPropagation(); setShowForm(!showForm); }} className="inline-flex flex-shrink-0 items-center justify-center gap-2 bg-ink text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-black/80 transition-colors">
-              {showForm ? <><X size={16} /> Tutup Form</> : <><Plus size={16} /> Tambah Produk</>}
+            <button type="button" onClick={(e) => { e.stopPropagation(); setFormStep(formStep === 'list' ? 'select-category' : 'list'); }} className="inline-flex flex-shrink-0 items-center justify-center gap-2 bg-ink text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-black/80 transition-colors">
+              {formStep !== 'list' ? <><X size={16} /> Tutup Form</> : <><Plus size={16} /> Tambah Produk</>}
             </button>
           )}
         </div>
       </div>
       
-      {showForm && (
-        <form className="space-y-12">
+      {formStep === 'select-category' && !isEditing && (
+        <div className="bg-white/40 border border-black/5 rounded-3xl p-8 slide-down text-center mb-12">
+           <h3 className="text-xl font-heading mb-2">Pilih Kategori Produk</h3>
+           <p className="text-sm opacity-60 mb-8 max-w-lg mx-auto">Silakan pilih kategori produk terlebih dahulu. Atribut yang ditanyakan di form selanjutnya akan menyesuaikan dengan kategori yang dipilih.</p>
+           
+           {categories.length === 0 ? (
+             <div className="bg-orange-50 text-orange-800 p-6 rounded-2xl">
+               <p className="mb-2">Anda belum memiliki kategori produk.</p>
+               <p className="text-sm opacity-80">Silakan tambahkan kategori terlebih dahulu melalui menu Manajemen Kategori di atas.</p>
+             </div>
+           ) : (
+             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+               {categories.map((c: any) => (
+                 <button key={c.id} onClick={() => { setCategoryId(c.id); setFormStep('form'); }} className="bg-white border border-black/10 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-ink hover:shadow-md transition-all group">
+                   <div className="w-16 h-16 rounded-full overflow-hidden border border-black/5 group-hover:scale-105 transition-transform duration-300">
+                     <img src={c.image_url} alt={c.name} className="w-full h-full object-cover" />
+                   </div>
+                   <span className="text-sm font-medium">{c.name}</span>
+                 </button>
+               ))}
+               <button onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})} className="bg-black/5 border border-black/10 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:bg-black/10 transition-all text-ink">
+                 <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white border border-black/5 shadow-sm">
+                   <Plus size={24} />
+                 </div>
+                 <span className="text-sm font-medium">Tambah Kategori Lainnya di Atas</span>
+               </button>
+             </div>
+           )}
+        </div>
+      )}
+      
+      {formStep === 'form' && (() => {
+        const currentCat = categories.find((c: any) => c.id === categoryId);
+        const hasSizes = currentCat?.has_sizes === 1;
+        const hasColors = currentCat?.has_colors === 1;
+        
+        let catAttrs: any[] = [];
+        if (currentCat && Array.isArray(currentCat.attributes)) {
+           catAttrs = currentCat.attributes.map((a: any) => ({
+             name: a.name,
+             options: typeof a.options === 'string' ? JSON.parse(a.options) : (Array.isArray(a.options) ? a.options : [])
+           }));
+        }
+
+        return (
+        <form className="space-y-12 slide-down">
         {/* 1. Basic Info */}
         <div className="space-y-6">
           <h3 className="text-sm uppercase tracking-widest font-semibold pb-2 border-b border-black/10">1. Informasi Dasar</h3>
@@ -331,63 +389,14 @@ export default function AdminProductForm() {
               <input type="text" value={productName} onChange={e => setProductName(e.target.value)} placeholder="Mis: Pashmina Silk Premium" className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm" />
             </div>
             <div className="bg-white/40 p-4 rounded-xl border border-black/5">
-              <label className="block text-xs uppercase tracking-widest opacity-60 mb-3">Kategori Produk</label>
-              <select value={categoryId} onChange={e => setCategoryId(Number(e.target.value))} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-ink/50 text-sm appearance-none cursor-pointer hover:border-black/30 transition-colors shadow-sm mb-3">
-                {categories.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              
-              <button type="button" onClick={() => setShowAddCategory(!showAddCategory)} className="text-xs font-medium text-ink/70 hover:text-ink flex items-center gap-1 transition-colors">
-                <Plus size={14} /> Tambah Kategori Baru
-              </button>
-              
-              {showAddCategory && (
-                <div className="mt-3 p-3 bg-white rounded-xl border border-black/10 space-y-3 slide-down">
-                  <div>
-                    <label className="block text-[10px] uppercase opacity-60 mb-1">Nama Kategori</label>
-                    <input type="text" value={newCatName} onChange={e => { setNewCatName(e.target.value); setNewCatSlug(e.target.value.toLowerCase().replace(/\s+/g, '-')); }} placeholder="Mis: Gamis" className="w-full bg-black/5 border-none rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ink" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase opacity-60 mb-1">Slug (Otomatis)</label>
-                    <input type="text" value={newCatSlug} onChange={e => setNewCatSlug(e.target.value)} placeholder="Mis: gamis" className="w-full bg-black/5 border-none rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ink" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase opacity-60 mb-1">Upload Gambar Kategori</label>
-                    {newCatImg ? (
-                      <div className="relative aspect-[4/5] w-24 rounded-lg overflow-hidden group">
-                        <img src={newCatImg} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer">
-                           <label className="text-white text-xs cursor-pointer">
-                             Ganti
-                             <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                               const file = e.target.files?.[0];
-                               if (!file) return;
-                               const f = new FormData(); f.append('file', file);
-                               const res = await fetch('/api/upload', { method: 'POST', body: f });
-                               const d = await res.json();
-                               if (d.url) setNewCatImg(d.url);
-                             }} />
-                           </label>
-                        </div>
-                      </div>
-                    ) : (
-                      <label className="block w-full py-2 bg-black/5 rounded-lg border border-dashed border-black/20 text-center cursor-pointer hover:bg-black/10 transition-colors">
-                        <span className="text-xs opacity-70">Pilih Gambar</span>
-                        <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                           const file = e.target.files?.[0];
-                           if (!file) return;
-                           const f = new FormData(); f.append('file', file);
-                           const res = await fetch('/api/upload', { method: 'POST', body: f });
-                           const d = await res.json();
-                           if (d.url) setNewCatImg(d.url);
-                        }} />
-                      </label>
-                    )}
-                  </div>
-                  <button type="button" onClick={handleAddCategory} className="w-full bg-ink text-white py-2 rounded-lg text-sm hover:bg-black/80 transition-colors">Simpan Kategori</button>
+              <label className="block text-xs uppercase tracking-widest opacity-60 mb-3">Terhubung Ke Kategori Produk</label>
+              <div className="flex items-center gap-3 bg-white p-3 border border-black/10 rounded-xl">
+                {currentCat?.image_url && <img src={currentCat.image_url} alt={currentCat.name} className="w-10 h-10 object-cover rounded-full bg-black/5" />}
+                <div>
+                  <div className="text-sm font-medium">{currentCat?.name || '-'}</div>
+                  <div className="text-[10px] uppercase opacity-50">Menentukan input atribut form di bawah</div>
                 </div>
-              )}
+              </div>
             </div>
             <div className="flex gap-4">
               <div className="flex-1">
@@ -407,27 +416,53 @@ export default function AdminProductForm() {
               </div>
             </div>
 
-            <div className="md:col-span-2 space-y-4">
-              <label className="block text-xs uppercase tracking-widest opacity-60">Ukuran Tersedia (Size)</label>
-              <div className="flex flex-wrap gap-2">
-                 {AVAILABLE_SIZES.map(s => {
-                    const isSelected = selectedSizes.includes(s);
-                    return (
-                      <button type="button" key={s} onClick={() => {
-                        if (isSelected) setSelectedSizes(selectedSizes.filter(x => x !== s));
-                        else setSelectedSizes([...selectedSizes, s]);
-                      }} className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${isSelected ? 'border-ink bg-ink text-white shadow-md' : 'border-black/10 hover:border-black/30 bg-white/50'}`}>
-                        {s}
-                      </button>
-                    )
-                 })}
+            {catAttrs.length > 0 && (
+              <div className="md:col-span-2 space-y-4">
+                <label className="block text-xs uppercase tracking-widest opacity-60">Atribut Spesifikasi Khusus ({currentCat?.name})</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {catAttrs.map((attr, idx) => (
+                      <div key={idx} className="bg-white/40 border border-black/10 rounded-xl p-4">
+                         <label className="block text-[10px] uppercase font-semibold mb-2">{attr.name}</label>
+                         <select 
+                            value={customAttributes[attr.name] || ''}
+                            onChange={e => setCustomAttributes({...customAttributes, [attr.name]: e.target.value})}
+                            className="w-full bg-white border border-black/10 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-ink"
+                         >
+                           <option value="">-- Pilih {attr.name} --</option>
+                           {attr.options.map((opt: string, i: number) => (
+                              <option key={i} value={opt}>{opt}</option>
+                           ))}
+                         </select>
+                      </div>
+                   ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {hasSizes && (
+              <div className="md:col-span-2 space-y-4">
+                <label className="block text-xs uppercase tracking-widest opacity-60">Ukuran Tersedia (Size)</label>
+                <div className="flex flex-wrap gap-2">
+                   {AVAILABLE_SIZES.map(s => {
+                      const isSelected = selectedSizes.includes(s);
+                      return (
+                        <button type="button" key={s} onClick={() => {
+                          if (isSelected) setSelectedSizes(selectedSizes.filter(x => x !== s));
+                          else setSelectedSizes([...selectedSizes, s]);
+                        }} className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${isSelected ? 'border-ink bg-ink text-white shadow-md' : 'border-black/10 hover:border-black/30 bg-white/50'}`}>
+                          {s}
+                        </button>
+                      )
+                   })}
+                </div>
+              </div>
+            )}
             
-            <div className="md:col-span-2 space-y-4">
-              <label className="block text-xs uppercase tracking-widest opacity-60">Warna Tersedia</label>
-              <div className="flex flex-wrap gap-4 items-center">
-                {globalColors.map((color) => {
+            {hasColors && (
+              <div className="md:col-span-2 space-y-4">
+                <label className="block text-xs uppercase tracking-widest opacity-60">Warna Tersedia</label>
+                <div className="flex flex-wrap gap-4 items-center">
+                  {globalColors.map((color) => {
                   const isSelected = selectedColorNames.includes(color.name);
                   return (
                     <div 
@@ -470,6 +505,7 @@ export default function AdminProductForm() {
                 </div>
               )}
             </div>
+            )}
 
             <div className="md:col-span-2">
                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Deskripsi Produk</label>
@@ -575,13 +611,16 @@ export default function AdminProductForm() {
           </div>
         </div>
 
-        <div className="pt-8 text-right border-t border-black/10">
+        <div className="pt-8 text-right border-t border-black/10 flex justify-between">
+          <button type="button" onClick={() => setFormStep(isEditing ? 'list' : 'select-category')} className="px-6 py-4 bg-white border border-black/10 text-ink rounded-full uppercase tracking-widest text-xs font-medium hover:bg-black/5 transition-colors">
+            Kembali
+          </button>
           <button type="button" onClick={handleSubmit} className="px-10 py-4 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-1">
             {isEditing ? 'Simpan Perubahan' : 'Simpan Produk Baru'}
           </button>
         </div>
       </form>
-      )}
+      )})()}
     </div>
   );
 }

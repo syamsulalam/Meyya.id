@@ -58,6 +58,7 @@ async function startServer() {
       for (const p of products) {
         p.colors = db.prepare('SELECT color_name, hex_code FROM product_colors WHERE product_id = ?').all(p.id);
         p.sizes = db.prepare('SELECT size_name FROM product_sizes WHERE product_id = ?').all(p.id);
+        p.attributes = db.prepare('SELECT attribute_name, attribute_value FROM product_attributes WHERE product_id = ?').all(p.id);
       }
       res.json(products);
     } catch (e: any) {
@@ -72,6 +73,7 @@ async function startServer() {
       
       p.colors = db.prepare('SELECT color_name, hex_code FROM product_colors WHERE product_id = ?').all(p.id);
       p.sizes = db.prepare('SELECT size_name FROM product_sizes WHERE product_id = ?').all(p.id);
+      p.attributes = db.prepare('SELECT attribute_name, attribute_value FROM product_attributes WHERE product_id = ?').all(p.id);
       
       res.json(p);
     } catch (e: any) {
@@ -152,6 +154,9 @@ async function startServer() {
         LEFT JOIN products p ON c.id = p.category_id 
         GROUP BY c.id
       `).all() as any[];
+      for (const c of categories) {
+        c.attributes = db.prepare('SELECT * FROM category_attributes WHERE category_id = ?').all(c.id);
+      }
       res.json(categories);
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -160,10 +165,18 @@ async function startServer() {
 
   app.post('/api/categories', (req, res) => {
     try {
-      const { name, slug, image_url } = req.body;
-      const stmt = db.prepare('INSERT INTO categories (name, slug, image_url) VALUES (?, ?, ?)');
-      const info = stmt.run(name, slug, image_url);
-      res.json({ id: info.lastInsertRowid });
+      const { name, slug, image_url, has_colors, has_sizes, attributes } = req.body;
+      const stmt = db.prepare('INSERT INTO categories (name, slug, image_url, has_colors, has_sizes) VALUES (?, ?, ?, ?, ?)');
+      const info = stmt.run(name, slug, image_url, has_colors ? 1 : 0, has_sizes ? 1 : 0);
+      
+      const newCatId = info.lastInsertRowid;
+      if (attributes && Array.isArray(attributes)) {
+        const insertAttr = db.prepare('INSERT INTO category_attributes (category_id, name, options) VALUES (?, ?, ?)');
+        for (const attr of attributes) {
+          insertAttr.run(newCatId, attr.name, JSON.stringify(attr.options || []));
+        }
+      }
+      res.json({ id: newCatId });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -172,9 +185,17 @@ async function startServer() {
   app.put('/api/categories/:id', (req, res) => {
     try {
       const { id } = req.params;
-      const { name, slug, image_url } = req.body;
-      const stmt = db.prepare('UPDATE categories SET name = ?, slug = ?, image_url = ? WHERE id = ?');
-      stmt.run(name, slug, image_url, id);
+      const { name, slug, image_url, has_colors, has_sizes, attributes } = req.body;
+      const stmt = db.prepare('UPDATE categories SET name = ?, slug = ?, image_url = ?, has_colors = ?, has_sizes = ? WHERE id = ?');
+      stmt.run(name, slug, image_url, has_colors ? 1 : 0, has_sizes ? 1 : 0, id);
+
+      if (attributes) {
+        db.prepare('DELETE FROM category_attributes WHERE category_id = ?').run(id);
+        const insertAttr = db.prepare('INSERT INTO category_attributes (category_id, name, options) VALUES (?, ?, ?)');
+        for (const attr of attributes) {
+          insertAttr.run(id, attr.name, JSON.stringify(attr.options || []));
+        }
+      }
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
