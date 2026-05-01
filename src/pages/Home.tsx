@@ -20,7 +20,7 @@ export default function Home() {
       .then(data => {
         const arr = Array.isArray(data) ? data : [];
         if (category) {
-          setProducts(arr.filter((p: any) => p.category_name?.toLowerCase() === category.toLowerCase()));
+          setProducts(arr.filter((p: any) => p.category_slug?.toLowerCase() === category.toLowerCase() || p.category_name?.toLowerCase() === category.toLowerCase()));
         } else {
           setProducts(arr);
         }

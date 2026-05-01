@@ -1,32 +1,27 @@
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
+import useSWR from 'swr';
 
-const categories = [
-  { id: 'pashmina', name: 'Pashmina', image: 'https://images.unsplash.com/photo-1589465885857-44edb59bbcdb?auto=format&fit=crop&q=80&w=800' },
-  { id: 'abaya', name: 'Abaya', image: 'https://images.unsplash.com/photo-1627914225226-8051db55c117?auto=format&fit=crop&q=80&w=800' },
-  { id: 'khimar', name: 'Khimar', image: 'https://images.unsplash.com/photo-1610427921319-5eb874d8b6da?auto=format&fit=crop&q=80&w=800' },
-  { id: 'inner', name: 'Inner', image: 'https://images.unsplash.com/photo-1632734346904-7c30a213fd0d?auto=format&fit=crop&q=80&w=800' },
-  { id: 'aksesoris', name: 'Aksesoris', image: 'https://plus.unsplash.com/premium_photo-1675107359570-87efced5d045?auto=format&fit=crop&q=80&w=800' },
-];
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
-function CategoryCard({ category }: { category: any }) {
+const CategoryCard: React.FC<{category: any}> = ({ category }) => {
   const [hasError, setHasError] = useState(false);
 
   return (
     <Link 
       key={category.id} 
-      to={`/?kategori=${category.id}#katalog`}
+      to={`/?kategori=${category.slug || category.id}#katalog`}
       className="flex-shrink-0 w-[240px] md:w-[320px] aspect-[4/5] snap-start relative rounded-3xl overflow-hidden group/card shadow-sm hover:shadow-xl transition-all duration-500 bg-gray-100 flex items-center justify-center"
     >
       <div className="absolute inset-0 bg-black/20 group-hover/card:bg-black/10 transition-colors z-10" />
-      {(!category.image || hasError) ? (
-         <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
-           <ImageOff size={48} className="opacity-50" />
+      {(!category.image_url || hasError) ? (
+         <div className="w-full h-full flex flex-col items-center justify-center bg-gray-200 text-gray-400">
+           <ImageOff size={48} className="opacity-50 mb-2" />
          </div>
       ) : (
         <img 
-          src={category.image} 
+          src={category.image_url} 
           alt={category.name} 
           onError={() => setHasError(true)}
           className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-700 ease-out"
@@ -42,6 +37,9 @@ function CategoryCard({ category }: { category: any }) {
 
 export default function CategorySlider() {
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const { data: dbCategories, error } = useSWR('/api/categories', fetcher);
+  const categories = Array.isArray(dbCategories) ? dbCategories : [];
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {

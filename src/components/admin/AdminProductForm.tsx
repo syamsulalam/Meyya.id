@@ -23,6 +23,7 @@ export default function AdminProductForm() {
   const { data: products, error } = useSWR('/api/products', fetcher);
   
   const [isEditing, setIsEditing] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
   
   const [productName, setProductName] = useState('');
   const [slug, setSlug] = useState('');
@@ -99,6 +100,7 @@ export default function AdminProductForm() {
   
   const handleEdit = (p: any) => {
     setIsEditing(p.id);
+    setShowForm(true);
     setProductName(p.name);
     setSlug(p.slug || '');
     setDescription(p.description || '');
@@ -146,6 +148,7 @@ export default function AdminProductForm() {
 
   const resetForm = () => {
     setIsEditing(null);
+    setShowForm(false);
     setProductName('');
     setSlug('');
     setDescription('');
@@ -234,16 +237,23 @@ export default function AdminProductForm() {
         </table>
       </div>
 
-      <div className="flex justify-between items-end mb-8 border-b border-black/10 pb-4">
+      <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4">
         <h2 className="text-2xl font-light font-heading text-ink">
           {isEditing ? 'Edit Produk' : 'Tambah Produk Baru'}
         </h2>
-        {isEditing && (
-          <button onClick={resetForm} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5">Batal Edit</button>
-        )}
+        <div>
+          {isEditing ? (
+            <button onClick={resetForm} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5">Batal Edit</button>
+          ) : (
+            <button onClick={() => setShowForm(!showForm)} className="inline-flex flex-shrink-0 items-center justify-center gap-2 bg-ink text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-black/80 transition-colors">
+              {showForm ? 'Tutup Form' : <><Plus size={16} /> Tambah Produk</>}
+            </button>
+          )}
+        </div>
       </div>
       
-      <form className="space-y-12">
+      {showForm && (
+        <form className="space-y-12">
         {/* 1. Basic Info */}
         <div className="space-y-6">
           <h3 className="text-sm uppercase tracking-widest font-semibold pb-2 border-b border-black/10">1. Informasi Dasar</h3>
@@ -452,6 +462,7 @@ export default function AdminProductForm() {
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }
