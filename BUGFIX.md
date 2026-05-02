@@ -29,3 +29,58 @@ Sedangkan komponen `Home.tsx` dan `AdminProductForm.tsx` berekspektasi bahwa str
    - Dengan sistem *fallback* yang fleksibel ini, UI Frontend tidak akan rentan patah / crash meskipun Backend mengubah *envelope* format JSON-nya di kemudian hari.
 
 Bug telah ditutup dan sistem telah diperbarui untuk mendukung format *Array / Object Object-Wrapped Arrays*. Silakan di-deploy (push) ke repository agar ter-apply ke versi produksi.
+
+---
+
+## Tambahan: Laporan Error Database D1 (2 Mei)
+Berdasarkan log terbaru, terdapat *Secondary Bug* untuk live site `meyya.id`:
+```
+API return error: 500 - {"error":"D1_ERROR: no such table: product_attributes: SQLITE_ERROR"}
+```
+**Penyebab Utama:** Sering terjadi dalam Cloudflare D1 bahwa tabel-tabel baru / alter tabel yang dibuat di sistem pengembangan lokal (Dev Environment) belum termigrasi / ter-*apply* ke database produksi D1 (`meyya-db` / database langsung di remote). Beberapa tabel yang dibutuhkan aplikasi saat ini namun menghilang di produksi adalah: `category_attributes`, `product_attributes`, `product_colors`, and `product_sizes`.
+
+Selain itu, Bug "Failed to execute 'text' pada 'Response': body stream already read" terjadi ketika Frontend mencoba me-render JSON error menggunakan fallback `.text()` untuk logging, namun *stream body HTTP* sudah dibaca dari function `.json()`. Ini sudah kita perbaiki pada codebase saat ini (`AdminProductForm.tsx` dkk).
+
+### Langkah Tindakan yang Perlu Dilakukan Untuk Admin:
+Karena perbaikan schema (Tabel Ekstra) berada di sisi **database produksi** (D1) Cloudflare (yang tidak otomatis terupdate setiap kali frontend dideploy), silakan jalankan query migrasi ini melalui Dashboard Cloudflare Anda (Worker & Pages > D1 > Pilih Database > Console):
+
+```sql
+-- Jalankan berturut-turut di Console Database D1 via Cloudflare Dashboard
+CREATE TABLE IF NOT EXISTS product_colors (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER,
+  color_name TEXT NOT NULL,
+  hex_code TEXT,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS product_sizes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER,
+  size_name TEXT NOT NULL,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS category_attributes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  category_id INTEGER,
+  name TEXT NOT NULL,
+  options TEXT,
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS product_attributes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER,
+  attribute_name TEXT NOT NULL,
+  attribute_value TEXT,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+-- Pastikan tabel categories dan products memiliki metadata varian (abaikan kalau error already exist)
+ALTER TABLE categories ADD COLUMN has_colors BOOLEAN DEFAULT 0;
+ALTER TABLE categories ADD COLUMN has_sizes BOOLEAN DEFAULT 0;
+ALTER TABLE products ADD COLUMN is_preorder BOOLEAN DEFAULT 0;
+```
+
+Setelah Schema ter-update di dashboard D1, error 500 `product_attributes` akan hilang.

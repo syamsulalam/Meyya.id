@@ -7,13 +7,16 @@ import { mutate } from 'swr';
 const fetcher = async (url: string) => {
   const r = await fetch(url);
   if (!r.ok) {
+    const text = await r.text();
     let err;
     try {
-      err = await r.json();
+      err = JSON.parse(text);
       throw new Error(err.error || JSON.stringify(err));
-    } catch {
-      const text = await r.text();
-      throw new Error(`HTTP ${r.status}: ${text}`);
+    } catch (e: any) {
+      if (e.message.includes('Unexpected token') || e instanceof SyntaxError) {
+        throw new Error(`HTTP ${r.status}: ${text}`);
+      }
+      throw e;
     }
   }
   const data = await r.json();
