@@ -16,8 +16,13 @@ const CategoryCard: React.FC<{category: any}> = ({ category }) => {
     >
       <div className="absolute inset-0 bg-black/20 group-hover/card:bg-black/10 transition-colors z-10" />
       {(!category.image_url || hasError) ? (
-         <div className="w-full h-full flex flex-col items-center justify-center bg-gray-200 text-gray-400">
-           <ImageOff size={48} className="opacity-50 mb-2" />
+         <div 
+           className="w-full h-full flex flex-col items-center justify-center transition-transform duration-700 group-hover/card:scale-105"
+           style={{
+             background: `linear-gradient(135deg, hsl(${(category.id * 137) % 360}, 10%, 80%), hsl(${(category.id * 137 + 40) % 360}, 20%, 90%))`
+           }}
+         >
+           <ImageOff size={48} className="opacity-20 mb-2 text-black mix-blend-overlay" />
          </div>
       ) : (
         <img 

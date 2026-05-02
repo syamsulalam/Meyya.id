@@ -26,10 +26,17 @@ export default function Home() {
         return res.json();
       })
       .then(data => {
-        const arr = Array.isArray(data) ? data : [];
-        if (!Array.isArray(data)) {
-           setDebugInfo({ message: 'Response is not an array', data });
-        } else if (arr.length > 0) {
+        let arr: any[] = [];
+        if (Array.isArray(data)) {
+           arr = data;
+        } else if (data && data.products && Array.isArray(data.products)) {
+           arr = data.products;
+           // setDebugInfo({ message: "Response was object with products array", data }); // Optional: uncomment if still want warning
+        } else {
+           setDebugInfo({ message: 'Response is not an array and missing products key', data });
+        }
+        
+        if (arr.length > 0) {
            // Debug check for the first item
            const first = arr[0];
            const missingKeys = [];

@@ -14,7 +14,13 @@ const fetcher = async (url: string) => {
       throw new Error(`HTTP ${r.status}: ${text}`);
     }
   }
-  return r.json();
+  const data = await r.json();
+  if (data && !Array.isArray(data)) {
+    if (data.products && Array.isArray(data.products)) return data.products;
+    if (data.categories && Array.isArray(data.categories)) return data.categories;
+    if (data.orders && Array.isArray(data.orders)) return data.orders;
+  }
+  return data;
 };
 
 export default function AdminCategoryManager() {
