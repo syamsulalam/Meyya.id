@@ -41,7 +41,8 @@ export default function Header() {
           email: clerkUser.primaryEmailAddress?.emailAddress,
           first_name: clerkUser.firstName,
           last_name: clerkUser.lastName,
-          phone_wa: '' // or clerkUser.primaryPhoneNumber?.phoneNumber if configured
+          phone_wa: '', // or clerkUser.primaryPhoneNumber?.phoneNumber if configured
+          role: clerkUser.publicMetadata?.role || 'customer'
         })
       }).catch(err => console.error('Failed to sync user to D1:', err));
     }

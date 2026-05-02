@@ -127,7 +127,7 @@ export default function AdminDashboard() {
 
         {/* Content Area */}
         <div className="flex-1 min-w-0 bg-white/60 rounded-[24px] md:rounded-[36px] p-6 lg:p-12 border border-black/5 min-h-[600px] flex flex-col">
-          {activeTab === 'dashboard' && <AdminMetricsPanel />}
+          {activeTab === 'dashboard' && <AdminMetricsPanel onNavigate={(tab) => setActiveTab(tab)} />}
           {activeTab === 'crm' && <AdminCRMManager />}
           {activeTab === 'marketing' && <AdminMarketingPanel />}
           {activeTab === 'kategori' && <AdminCategoryManager />}
