@@ -122,9 +122,9 @@ export default function Profile() {
         <div className="flex-1 min-w-0">
           <div className="bg-white/60 rounded-[24px] md:rounded-[36px] p-6 lg:p-12 border border-black/5 min-h-[500px]">
             {activeTab === 'akun' && <ProfileAccount user={localUser || clerkUser} setBlockerOpen={setIsBlockerOpen} />}
-            {activeTab === 'status' && <ProfileStatus />}
-            {activeTab === 'riwayat' && <ProfileHistory />}
-            {activeTab === 'terakhir' && <ProfileRecentlyViewed />}
+            {activeTab === 'status' && <ProfileStatus user={localUser || clerkUser} />}
+            {activeTab === 'riwayat' && <ProfileHistory user={localUser || clerkUser} />}
+            {activeTab === 'terakhir' && <ProfileRecentlyViewed user={localUser || clerkUser} />}
             {activeTab === 'voucher' && <ProfileVouchers />}
             {activeTab === 'bantuan' && <ProfileHelp />}
             {activeTab === 'rekomendasi' && <ProfileRecommendations />}

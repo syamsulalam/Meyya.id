@@ -60,13 +60,32 @@ export default function Checkout() {
   
   const totalAkhir = subtotal + shippingCost + adminFee - (appliedVoucher ? appliedVoucher.discount : 0) + uniqueCode;
 
-  const handleApplyVoucher = (e: React.FormEvent) => {
+  const handleApplyVoucher = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (voucherCode === 'WELCOME20') {
-      setAppliedVoucher({code: 'WELCOME20', discount: 50000});
-      alert('Voucher berhasil digunakan!');
-    } else {
-      alert('Voucher tidak valid');
+    if (!voucherCode) return;
+    
+    try {
+       const res = await fetch('/api/vouchers/validate', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           code: voucherCode.toUpperCase(),
+           cart_subtotal: subtotal
+         })
+       });
+
+       const data = await res.json();
+       
+       if (!res.ok) {
+          alert('Gagal menggunakan voucher: ' + (data.error || 'Voucher tidak valid'));
+          setAppliedVoucher(null);
+          return;
+       }
+
+       setAppliedVoucher({ code: data.code, discount: data.discount });
+       alert('Voucher berhasil diaplikasikan!');
+    } catch (e: any) {
+       alert('Terjadi kesalahan jaringan.');
     }
   };
 

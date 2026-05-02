@@ -7,7 +7,7 @@ import clsx from 'clsx';
 export default function ProductDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { addToCart, toggleWishlist, wishlist } = useStore();
+  const { addToCart, toggleWishlist, wishlist, addRecentlyViewed } = useStore();
   
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -20,15 +20,20 @@ export default function ProductDetail() {
       .then(res => res.json())
       .then(data => {
         if (data.error) {
-          navigate('/');
+           navigate('/');
         } else {
-          setProduct(data);
-          if (data.colors?.length > 0) setSelectedColor(data.colors[0]);
-          if (data.sizes?.length > 0) setSelectedSize(data.sizes[0].size_name);
+           setProduct(data);
+           addRecentlyViewed(data.id);
+           if (data.colors?.length > 0) setSelectedColor(data.colors[0]);
+           if (data.sizes?.length > 0) setSelectedSize(data.sizes[0].size_name);
         }
         setLoading(false);
+      })
+      .catch(err => {
+         console.error('Failed to load product:', err);
+         setLoading(false);
       });
-  }, [slug, navigate]);
+  }, [slug, navigate, addRecentlyViewed]);
 
   if (loading) {
     return <div className="py-20 text-center text-gray-500">Memuat produk...</div>;

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import useSWR, { mutate } from 'swr';
 import { createPortal } from 'react-dom';
 import { User, MapPin, Phone, Mail, CheckCircle2, Home, Briefcase, Building, Plus, Trash2 } from 'lucide-react';
 import AutoSuggest from './AutoSuggest';
 import { useBlocker } from 'react-router-dom';
-import { useStore } from '../../store';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 const COUNTRY_CODES = [
   { code: '+62', flag: '🇮🇩', label: 'ID' },
@@ -13,10 +15,12 @@ const COUNTRY_CODES = [
 ];
 
 export default function ProfileAccount({ user, setBlockerOpen }: { user: any, setBlockerOpen?: (open: boolean) => void }) {
-  const { savedAddresses, addSavedAddress, removeSavedAddress } = useStore();
+  const { data: dbAddresses, mutate: mutateAddresses } = useSWR(user?.id ? `/api/user/addresses/${user.id}` : null, fetcher);
+  const savedAddresses = Array.isArray(dbAddresses) ? dbAddresses : [];
+  
   const [countryCode, setCountryCode] = useState('+62');
   
-  const [isAddingAddress, setIsAddingAddress] = useState(savedAddresses.length === 0);
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [addressLabel, setAddressLabel] = useState('Rumah');
   const [addressIcon, setAddressIcon] = useState('🏠');
   const [addressRecipient, setAddressRecipient] = useState('');
@@ -157,18 +161,17 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
     }
   }
 
-  const handleSaveAddress = () => {
+  const handleSaveAddress = async () => {
     if (activeStep < 5 || alamatDetail.length < 5 || !addressRecipient || !addressPhone) {
       alert('Mohon lengkapi semua form alamat pengiriman');
       return;
     }
     const newAddr = {
-      id: Math.random().toString(36).substr(2, 9),
       label: addressLabel,
       icon: addressIcon,
-      recipientName: addressRecipient,
-      phone: addressPhone,
-      street: alamatDetail,
+      recipient_name: addressRecipient,
+      recipient_phone: addressPhone,
+      street_address: alamatDetail,
       province_code: selectedProvinsi?.id || '',
       province_name: selectedProvinsi?.name || '',
       regency_code: selectedKota?.id || '',
@@ -176,22 +179,46 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       district_code: selectedKecamatan?.id || '',
       district_name: selectedKecamatan?.name || '',
       village_code: selectedKelurahan?.id || '',
-      village_name: selectedKelurahan?.name || ''
+      village_name: selectedKelurahan?.name || '',
+      is_default: savedAddresses.length === 0 ? true : false,
     };
-    addSavedAddress(newAddr);
-    setIsAddingAddress(false);
     
-    // reset
-    setAddressRecipient('');
-    setAddressPhone('');
-    setSelectedProvinsi(null);
-    setSelectedKota(null);
-    setSelectedKecamatan(null);
-    setSelectedKelurahan(null);
-    setAlamatDetail('');
-    setActiveStep(1);
-    setIsSaved(true); // Treat add address as saved automatically
-    alert('Alamat berhasil ditambahkan!');
+    try {
+      const res = await fetch(`/api/user/addresses/${user.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAddr)
+      });
+      if (!res.ok) throw new Error('Gagal menyimpan alamat');
+      
+      mutateAddresses();
+      setIsAddingAddress(false);
+      
+      // reset
+      setAddressRecipient('');
+      setAddressPhone('');
+      setSelectedProvinsi(null);
+      setSelectedKota(null);
+      setSelectedKecamatan(null);
+      setSelectedKelurahan(null);
+      setAlamatDetail('');
+      setActiveStep(1);
+      setIsSaved(true);
+      alert('Alamat berhasil ditambahkan!');
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const removeSavedAddress = async (id: string) => {
+    if (!confirm('Hapus alamat ini?')) return;
+    try {
+      const res = await fetch(`/api/user/addresses/${user.id}/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Gagal menghapus');
+      mutateAddresses();
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   return (
@@ -307,8 +334,8 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                      <div className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-xl shrink-0">{addr.icon}</div>
                      <div className="flex-1">
                        <h4 className="font-semibold text-ink text-sm flex items-center gap-2">{addr.label}</h4>
-                       <p className="text-sm mt-1 text-gray-800 font-medium">{addr.recipientName} ({addr.phone})</p>
-                       <p className="text-xs text-gray-500 mt-1 line-clamp-3">{addr.street}, {addr.village_name}, {addr.district_name}, {addr.regency_name}, {addr.province_name}</p>
+                       <p className="text-sm mt-1 text-gray-800 font-medium">{addr.recipient_name} ({addr.recipient_phone})</p>
+                       <p className="text-xs text-gray-500 mt-1 line-clamp-3">{addr.street_address}, {addr.village_name}, {addr.district_name}, {addr.regency_name}, {addr.province_name}</p>
                      </div>
                    </div>
                    <button 

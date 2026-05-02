@@ -36,6 +36,7 @@ export interface SavedAddress {
 interface AppState {
   cart: CartItem[];
   wishlist: number[];
+  recentlyViewed: number[];
   user: { id: string; role: 'customer' | 'admin'; name?: string; email?: string } | null;
   globalColors: ColorDefinition[];
   savedAddresses: SavedAddress[];
@@ -45,6 +46,7 @@ interface AppState {
   removeFromCart: (index: number) => void;
   clearCart: () => void;
   toggleWishlist: (product_id: number) => void;
+  addRecentlyViewed: (product_id: number) => void;
   login: (role: 'customer' | 'admin') => void;
   logout: () => void;
   addSavedAddress: (address: Omit<SavedAddress, 'id'>) => void;
@@ -57,6 +59,7 @@ export const useStore = create<AppState>()(
     (set) => ({
       cart: [],
       wishlist: [],
+      recentlyViewed: [],
       user: null,
       savedAddresses: [],
       globalColors: [
@@ -112,6 +115,10 @@ export const useStore = create<AppState>()(
           wishlist: state.wishlist.includes(id)
             ? state.wishlist.filter((wId) => wId !== id)
             : [...state.wishlist, id],
+        })),
+      addRecentlyViewed: (id) =>
+        set((state) => ({
+          recentlyViewed: [id, ...state.recentlyViewed.filter(r => r !== id)].slice(0, 10)
         })),
       login: (role) => set({ user: { id: 'user-123', role, name: 'Guest User', email: 'guest@example.com' } }),
       logout: () => set({ user: null }),

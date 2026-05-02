@@ -30,6 +30,23 @@ export default function Header() {
     setIsMobileMenuOpen(false);
   }, [location.pathname, location.search]);
 
+  // Sync clerkUser to D1 database silently
+  useEffect(() => {
+    if (clerkUser) {
+      fetch('/api/user/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clerk_id: clerkUser.id,
+          email: clerkUser.primaryEmailAddress?.emailAddress,
+          first_name: clerkUser.firstName,
+          last_name: clerkUser.lastName,
+          phone_wa: '' // or clerkUser.primaryPhoneNumber?.phoneNumber if configured
+        })
+      }).catch(err => console.error('Failed to sync user to D1:', err));
+    }
+  }, [clerkUser]);
+
   return (
     <header className="sticky top-0 z-50 px-4 py-4 border-b border-white/20 bg-white/40 backdrop-blur-md">
       <div className="max-w-7xl mx-auto flex flex-col gap-4">
