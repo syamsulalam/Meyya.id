@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Tag, Trash2, Edit2, Clock, Percent, DollarSign, CheckCircle2 } from 'lucide-react';
+import useSWR, { mutate } from 'swr';
 
 type VoucherType = 'PERCENTAGE' | 'FIXED' | 'FREE_SHIPPING';
 
@@ -19,52 +20,31 @@ interface Voucher {
   targetUserRole: 'ALL' | 'NEW_USER' | 'VIP'; // Simple targeting
 }
 
-export default function AdminVoucherManager() {
-  const [vouchers, setVouchers] = useState<Voucher[]>([
-    {
-      id: 'v1',
-      code: 'WELCOME20',
-      name: 'Diskon Pengguna Baru',
-      type: 'PERCENTAGE',
-      value: 20,
-      minPurchase: 100000,
-      maxDiscount: 50000,
-      startDate: '2026-01-01',
-      endDate: '2026-12-31',
-      usageLimit: 0,
-      usedCount: 145,
-      isActive: true,
-      targetUserRole: 'NEW_USER',
-    },
-    {
-      id: 'v2',
-      code: 'RAYASALE',
-      name: 'Promo Hari Raya',
-      type: 'FIXED',
-      value: 100000,
-      minPurchase: 500000,
-      startDate: '2026-03-01',
-      endDate: '2026-04-30',
-      usageLimit: 1000,
-      usedCount: 890,
-      isActive: true,
-      targetUserRole: 'ALL',
-    },
-    {
-      id: 'v3',
-      code: 'GRATISONGKIR',
-      name: 'Gratis Ongkir Seluruh Indo',
-      type: 'FREE_SHIPPING',
-      value: 0, // value not used for free shipping
-      minPurchase: 250000,
-      startDate: '2026-04-01',
-      endDate: '2026-04-30',
-      usageLimit: 500,
-      usedCount: 500, // Reached limit
-      isActive: false,
-      targetUserRole: 'ALL',
+const fetcher = async (url: string) => {
+  const r = await fetch(url);
+  if (!r.ok) {
+    const text = await r.text();
+    let err;
+    try {
+      err = JSON.parse(text);
+      throw new Error(err.error || JSON.stringify(err));
+    } catch (e: any) {
+      if (e.message.includes('Unexpected token') || e instanceof SyntaxError) {
+        throw new Error(`HTTP ${r.status}: ${text}`);
+      }
+      throw e;
     }
-  ]);
+  }
+  const data = await r.json();
+  if (data && !Array.isArray(data)) {
+    if (data.vouchers && Array.isArray(data.vouchers)) return data.vouchers;
+  }
+  return data;
+};
+
+export default function AdminVoucherManager() {
+  const { data: dbVouchers, error, isLoading } = useSWR('/api/admin/vouchers', fetcher);
+  const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
 
   const [showForm, setShowForm] = useState(false);
   
@@ -75,7 +55,69 @@ export default function AdminVoucherManager() {
     isActive: true,
     minPurchase: 0,
     usageLimit: 0,
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
   });
+
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!formVoucher.code) return alert("Kode voucher harus diisi");
+    setLoading(true);
+    try {
+      const payload = {
+        code: formVoucher.code.toUpperCase(),
+        discount_type: formVoucher.type,
+        discount_value: formVoucher.value || 0,
+        min_purchase: formVoucher.minPurchase || 0,
+        max_discount: formVoucher.maxDiscount || null,
+        valid_from: formVoucher.startDate,
+        valid_until: formVoucher.endDate,
+        usage_limit: formVoucher.usageLimit || 0,
+        target_user_role: formVoucher.targetUserRole || 'ALL'
+      };
+
+      const res = await fetch('/api/admin/vouchers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+         const txt = await res.text();
+         throw new Error(txt);
+      }
+      
+      mutate('/api/admin/vouchers');
+      setShowForm(false);
+      setFormVoucher({
+        type: 'PERCENTAGE',
+        targetUserRole: 'ALL',
+        isActive: true,
+        minPurchase: 0,
+        usageLimit: 0,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
+      });
+      alert('Voucher berhasil ditambahkan!');
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (code: string) => {
+    if (!confirm('Hapus voucher ' + code + '?')) return;
+    try {
+      const res = await fetch(`/api/admin/vouchers/${encodeURIComponent(code)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Gagal menghapus');
+      mutate('/api/admin/vouchers');
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    }
+  };
 
   return (
     <div className="space-y-8 slide-up">
@@ -88,9 +130,12 @@ export default function AdminVoucherManager() {
           onClick={() => setShowForm(!showForm)}
           className="bg-ink text-white px-5 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/80 transition-colors shadow-m flex items-center gap-2"
         >
-          {showForm ? 'Batal' : <><Plus size={16} /> Buat Voucher Barru</>}
+          {showForm ? 'Batal' : <><Plus size={16} /> Buat Voucher Baru</>}
         </button>
       </div>
+
+      {isLoading && <div className="text-sm px-4 py-2 bg-yellow-50 text-yellow-600 rounded-lg border border-yellow-200">Sedang memuat data dari database D1...</div>}
+      {error && <div className="text-sm px-4 py-2 bg-red-50 text-red-600 rounded-lg border border-red-200">Debug (D1 Error): Gagal memuat data. {error.message}</div>}
 
       {showForm && (
         <div className="bg-white/60 p-6 md:p-8 rounded-[2rem] border border-black/5 shadow-sm slide-down mb-8">
@@ -98,18 +143,18 @@ export default function AdminVoucherManager() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Nama Promosi (Internal)</label>
-              <input type="text" placeholder="Misal: Flash Sale Ramadhan" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
+              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Nama Promosi (Opsional)</label>
+              <input type="text" value={formVoucher.name || ''} onChange={e => setFormVoucher({...formVoucher, name: e.target.value})} placeholder="Misal: Flash Sale Ramadhan" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Kode Voucher (Publik)</label>
-              <input type="text" placeholder="Misal: RAMADHAN50" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink uppercase font-mono" />
+              <input type="text" value={formVoucher.code || ''} onChange={e => setFormVoucher({...formVoucher, code: e.target.value.toUpperCase()})} placeholder="Misal: RAMADHAN50" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink uppercase font-mono" />
             </div>
 
             <div>
               <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Tipe Diskon</label>
               <div className="grid grid-cols-3 gap-2">
-                {(['PERCENTAGE', 'FIXED', 'FREE_SHIPPING'] as const).map(type => (
+                {(['PERCENTAGE', 'FIXED', 'FREE_SHIPPING'] as VoucherType[]).map(type => (
                   <button 
                     key={type}
                     onClick={() => setFormVoucher({...formVoucher, type})}
@@ -133,6 +178,8 @@ export default function AdminVoucherManager() {
                     {formVoucher.type === 'FIXED' && <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-50">Rp</span>}
                     <input 
                       type="number" 
+                      value={formVoucher.value || ''}
+                      onChange={e => setFormVoucher({...formVoucher, value: Number(e.target.value)})}
                       placeholder={formVoucher.type === 'PERCENTAGE' ? "Misal: 20" : "Misal: 50000"} 
                       className={`w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink ${formVoucher.type === 'FIXED' ? 'pl-10' : ''}`} 
                     />
@@ -146,7 +193,7 @@ export default function AdminVoucherManager() {
                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Maksimal Diskon (Opsional)</label>
                  <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-50">Rp</span>
-                    <input type="number" placeholder="Misal: 50000" className="w-full bg-white border border-black/10 rounded-xl py-3 pl-10 px-4 text-sm focus:outline-none focus:border-ink" />
+                    <input type="number" value={formVoucher.maxDiscount || ''} onChange={e => setFormVoucher({...formVoucher, maxDiscount: Number(e.target.value)})} placeholder="Misal: 50000" className="w-full bg-white border border-black/10 rounded-xl py-3 pl-10 px-4 text-sm focus:outline-none focus:border-ink" />
                  </div>
                  <p className="text-[10px] text-gray-500 mt-1">Kosongkan jika tidak ada batas maksimal</p>
               </div>
@@ -156,29 +203,29 @@ export default function AdminVoucherManager() {
                <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Minimal Belanja (Opsional)</label>
                <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-50">Rp</span>
-                  <input type="number" placeholder="Misal: 100000" className="w-full bg-white border border-black/10 rounded-xl py-3 pl-10 px-4 text-sm focus:outline-none focus:border-ink" />
+                  <input type="number" value={formVoucher.minPurchase || ''} onChange={e => setFormVoucher({...formVoucher, minPurchase: Number(e.target.value)})} placeholder="Misal: 100000" className="w-full bg-white border border-black/10 rounded-xl py-3 pl-10 px-4 text-sm focus:outline-none focus:border-ink" />
                </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium"><Clock size={12} className="inline mr-1" />Tanggal Mulai</label>
-                <input type="date" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
+                <input type="date" value={formVoucher.startDate || ''} onChange={e => setFormVoucher({...formVoucher, startDate: e.target.value})} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
               </div>
               <div>
                 <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium"><Clock size={12} className="inline mr-1" />Tgl Kadaluarsa</label>
-                <input type="date" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
+                <input type="date" value={formVoucher.endDate || ''} onChange={e => setFormVoucher({...formVoucher, endDate: e.target.value})} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
               </div>
             </div>
             
             <div>
                <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Batas Penggunaan (Kuota)</label>
-               <input type="number" placeholder="Misal: 100 (Kosong/0 = Tanpa Batas)" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
+               <input type="number" value={formVoucher.usageLimit || ''} onChange={e => setFormVoucher({...formVoucher, usageLimit: Number(e.target.value)})} placeholder="Misal: 100 (Kosong/0 = Tanpa Batas)" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
             </div>
 
             <div>
               <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Target Pengguna</label>
-              <select className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink">
+              <select value={formVoucher.targetUserRole || 'ALL'} onChange={e => setFormVoucher({...formVoucher, targetUserRole: e.target.value as any})} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink">
                 <option value="ALL">Semua Pengguna</option>
                 <option value="NEW_USER">Pengguna Baru / Belum Pernah Belanja</option>
                 <option value="VIP">Pengguna VIP / Pelanggan Setia</option>
@@ -188,8 +235,8 @@ export default function AdminVoucherManager() {
           </div>
 
           <div className="mt-8 flex justify-end">
-            <button className="bg-ink text-white px-8 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/80 transition-colors shadow-m">
-              Simpan Voucher
+            <button disabled={loading} onClick={handleSubmit} className="bg-ink text-white px-8 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/80 transition-colors shadow-m disabled:opacity-50">
+              {loading ? 'Menyimpan...' : 'Simpan Voucher'}
             </button>
           </div>
         </div>
@@ -199,6 +246,15 @@ export default function AdminVoucherManager() {
       <div className="bg-white/40 p-6 md:p-8 rounded-[2rem] border border-black/5">
         <h3 className="text-lg font-medium mb-6 font-heading">Daftar Voucher Aktif & Riwayat</h3>
         
+        {vouchers.length === 0 && !isLoading && (
+          <div className="text-center py-12 text-black/50">
+             <Tag size={48} className="mx-auto mb-4 opacity-30" />
+             <p className="mb-2">Belum ada promo voucher di sistem D1 Anda.</p>
+             <p className="text-sm opacity-80">Klik tombol "Buat Voucher Baru" di atas untuk menambahkan promo pertama Anda.</p>
+          </div>
+        )}
+
+        {vouchers.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -213,7 +269,7 @@ export default function AdminVoucherManager() {
               </tr>
             </thead>
             <tbody>
-              {vouchers.map(v => (
+              {vouchers.map((v: any) => (
                 <tr key={v.id} className="border-b border-black/5 last:border-0 hover:bg-black/5 transition-colors group">
                   <td className="py-4 pr-4">
                     <div className="font-mono font-semibold text-ink/90">{v.code}</div>
@@ -224,7 +280,7 @@ export default function AdminVoucherManager() {
                     {v.type === 'FIXED' && <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-1 rounded font-medium">Rp {(v.value / 1000).toFixed(0)}K OFF</span>}
                     {v.type === 'FREE_SHIPPING' && <span className="bg-purple-100 text-purple-800 text-[10px] px-2 py-1 rounded font-medium">GRATIS ONGKIR</span>}
                     
-                    {v.maxDiscount && v.type === 'PERCENTAGE' && (
+                    {v.maxDiscount > 0 && v.type === 'PERCENTAGE' && (
                       <div className="text-[10px] text-gray-400 mt-1">Maks Rp {(v.maxDiscount/1000)}k</div>
                     )}
                   </td>
@@ -232,9 +288,9 @@ export default function AdminVoucherManager() {
                     {v.minPurchase > 0 ? `Rp ${(v.minPurchase / 1000).toFixed(0)}k` : 'Rp 0'}
                   </td>
                   <td className="py-4 px-4">
-                     <div className="text-xs text-gray-600">{new Date(v.startDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'})}</div>
+                     <div className="text-xs text-gray-600">{v.startDate ? new Date(v.startDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'}) : '-'}</div>
                      <div className="text-[10px] text-gray-400">s/d</div>
-                     <div className="text-xs text-ink font-medium">{new Date(v.endDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'})}</div>
+                     <div className="text-xs text-ink font-medium">{v.endDate ? new Date(v.endDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'}) : '-'}</div>
                   </td>
                   <td className="py-4 px-4 text-sm">
                     <span className={`font-semibold ${v.usageLimit > 0 && v.usedCount >= v.usageLimit ? 'text-red-500' : 'text-emerald-600'}`}>{v.usedCount}</span>
@@ -253,10 +309,7 @@ export default function AdminVoucherManager() {
                   </td>
                   <td className="py-4 pl-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2 hover:bg-black/10 rounded-full transition-colors" title="Edit">
-                        <Edit2 size={16} className="text-gray-600" />
-                      </button>
-                      <button className="p-2 hover:bg-red-50 rounded-full transition-colors" title="Hapus">
+                      <button onClick={() => handleDelete(v.code)} className="p-2 hover:bg-red-50 rounded-full transition-colors" title="Hapus">
                         <Trash2 size={16} className="text-red-500" />
                       </button>
                     </div>
@@ -266,6 +319,7 @@ export default function AdminVoucherManager() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

@@ -1,11 +1,28 @@
 import React, { useState } from 'react';
 import { Search, ChevronLeft, Calendar, FileText, ShoppingBag, ArrowUpRight, Copy, Award, MapPin } from 'lucide-react';
+import useSWR from 'swr';
 
-const MOCK_CUSTOMERS = [
-  { id: 'user_1', name: 'Jane Doe', email: 'jane@example.com', status: 'VIP ⭐️', statusColor: 'bg-yellow-100 text-yellow-800', orders: 12, ltv: 4500000, lastActive: '2 hari yang lalu', joinDate: '10 Mei 2025', aov: 375000, returnRate: '0%', favoriteDay: 'Jumat', size: 'M' },
-  { id: 'user_2', name: 'John Smith', email: 'john@example.com', status: 'Regular', statusColor: 'bg-green-100 text-green-800', orders: 2, ltv: 550000, lastActive: '2 bulan yang lalu', joinDate: '14 Jan 2026', aov: 275000, returnRate: '5%', favoriteDay: 'Sabtu', size: 'XL' },
-  { id: 'user_3', name: 'Anna Lee', email: 'anna@example.com', status: 'At Risk ⚠️', statusColor: 'bg-red-100 text-red-800', orders: 1, ltv: 200000, lastActive: '8 bulan yang lalu', joinDate: '1 Aug 2025', aov: 200000, returnRate: '10%', favoriteDay: 'Senin', size: 'S' },
-];
+const fetcher = async (url: string) => {
+  const r = await fetch(url);
+  if (!r.ok) {
+    const text = await r.text();
+    let err;
+    try {
+      err = JSON.parse(text);
+      throw new Error(err.error || JSON.stringify(err));
+    } catch (e: any) {
+      if (e.message.includes('Unexpected token') || e instanceof SyntaxError) {
+        throw new Error(`HTTP ${r.status}: ${text}`);
+      }
+      throw e;
+    }
+  }
+  const data = await r.json();
+  if (data && !Array.isArray(data)) {
+    if (data.users && Array.isArray(data.users)) return data.users;
+  }
+  return data;
+};
 
 const MOCK_JOURNEY = [
   { id: 1, date: '12 Juni 2026', title: 'Menggunakan voucher PAYDAY50', type: 'voucher' },
@@ -19,7 +36,10 @@ const MOCK_ORDERS = [
 ];
 
 export default function AdminCRMManager() {
-  const [selectedUser, setSelectedUser] = useState<typeof MOCK_CUSTOMERS[0] | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+
+  const { data: dbUsers, error, isLoading } = useSWR('/api/admin/users', fetcher);
+  const CUSTOMERS = Array.isArray(dbUsers) ? dbUsers : [];
 
   if (selectedUser) {
     return (
@@ -34,20 +54,20 @@ export default function AdminCRMManager() {
         {/* Header Profile */}
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6 border-b border-black/10 pb-8">
           <div className="w-24 h-24 bg-black text-white rounded-full flex items-center justify-center text-3xl font-light">
-            {selectedUser.name.charAt(0)}
+            {selectedUser.name ? selectedUser.name.charAt(0) : '?'}
           </div>
           <div className="flex-1 text-center md:text-left space-y-2">
             <div className="flex items-center justify-center md:justify-start gap-3">
               <h2 className="text-3xl font-light">{selectedUser.name}</h2>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${selectedUser.statusColor}`}>
-                {selectedUser.status}
+              <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${selectedUser.status === 'Admin' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                {selectedUser.status || 'Regular'}
               </span>
             </div>
             <p className="text-black/60 font-medium flex items-center justify-center md:justify-start gap-2">
               <FileText size={14} /> {selectedUser.email}
             </p>
             <p className="text-sm text-black/50 flex items-center justify-center md:justify-start gap-2">
-              <Calendar size={14} /> Bergabung sejak {selectedUser.joinDate} • Aktif {selectedUser.lastActive}
+              <Calendar size={14} /> Bergabung sejak {selectedUser.joinDate ? new Date(selectedUser.joinDate).toLocaleDateString() : '-'} • Aktif {selectedUser.lastActive ? new Date(selectedUser.lastActive).toLocaleDateString() : '-'}
             </p>
           </div>
           <div className="flex gap-2">
@@ -64,19 +84,19 @@ export default function AdminCRMManager() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white/40 border border-black/5 p-4 rounded-3xl">
             <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Total LTV</p>
-            <p className="text-2xl font-light">Rp {selectedUser.ltv.toLocaleString('id-ID')}</p>
+            <p className="text-2xl font-light">Rp {(selectedUser.ltv || 0).toLocaleString('id-ID')}</p>
           </div>
           <div className="bg-white/40 border border-black/5 p-4 rounded-3xl">
             <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Rata-Rata Order (AOV)</p>
-            <p className="text-2xl font-light">Rp {selectedUser.aov.toLocaleString('id-ID')}</p>
+            <p className="text-2xl font-light">Rp {(selectedUser.aov || 0).toLocaleString('id-ID')}</p>
           </div>
           <div className="bg-white/40 border border-black/5 p-4 rounded-3xl">
             <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Total Order</p>
-            <p className="text-2xl font-light">{selectedUser.orders}x</p>
+            <p className="text-2xl font-light">{selectedUser.orders || 0}x</p>
           </div>
           <div className="bg-white/40 border border-black/5 p-4 rounded-3xl">
             <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Return Rate</p>
-            <p className="text-2xl font-light">{selectedUser.returnRate}</p>
+            <p className="text-2xl font-light">{selectedUser.returnRate || '-'}</p>
           </div>
         </div>
 
@@ -88,19 +108,19 @@ export default function AdminCRMManager() {
                 <div className="grid grid-cols-2 gap-6">
                    <div>
                       <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Ukuran Dominan</p>
-                      <p className="font-medium">{selectedUser.size}</p>
+                      <p className="font-medium">{selectedUser.size || '-'}</p>
                    </div>
                    <div>
                       <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Hari Favorit Checkout</p>
-                      <p className="font-medium">{selectedUser.favoriteDay}</p>
+                      <p className="font-medium">{selectedUser.favoriteDay || '-'}</p>
                    </div>
                    <div>
                       <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Voucher Digunakan</p>
-                      <p className="font-medium">2 Kupon</p>
+                      <p className="font-medium">0 Kupon</p>
                    </div>
                    <div>
                       <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Barang Wishlist</p>
-                      <p className="font-medium">4 Produk</p>
+                      <p className="font-medium">0 Produk</p>
                    </div>
                 </div>
              </div>
@@ -119,7 +139,7 @@ export default function AdminCRMManager() {
                     </tr>
                   </thead>
                   <tbody>
-                    {MOCK_ORDERS.map((order) => (
+                    {(selectedUser.orders > 0 ? MOCK_ORDERS : []).map((order) => (
                       <tr key={order.id} className="border-b border-black/5 hover:bg-black/5 transition-colors">
                         <td className="py-4 font-mono text-xs">{order.id}</td>
                         <td className="py-4 font-light">{order.date}</td>
@@ -127,6 +147,11 @@ export default function AdminCRMManager() {
                         <td className="py-4"><span className="px-2 py-1 bg-black/5 rounded-full text-[10px] font-medium uppercase tracking-widest">{order.status}</span></td>
                       </tr>
                     ))}
+                    {(!selectedUser.orders || selectedUser.orders === 0) && (
+                      <tr>
+                        <td colSpan={4} className="py-6 text-center text-black/50 text-xs">Belum ada riwayat pesanan.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -138,7 +163,7 @@ export default function AdminCRMManager() {
             <div className="bg-white/40 border border-black/5 p-6 rounded-[2rem]">
               <h3 className="font-heading font-semibold uppercase tracking-widest text-xs mb-6 flex items-center gap-2"><Calendar size={16}/> Journey Timeline</h3>
               <div className="space-y-6 relative before:content-[''] before:absolute before:left-[17px] before:top-10 before:bottom-2 before:w-[2px] before:bg-black/10">
-                {MOCK_JOURNEY.map((evt) => (
+                {(selectedUser.orders > 0 ? MOCK_JOURNEY : [{ id: 'join', type: 'join', date: selectedUser.joinDate ? new Date(selectedUser.joinDate).toLocaleDateString() : 'Hari ini', title: 'Mendaftar' }]).map((evt: any) => (
                   <div key={evt.id} className="flex gap-4 relative z-10">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border-4 border-[#fdfcfb] ${evt.type === 'purchase' ? 'bg-ink text-white' : 'bg-black/10 text-ink'}`}>
                       {evt.type === 'purchase' && <ShoppingBag size={14} />}
@@ -181,6 +206,12 @@ export default function AdminCRMManager() {
         </div>
       </div>
 
+      <div className="mb-4">
+         {isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database D1 (users)...</span>}
+         {error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database D1: {error.message}</span>}
+         {CUSTOMERS && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({CUSTOMERS.length} pelanggan ditemukan)</span>}
+      </div>
+
       <div className="bg-white/40 border border-black/5 rounded-[2rem] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
@@ -194,12 +225,12 @@ export default function AdminCRMManager() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_CUSTOMERS.map((customer) => (
+              {CUSTOMERS.map((customer: any) => (
                 <tr key={customer.id} className="border-b border-black/5 hover:bg-black/5 transition-colors cursor-pointer group" onClick={() => setSelectedUser(customer)}>
                   <td className="p-6">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-black/10 rounded-full flex items-center justify-center font-medium">
-                        {customer.name.charAt(0)}
+                        {customer.name ? customer.name.charAt(0) : '?'}
                       </div>
                       <div>
                         <p className="font-medium group-hover:underline underline-offset-4">{customer.name}</p>
@@ -208,22 +239,31 @@ export default function AdminCRMManager() {
                     </div>
                   </td>
                   <td className="p-6">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-medium uppercase tracking-widest ${customer.statusColor}`}>
-                      {customer.status}
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-medium uppercase tracking-widest ${customer.status === 'Admin' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                      {customer.status || 'Regular'}
                     </span>
                   </td>
                   <td className="p-6 text-right">
-                    <p className="font-medium">Rp {customer.ltv.toLocaleString('id-ID')}</p>
-                    <p className="text-xs font-light text-black/50">{customer.orders} Orders</p>
+                    <p className="font-medium">Rp {(customer.ltv || 0).toLocaleString('id-ID')}</p>
+                    <p className="text-xs font-light text-black/50">{customer.orders || 0} Orders</p>
                   </td>
                   <td className="p-6">
-                    <p className="font-light">{customer.lastActive}</p>
+                    <p className="font-light">{customer.lastActive ? new Date(customer.lastActive).toLocaleDateString() : '-'}</p>
                   </td>
                   <td className="p-6 text-right">
                     <ArrowUpRight size={18} className="text-black/30 group-hover:text-ink transition-colors inline-block" />
                   </td>
                 </tr>
               ))}
+              {CUSTOMERS.length === 0 && !isLoading && (
+                 <tr>
+                   <td colSpan={5} className="p-8 text-center text-black/50">
+                     <p className="mb-2">Belum ada pelanggan ditemukan di database D1.</p>
+                     <p className="text-xs max-w-sm mx-auto">Pastikan webhook Clerk (`/api/webhooks/clerk`) sudah dikonfigurasi di dashboard Clerk agar data user sinkron ke D1 secara otomatis saat pendaftaran.</p>
+                     <p className="text-[10px] mt-4 opacity-50 font-mono">DEBUG: users table is empty</p>
+                   </td>
+                 </tr>
+              )}
             </tbody>
           </table>
         </div>

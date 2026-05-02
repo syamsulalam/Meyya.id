@@ -35,7 +35,8 @@ export default function AdminProductForm() {
   const categories = Array.isArray(dbCategories) ? dbCategories : [];
   
   const [isEditing, setIsEditing] = useState<number | null>(null);
-  const [formStep, setFormStep] = useState<'list' | 'select-category' | 'form'>('list');
+  const [subTab, setSubTab] = useState<'list' | 'form'>('list');
+  const [formStep, setFormStep] = useState<'select-category' | 'form'>('select-category');
   
   const [productName, setProductName] = useState('');
   const [slug, setSlug] = useState('');
@@ -121,7 +122,9 @@ export default function AdminProductForm() {
   
   const handleEdit = (p: any) => {
     setIsEditing(p.id);
+    setSubTab('form');
     setFormStep('form');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     setProductName(p.name);
     setSlug(p.slug || '');
     setDescription(p.description || '');
@@ -183,7 +186,8 @@ export default function AdminProductForm() {
 
   const resetForm = () => {
     setIsEditing(null);
-    setFormStep('list');
+    setSubTab('list');
+    setFormStep('select-category');
     setProductName('');
     setSlug('');
     setDescription('');
@@ -265,16 +269,29 @@ export default function AdminProductForm() {
 
   return (
     <div>
-      <h2 className="text-2xl font-light mb-8 font-heading text-ink flex items-center gap-2">
-        <Package size={24} /> List Produk
-      </h2>
+      {/* Tab Navigasi Internal Manajemen Produk */}
+      <div className="flex items-center gap-6 border-b border-black/10 mb-8 pb-4">
+        <button 
+          onClick={() => { resetForm(); setSubTab('list'); }}
+          className={`text-sm font-medium transition-colors hover:text-ink flex items-center gap-2 ${subTab === 'list' ? 'text-ink border-b-2 border-ink pb-2 -mb-[18px]' : 'text-black/50 pb-2'}`}
+        >
+          <Package size={18} /> List Produk
+        </button>
+        <button 
+          onClick={() => setSubTab('form')}
+          className={`text-sm font-medium transition-colors hover:text-ink flex items-center gap-2 ${subTab === 'form' ? 'text-ink border-b-2 border-ink pb-2 -mb-[18px]' : 'text-black/50 pb-2'}`}
+        >
+          {isEditing ? <Edit2 size={18} /> : <Plus size={18} />} {isEditing ? 'Edit Produk' : 'Tambah Produk'}
+        </button>
+      </div>
       
       {/* Product List */}
+      {subTab === 'list' && (
       <div className="bg-white/40 border border-black/5 rounded-2xl p-4 mb-12 overflow-x-auto">
         <div className="mb-4">
            {isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database (D1)...</span>}
            {error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database: {error.message}</span>}
-           {products && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({products.length} produk ditemukan)</span>}
+           {products && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({products?.length || 0} produk ditemukan)</span>}
         </div>
         <table className="w-full text-sm text-left">
           <thead>
@@ -305,19 +322,25 @@ export default function AdminProductForm() {
             ))}
           </tbody>
         </table>
+        
+        {products?.length === 0 && !isLoading && (
+           <div className="text-center py-12 text-black/50">
+              <Package size={48} className="mx-auto mb-4 opacity-50" />
+              <p>Belum ada produk. Silakan tambahkan produk baru.</p>
+           </div>
+        )}
       </div>
+      )}
 
-      <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => !isEditing && setFormStep(formStep === 'list' ? 'select-category' : 'list')}>
+      {subTab === 'form' && (
+      <>
+      <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4">
         <h2 className="text-2xl font-light font-heading text-ink">
           {isEditing ? 'Edit Produk' : 'Tambah Produk Baru'}
         </h2>
         <div>
-          {isEditing ? (
-            <button type="button" onClick={(e) => { e.stopPropagation(); resetForm(); }} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5">Batal Edit</button>
-          ) : (
-            <button type="button" onClick={(e) => { e.stopPropagation(); setFormStep(formStep === 'list' ? 'select-category' : 'list'); }} className="inline-flex flex-shrink-0 items-center justify-center gap-2 bg-ink text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-black/80 transition-colors">
-              {formStep !== 'list' ? <><X size={16} /> Tutup Form</> : <><Plus size={16} /> Tambah Produk</>}
-            </button>
+          {isEditing && (
+            <button type="button" onClick={() => resetForm()} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5">Batal Edit</button>
           )}
         </div>
       </div>
@@ -631,6 +654,8 @@ export default function AdminProductForm() {
         </div>
       </form>
       )})()}
+    </>
+    )}
     </div>
   );
 }
