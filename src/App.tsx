@@ -81,6 +81,13 @@ const router = createBrowserRouter([
   }
 ]);
 
+import ToastContainer from './components/ToastContainer';
+
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <ToastContainer />
+    </>
+  );
 }

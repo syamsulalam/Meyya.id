@@ -41,6 +41,15 @@ export async function onRequestPost(context: any) {
     await env.MEYYA_DB.prepare(`
       INSERT INTO vouchers (code, discount_type, discount_value, min_purchase, max_discount, valid_from, valid_until, usage_limit, used_count, target_user_role)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+      ON CONFLICT(code) DO UPDATE SET
+        discount_type = excluded.discount_type,
+        discount_value = excluded.discount_value,
+        min_purchase = excluded.min_purchase,
+        max_discount = excluded.max_discount,
+        valid_from = excluded.valid_from,
+        valid_until = excluded.valid_until,
+        usage_limit = excluded.usage_limit,
+        target_user_role = excluded.target_user_role
     `).bind(code, discount_type, discount_value, min_purchase || 0, max_discount, valid_from, valid_until, usage_limit || 0, target_user_role || 'ALL').run();
 
     return new Response(JSON.stringify({ success: true, code }), {

@@ -7,7 +7,7 @@ import clsx from 'clsx';
 export default function ProductDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { addToCart, toggleWishlist, wishlist, addRecentlyViewed } = useStore();
+  const { addToCart, toggleWishlist, wishlist, addRecentlyViewed, addToast } = useStore();
   
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,7 @@ export default function ProductDetail() {
       price: product.base_price,
       image_url: product.image_url
     });
-    alert('Produk ditambahkan ke keranjang!');
+    addToast('Produk ditambahkan ke keranjang!', 'success');
   };
 
   return (

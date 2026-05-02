@@ -15,7 +15,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function Checkout() {
-  const { cart, user, clearCart, addToCart, savedAddresses } = useStore();
+  const { cart, user, clearCart, addToCart, savedAddresses, addToast } = useStore();
   const navigate = useNavigate();
   
   const [address, setAddress] = useState({
@@ -144,15 +144,15 @@ export default function Checkout() {
 
     if (isAddressCollapsed && selectedAddressId) {
       const selected = savedAddresses.find(a => a.id === selectedAddressId);
-      if (!selected) return alert('Pilih alamat pengiriman yang valid');
+      if (!selected) return addToast('Pilih alamat pengiriman yang valid', 'error');
       finalAddressSnapshot = `${selected.recipientName} (${selected.phone}) - ${selected.street}, ${selected.village_name}, ${selected.district_name}, ${selected.regency_name}, ${selected.province_name}`;
     } else {
-      if (!selectedVill) return alert('Pilih Kelurahan tujuan dengan lengkap');
-      if (address.street.length < 5) return alert('Detail alamat terlalu pendek');
+      if (!selectedVill) return addToast('Pilih Kelurahan tujuan dengan lengkap', 'error');
+      if (address.street.length < 5) return addToast('Detail alamat terlalu pendek', 'error');
       finalAddressSnapshot = `${address.name} (${address.phone}) - ${address.street}, ${selectedVill.name}, ${selectedDist?.name}, ${selectedReg?.name}, ${selectedProv?.name}`;
     }
 
-    if (!selectedCourier) return alert('Pilih kurir ekspedisi pengiriman');
+    if (!selectedCourier) return addToast('Pilih kurir ekspedisi pengiriman', 'error');
     
     setLoading(true);
     
@@ -177,7 +177,7 @@ export default function Checkout() {
       // Redirect to new order page
       navigate(`/order/${data.order_id || '9981293'}`);
     } catch (e) {
-      alert('Terjadi kesalahan sistem, akan disimulasikan sukses');
+      addToast('Terjadi kesalahan sistem, akan disimulasikan sukses', 'error');
       clearCart();
       navigate(`/order/${Math.floor(Math.random() * 100000)}`);
     } finally {

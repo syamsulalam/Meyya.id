@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Tag, Trash2, Edit2, Clock, Percent, DollarSign, CheckCircle2 } from 'lucide-react';
 import useSWR, { mutate } from 'swr';
+import { useStore } from '../../store';
 
 type VoucherType = 'PERCENTAGE' | 'FIXED' | 'FREE_SHIPPING';
 
@@ -45,8 +46,10 @@ const fetcher = async (url: string) => {
 export default function AdminVoucherManager() {
   const { data: dbVouchers, error, isLoading } = useSWR('/api/admin/vouchers', fetcher);
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
+  const { addToast } = useStore();
 
   const [showForm, setShowForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   
   // Form State
   const [formVoucher, setFormVoucher] = useState<Partial<Voucher>>({
@@ -59,10 +62,37 @@ export default function AdminVoucherManager() {
     endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
   });
 
+  const handleEdit = (v: any) => {
+    setFormVoucher({
+      ...v,
+      startDate: v.startDate.split('T')[0],
+      endDate: v.endDate.split('T')[0],
+    });
+    setIsEditing(true);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  const NumberInput = ({ value, onChange, placeholder, prefixClassName }: any) => {
+    const displayValue = value ? value.toLocaleString('id-ID') : '';
+    return (
+      <input 
+        type="text" 
+        value={displayValue}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/\D/g, '');
+          onChange(raw ? parseInt(raw, 10) : 0);
+        }}
+        placeholder={placeholder}
+        className={prefixClassName || "w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink"}
+      />
+    );
+  };
+
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!formVoucher.code) return alert("Kode voucher harus diisi");
+    if (!formVoucher.code) return addToast("Kode voucher harus diisi", "error");
     setLoading(true);
     try {
       const payload = {
@@ -98,9 +128,9 @@ export default function AdminVoucherManager() {
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
       });
-      alert('Voucher berhasil ditambahkan!');
+      addToast('Voucher berhasil ditambahkan!', 'success');
     } catch (e: any) {
-      alert("Error: " + e.message);
+      addToast("Error: " + e.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -114,8 +144,9 @@ export default function AdminVoucherManager() {
       });
       if (!res.ok) throw new Error('Gagal menghapus');
       mutate('/api/admin/vouchers');
+      addToast('Voucher berhasil dihapus!', 'success');
     } catch (e: any) {
-      alert("Error: " + e.message);
+      addToast("Error: " + e.message, 'error');
     }
   };
 
@@ -127,7 +158,18 @@ export default function AdminVoucherManager() {
           <p className="text-sm opacity-60 mt-1">Buat diskon dinamis untuk pelanggan Anda</p>
         </div>
         <button 
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            setShowForm(!showForm);
+            setIsEditing(false);
+            if(showForm) {
+              setFormVoucher({
+                type: 'PERCENTAGE', targetUserRole: 'ALL', isActive: true,
+                minPurchase: 0, usageLimit: 0,
+                startDate: new Date().toISOString().split('T')[0],
+                endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
+              });
+            }
+          }}
           className="bg-ink text-white px-5 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/80 transition-colors shadow-m flex items-center gap-2"
         >
           {showForm ? 'Batal' : <><Plus size={16} /> Buat Voucher Baru</>}
@@ -148,7 +190,7 @@ export default function AdminVoucherManager() {
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Kode Voucher (Publik)</label>
-              <input type="text" value={formVoucher.code || ''} onChange={e => setFormVoucher({...formVoucher, code: e.target.value.toUpperCase()})} placeholder="Misal: RAMADHAN50" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink uppercase font-mono" />
+              <input type="text" disabled={isEditing} value={formVoucher.code || ''} onChange={e => setFormVoucher({...formVoucher, code: e.target.value.toUpperCase()})} placeholder="Misal: RAMADHAN50" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink uppercase font-mono disabled:opacity-50 disabled:bg-black/5" />
             </div>
 
             <div>
@@ -176,12 +218,11 @@ export default function AdminVoucherManager() {
                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Nilai Diskon</label>
                  <div className="relative">
                     {formVoucher.type === 'FIXED' && <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-50">Rp</span>}
-                    <input 
-                      type="number" 
-                      value={formVoucher.value || ''}
-                      onChange={e => setFormVoucher({...formVoucher, value: Number(e.target.value)})}
-                      placeholder={formVoucher.type === 'PERCENTAGE' ? "Misal: 20" : "Misal: 50000"} 
-                      className={`w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink ${formVoucher.type === 'FIXED' ? 'pl-10' : ''}`} 
+                    <NumberInput 
+                      value={formVoucher.value}
+                      onChange={(val: number) => setFormVoucher({...formVoucher, value: val})}
+                      placeholder={formVoucher.type === 'PERCENTAGE' ? "Misal: 20" : "Misal: 50.000"}
+                      prefixClassName={`w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink ${formVoucher.type === 'FIXED' ? 'pl-10' : ''}`}
                     />
                     {formVoucher.type === 'PERCENTAGE' && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm opacity-50">%</span>}
                  </div>
@@ -193,7 +234,12 @@ export default function AdminVoucherManager() {
                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Maksimal Diskon (Opsional)</label>
                  <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-50">Rp</span>
-                    <input type="number" value={formVoucher.maxDiscount || ''} onChange={e => setFormVoucher({...formVoucher, maxDiscount: Number(e.target.value)})} placeholder="Misal: 50000" className="w-full bg-white border border-black/10 rounded-xl py-3 pl-10 px-4 text-sm focus:outline-none focus:border-ink" />
+                    <NumberInput 
+                      value={formVoucher.maxDiscount}
+                      onChange={(val: number) => setFormVoucher({...formVoucher, maxDiscount: val})}
+                      placeholder="Misal: 50.000"
+                      prefixClassName="w-full bg-white border border-black/10 rounded-xl py-3 pl-10 px-4 text-sm focus:outline-none focus:border-ink"
+                    />
                  </div>
                  <p className="text-[10px] text-gray-500 mt-1">Kosongkan jika tidak ada batas maksimal</p>
               </div>
@@ -203,7 +249,12 @@ export default function AdminVoucherManager() {
                <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Minimal Belanja (Opsional)</label>
                <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-50">Rp</span>
-                  <input type="number" value={formVoucher.minPurchase || ''} onChange={e => setFormVoucher({...formVoucher, minPurchase: Number(e.target.value)})} placeholder="Misal: 100000" className="w-full bg-white border border-black/10 rounded-xl py-3 pl-10 px-4 text-sm focus:outline-none focus:border-ink" />
+                  <NumberInput 
+                     value={formVoucher.minPurchase}
+                     onChange={(val: number) => setFormVoucher({...formVoucher, minPurchase: val})}
+                     placeholder="Misal: 100.000"
+                     prefixClassName="w-full bg-white border border-black/10 rounded-xl py-3 pl-10 px-4 text-sm focus:outline-none focus:border-ink"
+                  />
                </div>
             </div>
 
@@ -220,7 +271,11 @@ export default function AdminVoucherManager() {
             
             <div>
                <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Batas Penggunaan (Kuota)</label>
-               <input type="number" value={formVoucher.usageLimit || ''} onChange={e => setFormVoucher({...formVoucher, usageLimit: Number(e.target.value)})} placeholder="Misal: 100 (Kosong/0 = Tanpa Batas)" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
+               <NumberInput 
+                  value={formVoucher.usageLimit}
+                  onChange={(val: number) => setFormVoucher({...formVoucher, usageLimit: val})}
+                  placeholder="Misal: 100 (Kosong/0 = Tanpa Batas)"
+               />
             </div>
 
             <div>
@@ -234,9 +289,14 @@ export default function AdminVoucherManager() {
 
           </div>
 
-          <div className="mt-8 flex justify-end">
+          <div className="mt-8 flex justify-end gap-2">
+            {isEditing && (
+               <button type="button" onClick={() => setShowForm(false)} className="bg-black/5 text-ink px-8 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/10 transition-colors shadow-m">
+                 Batal Edit
+               </button>
+            )}
             <button disabled={loading} onClick={handleSubmit} className="bg-ink text-white px-8 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/80 transition-colors shadow-m disabled:opacity-50">
-              {loading ? 'Menyimpan...' : 'Simpan Voucher'}
+              {loading ? 'Menyimpan...' : (isEditing ? 'Simpan Perubahan' : 'Simpan Voucher')}
             </button>
           </div>
         </div>
@@ -309,6 +369,9 @@ export default function AdminVoucherManager() {
                   </td>
                   <td className="py-4 pl-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => handleEdit(v)} className="p-2 hover:bg-blue-50 rounded-full transition-colors" title="Edit">
+                        <Edit2 size={16} className="text-blue-500" />
+                      </button>
                       <button onClick={() => handleDelete(v.code)} className="p-2 hover:bg-red-50 rounded-full transition-colors" title="Hapus">
                         <Trash2 size={16} className="text-red-500" />
                       </button>

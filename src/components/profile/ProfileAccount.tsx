@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { User, MapPin, Phone, Mail, CheckCircle2, Home, Briefcase, Building, Plus, Trash2 } from 'lucide-react';
 import AutoSuggest from './AutoSuggest';
 import { useBlocker } from 'react-router-dom';
+import { useStore } from '../../store';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -17,6 +18,7 @@ const COUNTRY_CODES = [
 export default function ProfileAccount({ user, setBlockerOpen }: { user: any, setBlockerOpen?: (open: boolean) => void }) {
   const { data: dbAddresses, mutate: mutateAddresses } = useSWR(user?.id ? `/api/user/addresses/${user.id}` : null, fetcher);
   const savedAddresses = Array.isArray(dbAddresses) ? dbAddresses : [];
+  const { addToast } = useStore();
   
   const [countryCode, setCountryCode] = useState('+62');
   
@@ -146,31 +148,31 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       const res = await fetch(`/api/user/profile/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: profileName, phone_wa: countryCode + profilePhone })
+        body: JSON.stringify({ name: profileName, phone_wa: countryCode + profilePhone.replace(/\s/g, '') })
       });
       
       if (!res.ok) throw new Error("Gagal menyimpan data");
       
       setIsSaved(true);
-      alert('Perubahan data profil berhasil disimpan!');
+      addToast('Perubahan data profil berhasil disimpan!', 'success');
       if (blocker.state === 'blocked') {
         blocker.proceed?.();
       }
     } catch (e: any) {
-      alert(e.message);
+      addToast(e.message, 'error');
     }
   }
 
   const handleSaveAddress = async () => {
     if (activeStep < 5 || alamatDetail.length < 5 || !addressRecipient || !addressPhone) {
-      alert('Mohon lengkapi semua form alamat pengiriman');
+      addToast('Mohon lengkapi semua form alamat pengiriman', 'error');
       return;
     }
     const newAddr = {
       label: addressLabel,
       icon: addressIcon,
       recipient_name: addressRecipient,
-      recipient_phone: addressPhone,
+      recipient_phone: addressPhone.replace(/\s/g, ''),
       street_address: alamatDetail,
       province_code: selectedProvinsi?.id || '',
       province_name: selectedProvinsi?.name || '',
@@ -204,9 +206,9 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       setAlamatDetail('');
       setActiveStep(1);
       setIsSaved(true);
-      alert('Alamat berhasil ditambahkan!');
+      addToast('Alamat berhasil ditambahkan!', 'success');
     } catch (e: any) {
-      alert(e.message);
+      addToast(e.message, 'error');
     }
   };
 
@@ -216,8 +218,9 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       const res = await fetch(`/api/user/addresses/${user.id}/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Gagal menghapus');
       mutateAddresses();
+      addToast('Alamat berhasil dihapus!', 'success');
     } catch (e: any) {
-      alert(e.message);
+      addToast(e.message, 'error');
     }
   };
 
@@ -302,8 +305,11 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                 <input 
                   type="tel"
                   value={profilePhone}
-                  onChange={(e) => setProfilePhone(e.target.value)}
-                  placeholder="Contoh: 8123456789"
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setProfilePhone(raw.replace(/(\d{4})(?=\d)/g, '$1 '));
+                  }}
+                  placeholder="Contoh: 8123 4567 890"
                   className="w-full bg-transparent border-none outline-none py-3 pl-12 pr-4 text-sm"
                 />
               </div>
@@ -391,7 +397,10 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">No WA Penerima</label>
-                    <input type="tel" value={addressPhone} onChange={e => setAddressPhone(e.target.value)} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" />
+                    <input type="tel" value={addressPhone} onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '');
+                      setAddressPhone(raw.replace(/(\d{4})(?=\d)/g, '$1 '));
+                    }} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" placeholder="Contoh: 0812 3456 7890" />
                   </div>
                 </div>
                 

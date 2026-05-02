@@ -29,7 +29,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function AdminProductForm() {
-  const { globalColors, addGlobalColor } = useStore();
+  const { globalColors, addGlobalColor, addToast } = useStore();
   const { data: products, error, isLoading } = useSWR('/api/products', fetcher);
   const { data: dbCategories } = useSWR('/api/categories', fetcher);
   const categories = Array.isArray(dbCategories) ? dbCategories : [];
@@ -84,7 +84,7 @@ export default function AdminProductForm() {
         }
       } catch (err) {
         console.error('Upload failed', err);
-        alert('Gagal upload gambar');
+        addToast('Gagal upload gambar', 'error');
       }
     }
   };
@@ -203,7 +203,7 @@ export default function AdminProductForm() {
   };
 
   const handleAddCategory = async () => {
-    if (!newCatName || !newCatSlug) return alert('Nama dan slug harus diisi');
+    if (!newCatName || !newCatSlug) return addToast('Nama dan slug harus diisi', 'error');
     try {
       const res = await fetch('/api/categories', {
         method: 'POST',
@@ -218,8 +218,9 @@ export default function AdminProductForm() {
       setNewCatName('');
       setNewCatSlug('');
       setNewCatImg('');
+      addToast('Kategori berhasil ditambahkan', 'success');
     } catch (e: any) {
-      alert(e.message);
+      addToast(e.message, 'error');
     }
   };
 
@@ -261,32 +262,30 @@ export default function AdminProductForm() {
       
       mutate('/api/products');
       resetForm();
-      alert('Produk berhasil disimpan!');
+      addToast('Produk berhasil disimpan!', 'success');
     } catch (e: any) {
-      alert(e.message);
+      addToast(e.message, 'error');
     }
   };
 
   return (
     <div>
-      {/* Tab Navigasi Internal Manajemen Produk */}
-      <div className="flex items-center gap-6 border-b border-black/10 mb-8 pb-4">
-        <button 
-          onClick={() => { resetForm(); setSubTab('list'); }}
-          className={`text-sm font-medium transition-colors hover:text-ink flex items-center gap-2 ${subTab === 'list' ? 'text-ink border-b-2 border-ink pb-2 -mb-[18px]' : 'text-black/50 pb-2'}`}
-        >
-          <Package size={18} /> List Produk
-        </button>
-        <button 
-          onClick={() => setSubTab('form')}
-          className={`text-sm font-medium transition-colors hover:text-ink flex items-center gap-2 ${subTab === 'form' ? 'text-ink border-b-2 border-ink pb-2 -mb-[18px]' : 'text-black/50 pb-2'}`}
-        >
-          {isEditing ? <Edit2 size={18} /> : <Plus size={18} />} {isEditing ? 'Edit Produk' : 'Tambah Produk'}
-        </button>
-      </div>
-      
       {/* Product List */}
       {subTab === 'list' && (
+      <div>
+      <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4">
+        <div>
+          <h2 className="text-2xl font-light font-heading text-ink">Manajemen Produk</h2>
+          <p className="text-sm opacity-60">Kelola katalog produk e-commerce Anda.</p>
+        </div>
+        <button 
+          onClick={() => setSubTab('form')}
+          className="bg-ink text-white px-5 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/80 transition-colors shadow-m flex items-center gap-2"
+        >
+          <Plus size={16} /> Tambah Produk
+        </button>
+      </div>
+
       <div className="bg-white/40 border border-black/5 rounded-2xl p-4 mb-12 overflow-x-auto">
         <div className="mb-4">
            {isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database (D1)...</span>}
@@ -330,18 +329,19 @@ export default function AdminProductForm() {
            </div>
         )}
       </div>
+      </div>
       )}
 
       {subTab === 'form' && (
       <>
       <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4">
-        <h2 className="text-2xl font-light font-heading text-ink">
-          {isEditing ? 'Edit Produk' : 'Tambah Produk Baru'}
-        </h2>
-        <div>
-          {isEditing && (
-            <button type="button" onClick={() => resetForm()} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5">Batal Edit</button>
-          )}
+        <div className="flex items-center gap-4">
+           <button type="button" onClick={() => resetForm()} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5 flex items-center gap-2">
+              &larr; Kembali ke Daftar Produk
+           </button>
+           <h2 className="text-2xl font-light font-heading text-ink ml-4">
+             {isEditing ? 'Edit Produk' : 'Tambah Produk Baru'}
+           </h2>
         </div>
       </div>
       

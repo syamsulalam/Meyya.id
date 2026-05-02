@@ -33,13 +33,22 @@ export interface SavedAddress {
   village_name?: string;
 }
 
+interface ToastMessage {
+  id: string;
+  message: string;
+  type?: 'success' | 'info' | 'error';
+}
+
 interface AppState {
   cart: CartItem[];
   wishlist: number[];
   recentlyViewed: number[];
+  toasts: ToastMessage[];
   user: { id: string; role: 'customer' | 'admin'; name?: string; email?: string } | null;
   globalColors: ColorDefinition[];
   savedAddresses: SavedAddress[];
+  addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  removeToast: (id: string) => void;
   addGlobalColor: (color: ColorDefinition) => void;
   addToCart: (item: CartItem) => void;
   decreaseQuantity: (index: number) => void;
@@ -60,6 +69,7 @@ export const useStore = create<AppState>()(
       cart: [],
       wishlist: [],
       recentlyViewed: [],
+      toasts: [],
       user: null,
       savedAddresses: [],
       globalColors: [
@@ -70,6 +80,8 @@ export const useStore = create<AppState>()(
         { name: 'Navy', hex: '#000080' },
       ],
       savedAddress: [],
+      addToast: (msg, type) => set(s => ({ toasts: [...s.toasts, {id: Math.random()+'', message: msg, type: type || 'info'}] })),
+      removeToast: (id) => set(s => ({ toasts: s.toasts.filter(t => t.id !== id)})),
       addSavedAddress: (address) => set((state) => ({
         savedAddresses: [...state.savedAddresses, { ...address, id: Math.random().toString(36).substr(2, 9) }]
       })),

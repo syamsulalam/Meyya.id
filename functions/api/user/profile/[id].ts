@@ -6,8 +6,13 @@ export async function onRequestGet(context: any) {
     const user = await env.MEYYA_DB.prepare('SELECT * FROM users WHERE clerk_id = ?').bind(id).first();
     const addresses = await env.MEYYA_DB.prepare('SELECT * FROM user_addresses WHERE user_id = ?').bind(id).all();
 
+    let combinedUser = user || {};
+    if (user && user.first_name) {
+       combinedUser.name = user.last_name ? `${user.first_name} ${user.last_name}` : user.first_name;
+    }
+
     return new Response(JSON.stringify({ 
-      user: user || {}, 
+      user: combinedUser, 
       addresses: addresses.results || [] 
     }), {
       headers: { 'Content-Type': 'application/json' },
@@ -25,12 +30,21 @@ export async function onRequestPut(context: any) {
   try {
     const body = await request.json();
 
+    // Split full name into first and last name
+    let firstName = body.name || '';
+    let lastName = '';
+    
+    if (firstName.includes(' ')) {
+       const parts = firstName.split(' ');
+       firstName = parts[0];
+       lastName = parts.slice(1).join(' ');
+    }
+
     // Update user info
-    if (body.name || body.phone_wa !== undefined) {
-      // In the frontend sometimes it might pass first_name via name
+    if (body.name !== undefined || body.phone_wa !== undefined) {
       await env.MEYYA_DB.prepare(`
-         UPDATE users SET first_name = ?, phone_wa = ? WHERE clerk_id = ?
-      `).bind(body.name || '', body.phone_wa || '', id).run();
+         UPDATE users SET first_name = ?, last_name = ?, phone_wa = ? WHERE clerk_id = ?
+      `).bind(firstName, lastName, body.phone_wa || '', id).run();
     }
 
     if (body.address) {
