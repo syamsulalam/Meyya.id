@@ -1,5 +1,1 @@
-cek semua halaman penting dan pastikan hal seperti ini (o.slice error atau error2 lain) tidak terjadi di tiap halaman di situs kita. kalau perlu buat logic kalau data ditarik tidak ada di d1 maka pakai placeholder / dummy dulu, jangan crash, tapi kasih notifikasi ada error yang perlu dibenahi dari sisi database misalnya atau bagaimana, kasih notifikasi yang bisa terlihat oleh user sehingga bisa lapor bug dan munculkan error di console log. berarti kayaknya kamu butuh component fitur lapor bug yang hanya muncul saat terjadi error di situs kita.
-
-juga kategori produk di homepage itu kasih placeholder pakai css kalau tidak ada gambar.
-
-juga waktu aku tambahkan produk di /admin kategori produk dia kayak tidak masuk ke r2 dan tidak masuk database, waktu aku refresh halaman tulisannya di console log failed to load resource err file not found. kayaknya itu harus kamu rapikan logic nya biar kalau upload gambar ke upload ke r2, lalu d1 mendeteksi dan meng update table nya. kalau kamu butuh aku untuk men cek sesuatu untuk konfirmasi atau ada instruksi untuk aku silakan bilang. thanks.
+oke di preview aku bisa lihat produk nya keluar di katalog, tapi di https://meyya.id aku masih lihat koleksi sedang di siapkan di katalog homepage dan di /admin list produk masih kosong. apa bisa kamu kasih kayak debug gitu?

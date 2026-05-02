@@ -1,7 +1,7 @@
 export async function onRequestGet(context: any) {
   const { env, request } = context;
   const url = new URL(request.url);
-  const slug = url.pathname.split('/').pop(); // ambil parameter [slug] di baris URL
+  const slug = url.pathname.split('/').pop(); 
 
   try {
     const p = await env.MEYYA_DB.prepare(`
@@ -19,7 +19,10 @@ export async function onRequestGet(context: any) {
     p.colors = colors.results;
 
     const sizes = await env.MEYYA_DB.prepare('SELECT size_name FROM product_sizes WHERE product_id = ?').bind(p.id).all();
-    p.sizes = sizes.results;
+    p.sizes = sizes.results.map((s: any) => s.size_name);
+
+    const attrs = await env.MEYYA_DB.prepare('SELECT attribute_name, attribute_value FROM product_attributes WHERE product_id = ?').bind(p.id).all();
+    p.attributes = attrs.results;
 
     return new Response(JSON.stringify(p), {
       headers: { 'Content-Type': 'application/json' },
@@ -37,7 +40,7 @@ export async function onRequestPut(context: any) {
   try {
     const { env, request, params } = context;
     const body = await request.json();
-    const { name, category_id, slug: productSlug, description, image_url, base_price, production_cost, weight, stock, is_active, colors } = body;
+    const { name, category_id, slug: productSlug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder, colors, sizes, attributes } = body;
     
     // In CF Pages, params is populated from the filename [xyz].ts
     // If it's not defined we fallback to URL parsing
@@ -45,8 +48,8 @@ export async function onRequestPut(context: any) {
     
     // Update basic fields
     await env.MEYYA_DB.prepare(
-      'UPDATE products SET name = ?, category_id = ?, slug = ?, description = ?, image_url = ?, base_price = ?, production_cost = ?, weight = ?, is_active = ? WHERE id = ?'
-    ).bind(name, category_id, productSlug, description, image_url, base_price, production_cost, weight, is_active, id).run();
+      'UPDATE products SET name = ?, category_id = ?, slug = ?, description = ?, image_url = ?, base_price = ?, production_cost = ?, weight = ?, is_active = ?, is_preorder = ? WHERE id = ?'
+    ).bind(name, category_id, productSlug, description, image_url, base_price, production_cost, weight, is_active, is_preorder || 0, id).run();
 
     // Handle stock update
     const currentProduct = await env.MEYYA_DB.prepare('SELECT stock FROM products WHERE id = ?').bind(id).first();
@@ -63,6 +66,28 @@ export async function onRequestPut(context: any) {
             .bind(id, c.color_name, c.hex_code)
         );
         await env.MEYYA_DB.batch(colorStmts);
+      }
+    }
+    
+    if (sizes) {
+      await env.MEYYA_DB.prepare('DELETE FROM product_sizes WHERE product_id = ?').bind(id).run();
+      if (sizes.length > 0) {
+        const sizeStmts = sizes.map((s: string) => 
+          env.MEYYA_DB.prepare('INSERT INTO product_sizes (product_id, size_name) VALUES (?, ?)')
+            .bind(id, s)
+        );
+        await env.MEYYA_DB.batch(sizeStmts);
+      }
+    }
+    
+    if (attributes) {
+      await env.MEYYA_DB.prepare('DELETE FROM product_attributes WHERE product_id = ?').bind(id).run();
+      if (attributes.length > 0) {
+        const attrStmts = attributes.map((a: any) => 
+          env.MEYYA_DB.prepare('INSERT INTO product_attributes (product_id, attribute_name, attribute_value) VALUES (?, ?, ?)')
+            .bind(id, a.attribute_name, a.attribute_value)
+        );
+        await env.MEYYA_DB.batch(attrStmts);
       }
     }
 

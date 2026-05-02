@@ -6,8 +6,13 @@ const fetcher = async (url: string) => {
   const r = await fetch(url);
   if (!r.ok) {
     let err;
-    try { err = await r.json(); } catch { err = { error: 'Terjadi kesalahan' }; }
-    throw new Error(err.error || 'Terjadi kesalahan');
+    try {
+      err = await r.json();
+      throw new Error(err.error || JSON.stringify(err));
+    } catch {
+      const text = await r.text();
+      throw new Error(`HTTP ${r.status}: ${text}`);
+    }
   }
   return r.json();
 };

@@ -10,10 +10,11 @@ const fetcher = async (url: string) => {
     let err;
     try {
       err = await r.json();
+      throw new Error(err.error || JSON.stringify(err));
     } catch {
-      err = { error: 'Terjadi kesalahan pada server' };
+      const text = await r.text();
+      throw new Error(`HTTP ${r.status}: ${text}`);
     }
-    throw new Error(err.error || 'Terjadi kesalahan pada server');
   }
   return r.json();
 };

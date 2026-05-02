@@ -14,14 +14,34 @@ export default function Home() {
   const itemsPerPage = 30;
   const navigate = useNavigate();
 
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+
   useEffect(() => {
     fetch('/api/products')
-      .then(res => {
-        if (!res.ok) throw new Error('API return error');
+      .then(async res => {
+        if (!res.ok) {
+           const errText = await res.text();
+           throw new Error(`API return error: ${res.status} - ${errText}`);
+        }
         return res.json();
       })
       .then(data => {
         const arr = Array.isArray(data) ? data : [];
+        if (!Array.isArray(data)) {
+           setDebugInfo({ message: 'Response is not an array', data });
+        } else if (arr.length > 0) {
+           // Debug check for the first item
+           const first = arr[0];
+           const missingKeys = [];
+           const expectedKeys = ['id', 'name', 'base_price'];
+           for (const key of expectedKeys) {
+              if (first[key] === undefined) missingKeys.push(key);
+           }
+           if (missingKeys.length > 0) {
+              setDebugInfo({ message: `Data missing expected keys: ${missingKeys.join(', ')}`, firstItem: first });
+           }
+        }
+        
         if (category) {
           setProducts(arr.filter((p: any) => p.category_slug?.toLowerCase() === category.toLowerCase() || p.category_name?.toLowerCase() === category.toLowerCase()));
         } else {
@@ -31,6 +51,7 @@ export default function Home() {
       })
       .catch((err) => {
         console.error('Failed to load products:', err);
+        setDebugInfo({ message: err.message, stack: err.stack });
         setProducts([]);
         setLoading(false);
       });
@@ -103,7 +124,18 @@ export default function Home() {
                   </div>
                   <h3 className="text-2xl font-light mb-4">Koleksi Sedang Disiapkan</h3>
                   <p className="opacity-60 font-light max-w-md mx-auto mb-8">Kami sedang menyiapkan karya seni terbaru untuk kategori ini. Silakan periksa kembali nanti atau jelajahi koleksi kami yang lain.</p>
-                  <Link to="/#katalog" className="glass-button">Lihat Semua Katalog</Link>
+                  
+                  {debugInfo && (
+                     <div className="mt-8 text-left max-w-2xl w-full bg-red-50/50 border border-red-200 p-6 rounded-2xl">
+                        <h4 className="text-red-800 font-bold mb-2 flex items-center gap-2">⚠️ Debug Info (Hanya Muncul Saat Error)</h4>
+                        <p className="text-sm text-red-700 mb-4">Sistem gagal merender produk karena kendala data/API. Berikut informasi debug untuk developer:</p>
+                        <pre className="bg-black/5 p-4 rounded-xl text-xs overflow-x-auto text-red-900 border border-black/10">
+                           {JSON.stringify(debugInfo, null, 2)}
+                        </pre>
+                     </div>
+                  )}
+
+                  <Link to="/#katalog" className="glass-button mt-8">Lihat Semua Katalog</Link>
                 </div>
               )}
             </div>
