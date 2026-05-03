@@ -16,41 +16,53 @@ export default function AdminMarketingPanel() {
 
   const rawTargets = Array.isArray(dbUsers) ? dbUsers : [];
   
-  // Transform users to targets if they have a phone, otherwise use mock context for demo
-  const targets = rawTargets.map((u: any, i: number) => {
-      // simulate realistic scenarios if there's no real transaction data yet
-      const scenarios = [
-        { context: 'Keranjang Tertinggal Rp 250.000', tag: 'abandoned_cart', tagColor: 'bg-red-100 text-red-800' },
-        { context: 'Belum transfer (Rp 175.123)', tag: 'pending_payment', tagColor: 'bg-orange-100 text-orange-800' },
-        { context: 'Ulang Tahun besok', tag: 'birthday', tagColor: 'bg-indigo-100 text-indigo-800' },
-        { context: 'VIP (LTV > 5Jt), belum order 2 bulan', tag: 'vip_retention', tagColor: 'bg-emerald-100 text-emerald-800' },
-        { context: `Client Aktif terdaftar sejak ${new Date(u.joinDate).toLocaleDateString('id-ID')}`, tag: 'engaged', tagColor: 'bg-blue-100 text-blue-800' }
-      ];
-      
+  const targets = rawTargets.flatMap((u: any) => {
       const phoneRaw = u.phone_wa || '';
-      // Clean phone number for whatsapp
       let cleanPhone = phoneRaw.replace(/\D/g, '');
       if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
+
+      const daysSinceLastOrder = u.lastActive ? Math.floor((Date.now() - new Date(u.lastActive).getTime()) / 86400000) : null;
+      let scenario: any = null;
+
+      if (u.pendingOrders > 0) {
+        scenario = {
+          context: `${u.pendingOrders} pesanan menunggu pembayaran senilai Rp ${(u.pendingAmount || 0).toLocaleString('id-ID')}`,
+          tag: 'pending_payment',
+          tagColor: 'bg-orange-100 text-orange-800'
+        };
+      } else if ((u.ltv || 0) >= 5000000 && daysSinceLastOrder !== null && daysSinceLastOrder >= 60) {
+        scenario = {
+          context: `VIP LTV Rp ${(u.ltv || 0).toLocaleString('id-ID')}, belum order ${daysSinceLastOrder} hari`,
+          tag: 'vip_retention',
+          tagColor: 'bg-emerald-100 text-emerald-800'
+        };
+      } else if ((u.orders || 0) === 0 && u.joinDate) {
+        scenario = {
+          context: `Pelanggan baru terdaftar sejak ${new Date(u.joinDate).toLocaleDateString('id-ID')}`,
+          tag: 'new_customer',
+          tagColor: 'bg-blue-100 text-blue-800'
+        };
+      }
+
+      if (!scenario) return [];
       
-      return {
+      return [{
         id: u.id,
         name: u.name,
         email: u.email,
         phone: cleanPhone,
-        ...scenarios[i % scenarios.length]
-      };
+        ...scenario
+      }];
   });
 
   const generateMessage = (target: any) => {
     switch (target.tag) {
-      case 'abandoned_cart':
-        return `Halo Kak ${target.name}, keranjang belanjanya di Meyya.id masih terbuka nih. Aku kasih penawaran spesial diskon 5% pakai kode MEYYA5 ya, khusus hari ini! Yuk checkout sekarang 😊`;
       case 'pending_payment':
-        return `Hai Kak ${target.name}, pesanan kakak sudah masuk nih senilai ${target.context.match(/\(([^)]+)\)/)?.[1] || '-'}. Boleh difotokan bukti transfernya kesini biar kita bisa langsung packing siang ini? Terima kasih! 📦`;
-      case 'birthday':
-        return `Selamat ulang tahun Kak ${target.name} (untuk besok)! 🎉 MEYYA.ID mau kasih kado spesial nih, diskon 20% tanpa minimal belanja pakai kode BDAYMEYYA. Berlaku 3 hari ya kak!`;
+        return `Hai Kak ${target.name}, pesanan kakak di Meyya.id masih menunggu pembayaran. Jika sudah transfer, boleh kirim bukti transfer di sini agar bisa segera kami proses. Terima kasih.`;
       case 'vip_retention':
-        return `Halo Kakak VIP ${target.name}! Kita baru launching koleksi *Summer Silk* yang sepertinya cocok sama gaya Kakak. Yuk mampir dan cek koleksi terbarunya, ada exclusive preview buat kakak lho...`;
+        return `Halo Kak ${target.name}, terima kasih sudah menjadi pelanggan setia Meyya.id. Kami baru menyiapkan koleksi terbaru yang mungkin cocok untuk Kakak. Silakan mampir lagi saat sempat ya.`;
+      case 'new_customer':
+        return `Halo Kak ${target.name}, terima kasih sudah bergabung dengan Meyya.id. Jika butuh rekomendasi ukuran, bahan, atau styling, kami siap bantu di sini.`;
       default:
         return `Halo Kak ${target.name}, terima kasih telah bergabung dengan Meyya!`;
     }
@@ -103,7 +115,7 @@ export default function AdminMarketingPanel() {
            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
              {!authReady && <p className="text-sm text-center py-8 text-black/40">⏳ Menunggu sesi admin...</p>}
              {authReady && isLoading && <p className="text-sm text-center py-8 text-black/40">⏳ Memuat pelanggan dari D1...</p>}
-             {authReady && !isLoading && targets.length === 0 && <p className="text-sm text-center py-8 text-black/40">Belum ada pelanggan terdaftar.</p>}
+             {authReady && !isLoading && targets.length === 0 && <p className="text-sm text-center py-8 text-black/40">Belum ada target berbasis data nyata untuk hari ini.</p>}
              
              {targets.map((target: any) => (
                <div 

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { Settings, Box, Tags, Users, Ticket, MessageSquare } from 'lucide-react';
+import { Settings, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck } from 'lucide-react';
 import AdminMetricsPanel from '../components/admin/AdminMetricsPanel';
 import AdminProductForm from '../components/admin/AdminProductForm';
 import AdminCategoryManager from '../components/admin/AdminCategoryManager';
 import AdminCRMManager from '../components/admin/AdminCRMManager';
 import AdminVoucherManager from '../components/admin/AdminVoucherManager';
 import AdminMarketingPanel from '../components/admin/AdminMarketingPanel';
+import AdminPaymentSettings from '../components/admin/AdminPaymentSettings';
+import AdminShippingSettings from '../components/admin/AdminShippingSettings';
 import Tooltip from '../components/Tooltip';
 import { useUser } from '@clerk/react';
 
@@ -16,11 +18,13 @@ export default function AdminDashboard() {
   const { user: clerkUser, isLoaded } = useUser();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTabState] = useState<'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing'>(() => {
+  type AdminTab = 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'payment' | 'shipping';
+
+  const [activeTab, setActiveTabState] = useState<AdminTab>(() => {
     return (localStorage.getItem('adminActiveTab') as any) || 'marketing';
   });
 
-  const setActiveTab = (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing') => {
+  const setActiveTab = (tab: AdminTab) => {
     setActiveTabState(tab);
     localStorage.setItem('adminActiveTab', tab);
   };
@@ -122,6 +126,30 @@ export default function AdminDashboard() {
                     <Ticket size={20} />
                   </button>
                 </Tooltip>
+                <Tooltip content="Pembayaran" position="right">
+                  <button
+                    onClick={() => setActiveTab('payment')}
+                    className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
+                      activeTab === 'payment' 
+                        ? 'bg-ink text-white shadow-md scale-110' 
+                        : 'text-gray-600 hover:bg-black/5 hover:scale-110'
+                    }`}
+                  >
+                    <CreditCard size={20} />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Pengiriman" position="right">
+                  <button
+                    onClick={() => setActiveTab('shipping')}
+                    className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
+                      activeTab === 'shipping' 
+                        ? 'bg-ink text-white shadow-md scale-110' 
+                        : 'text-gray-600 hover:bg-black/5 hover:scale-110'
+                    }`}
+                  >
+                    <Truck size={20} />
+                  </button>
+                </Tooltip>
              </nav>
         </div>
 
@@ -133,6 +161,8 @@ export default function AdminDashboard() {
           {activeTab === 'kategori' && <AdminCategoryManager />}
           {activeTab === 'produk' && <AdminProductForm />}
           {activeTab === 'voucher' && <AdminVoucherManager />}
+          {activeTab === 'payment' && <AdminPaymentSettings />}
+          {activeTab === 'shipping' && <AdminShippingSettings />}
         </div>
       </div>
     </div>

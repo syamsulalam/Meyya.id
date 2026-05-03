@@ -1,31 +1,70 @@
 import React, { useState } from 'react';
-import { Search, ChevronLeft, Calendar, FileText, ShoppingBag, ArrowUpRight, Copy, Award, MapPin } from 'lucide-react';
+import { Search, ChevronLeft, Calendar, FileText, ShoppingBag, ArrowUpRight, Award, Download } from 'lucide-react';
 import useSWR from 'swr';
 import { useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
 
-const MOCK_JOURNEY = [
-  { id: 1, date: '12 Juni 2026', title: 'Menggunakan voucher PAYDAY50', type: 'voucher' },
-  { id: 2, date: '11 Mei 2026', title: 'Membeli Baju X (Ukuran M)', type: 'purchase' },
-  { id: 3, date: '10 Mei 2026', title: 'Mendaftar', type: 'join' },
-];
-
-const MOCK_ORDERS = [
-  { id: 'ORD-1001', date: '11 Mei 2026', items: 2, total: 350000, status: 'DELIVERED' },
-  { id: 'ORD-0994', date: '22 Apr 2026', items: 1, total: 175000, status: 'DELIVERED' },
-];
-
 export default function AdminCRMManager() {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const fetcher = useAuthFetcher();
   const { isLoaded, isSignedIn } = useAuth();
   const authReady = isLoaded && isSignedIn;
 
   const { data: dbUsers, error, isLoading } = useSWR(authReady ? '/api/admin/users' : null, fetcher);
+  const { data: selectedOrders, isLoading: selectedOrdersLoading } = useSWR(
+    authReady && selectedUser ? `/api/admin/users/${encodeURIComponent(selectedUser.id)}/orders` : null,
+    fetcher
+  );
   const CUSTOMERS = Array.isArray(dbUsers) ? dbUsers : [];
+  const FILTERED_CUSTOMERS = CUSTOMERS.filter((customer: any) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return [customer.name, customer.email, customer.phone_wa, customer.status]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
+  });
   const errorInfo = (error as any)?.info;
+  const orders = Array.isArray(selectedOrders) ? selectedOrders : [];
+
+  const exportCustomers = () => {
+    const rows = [
+      ['name', 'email', 'phone_wa', 'status', 'orders', 'ltv', 'last_active'],
+      ...FILTERED_CUSTOMERS.map((customer: any) => [
+        customer.name,
+        customer.email,
+        customer.phone_wa || '',
+        customer.status,
+        customer.orders || 0,
+        customer.ltv || 0,
+        customer.lastActive || ''
+      ])
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `meyya-customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (selectedUser) {
+    const journey = [
+      ...orders.slice(0, 6).map((order: any) => ({
+        id: order.id,
+        date: order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID') : '-',
+        title: `Order ${order.id} - ${order.status}`,
+        type: 'purchase'
+      })),
+      {
+        id: 'join',
+        type: 'join',
+        date: selectedUser.joinDate ? new Date(selectedUser.joinDate).toLocaleDateString('id-ID') : '-',
+        title: 'Bergabung sebagai pelanggan'
+      }
+    ];
+
     return (
       <div className="space-y-8 animate-in fade-in duration-300">
         <button 
@@ -55,10 +94,10 @@ export default function AdminCRMManager() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button className="px-6 py-2 bg-white border border-black/10 rounded-full text-xs font-semibold hover:bg-black/5 transition-colors uppercase tracking-widest">
+            <button onClick={() => alert('Kupon personal belum tersedia. Gunakan tab Voucher untuk membuat promo umum.')} className="px-6 py-2 bg-white border border-black/10 rounded-full text-xs font-semibold hover:bg-black/5 transition-colors uppercase tracking-widest">
               Buat Kupon
             </button>
-            <button className="px-6 py-2 bg-ink text-white rounded-full text-xs font-semibold hover:bg-black/80 transition-colors uppercase tracking-widest">
+            <button onClick={() => window.location.href = `mailto:${selectedUser.email || ''}`} className="px-6 py-2 bg-ink text-white rounded-full text-xs font-semibold hover:bg-black/80 transition-colors uppercase tracking-widest">
               Kirim Email
             </button>
           </div>
@@ -100,11 +139,11 @@ export default function AdminCRMManager() {
                    </div>
                    <div>
                       <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Voucher Digunakan</p>
-                      <p className="font-medium">0 Kupon</p>
+                      <p className="font-medium">{selectedUser.voucherCount || 0} Kupon</p>
                    </div>
                    <div>
                       <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Barang Wishlist</p>
-                      <p className="font-medium">0 Produk</p>
+                      <p className="font-medium">{selectedUser.wishlistCount || 0} Produk</p>
                    </div>
                 </div>
              </div>
@@ -123,15 +162,20 @@ export default function AdminCRMManager() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(selectedUser.orders > 0 ? MOCK_ORDERS : []).map((order) => (
+                    {selectedOrdersLoading && (
+                      <tr>
+                        <td colSpan={4} className="py-6 text-center text-black/50 text-xs">Memuat riwayat pesanan...</td>
+                      </tr>
+                    )}
+                    {!selectedOrdersLoading && orders.map((order: any) => (
                       <tr key={order.id} className="border-b border-black/5 hover:bg-black/5 transition-colors">
                         <td className="py-4 font-mono text-xs">{order.id}</td>
-                        <td className="py-4 font-light">{order.date}</td>
-                        <td className="py-4 font-medium">Rp {order.total.toLocaleString('id-ID')}</td>
+                        <td className="py-4 font-light">{order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID') : '-'}</td>
+                        <td className="py-4 font-medium">Rp {(order.total_paid || 0).toLocaleString('id-ID')}</td>
                         <td className="py-4"><span className="px-2 py-1 bg-black/5 rounded-full text-[10px] font-medium uppercase tracking-widest">{order.status}</span></td>
                       </tr>
                     ))}
-                    {(!selectedUser.orders || selectedUser.orders === 0) && (
+                    {!selectedOrdersLoading && orders.length === 0 && (
                       <tr>
                         <td colSpan={4} className="py-6 text-center text-black/50 text-xs">Belum ada riwayat pesanan.</td>
                       </tr>
@@ -147,7 +191,7 @@ export default function AdminCRMManager() {
             <div className="bg-white/40 border border-black/5 p-6 rounded-[2rem]">
               <h3 className="font-heading font-semibold uppercase tracking-widest text-xs mb-6 flex items-center gap-2"><Calendar size={16}/> Journey Timeline</h3>
               <div className="space-y-6 relative before:content-[''] before:absolute before:left-[17px] before:top-10 before:bottom-2 before:w-[2px] before:bg-black/10">
-                {(selectedUser.orders > 0 ? MOCK_JOURNEY : [{ id: 'join', type: 'join', date: selectedUser.joinDate ? new Date(selectedUser.joinDate).toLocaleDateString() : 'Hari ini', title: 'Mendaftar' }]).map((evt: any) => (
+                {journey.map((evt: any) => (
                   <div key={evt.id} className="flex gap-4 relative z-10">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border-4 border-[#fdfcfb] ${evt.type === 'purchase' ? 'bg-ink text-white' : 'bg-black/10 text-ink'}`}>
                       {evt.type === 'purchase' && <ShoppingBag size={14} />}
@@ -180,12 +224,14 @@ export default function AdminCRMManager() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-black/40" size={16} />
             <input 
               type="text" 
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Cari email atau nama..." 
               className="w-full md:w-64 bg-white/50 border border-black/10 focus:border-black/50 rounded-full py-3 pl-12 pr-4 text-sm outline-none transition-colors"
             />
           </div>
-          <button className="px-6 py-3 bg-white border border-black/10 rounded-full text-xs font-semibold hover:bg-black/5 transition-colors uppercase tracking-widest">
-            Export
+          <button onClick={exportCustomers} className="px-6 py-3 bg-white border border-black/10 rounded-full text-xs font-semibold hover:bg-black/5 transition-colors uppercase tracking-widest flex items-center gap-2">
+            <Download size={14} /> Export
           </button>
         </div>
       </div>
@@ -217,7 +263,7 @@ export default function AdminCRMManager() {
               </tr>
             </thead>
             <tbody>
-              {CUSTOMERS.map((customer: any) => (
+              {FILTERED_CUSTOMERS.map((customer: any) => (
                 <tr key={customer.id} className="border-b border-black/5 hover:bg-black/5 transition-colors cursor-pointer group" onClick={() => setSelectedUser(customer)}>
                   <td className="p-6">
                     <div className="flex items-center gap-3">
@@ -247,12 +293,11 @@ export default function AdminCRMManager() {
                   </td>
                 </tr>
               ))}
-              {authReady && CUSTOMERS.length === 0 && !isLoading && !error && (
+              {authReady && FILTERED_CUSTOMERS.length === 0 && !isLoading && !error && (
                  <tr>
                    <td colSpan={5} className="p-8 text-center text-black/50">
-                     <p className="mb-2">Belum ada pelanggan ditemukan di database D1.</p>
-                     <p className="text-xs max-w-sm mx-auto">Pastikan webhook Clerk (`/api/webhooks/clerk`) sudah dikonfigurasi di dashboard Clerk agar data user sinkron ke D1 secara otomatis saat pendaftaran.</p>
-                     <p className="text-[10px] mt-4 opacity-50 font-mono">DEBUG: users table is empty</p>
+                     <p className="mb-2">{CUSTOMERS.length === 0 ? 'Belum ada pelanggan ditemukan di database D1.' : 'Tidak ada pelanggan yang cocok dengan pencarian.'}</p>
+                     {CUSTOMERS.length === 0 && <p className="text-xs max-w-sm mx-auto">Pastikan webhook Clerk (`/api/webhooks/clerk`) sudah dikonfigurasi di dashboard Clerk agar data user sinkron ke D1 secara otomatis saat pendaftaran.</p>}
                    </td>
                  </tr>
               )}

@@ -15,6 +15,10 @@ export async function onRequestPost(context: any) {
       return new Response(JSON.stringify({ error: 'Shipping origin not configured' }), { status: 500 });
     }
 
+    if (!env.API_CO_ID_KEY) {
+      return new Response(JSON.stringify({ error: 'Shipping API key is not configured' }), { status: 500 });
+    }
+
     const origin_village_code = settings.origin_village_code;
     const active_couriers = JSON.parse(settings.active_couriers || '["JNE", "SICEPAT", "JNT"]'); // uppercase check
 
