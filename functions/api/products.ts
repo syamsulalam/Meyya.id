@@ -38,6 +38,25 @@ export async function onRequestGet(context: any) {
       
       const attrs = await env.MEYYA_DB.prepare('SELECT attribute_name, attribute_value FROM product_attributes WHERE product_id = ?').bind(p.id).all();
       p.attributes = sanitizeProductAttributes(attrs.results);
+
+      const images = await env.MEYYA_DB.prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order ASC, id ASC').bind(p.id).all();
+      p.images = images.results || [];
+      if (p.images.length > 0) {
+        const primary = p.images.find((img: any) => img.is_primary === 1) || p.images[0];
+        p.image_url = primary.image_url || p.image_url;
+      }
+
+      const variants = await env.MEYYA_DB.prepare('SELECT * FROM product_variants WHERE product_id = ? AND is_active = 1 ORDER BY color_name ASC, size_name ASC').bind(p.id).all();
+      p.variants = variants.results || [];
+
+      const related = await env.MEYYA_DB.prepare(`
+        SELECT rp.id, rp.name, rp.slug, rp.image_url, rp.base_price
+        FROM product_related rel
+        JOIN products rp ON rp.id = rel.related_product_id
+        WHERE rel.product_id = ? AND rp.deleted_at IS NULL
+        ORDER BY rel.sort_order ASC
+      `).bind(p.id).all();
+      p.related_products = related.results || [];
     }
 
     return new Response(JSON.stringify(products), {
@@ -57,7 +76,7 @@ export async function onRequestPost(context: any) {
     const { env, request, data } = context;
     await ensureCommerceSchema(env);
     const body = await request.json();
-    const { name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder, colors, sizes, attributes, meta_title, meta_description, canonical_slug, og_image_url, low_stock_threshold } = body;
+    const { name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder, colors, sizes, attributes, images, variants, meta_title, meta_description, canonical_slug, og_image_url, low_stock_threshold } = body;
     
     const info = await env.MEYYA_DB.prepare(
       'INSERT INTO products (name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, last_stock_update, is_active, is_preorder, meta_title, meta_description, canonical_slug, og_image_url, low_stock_threshold) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?)'
@@ -91,6 +110,22 @@ export async function onRequestPost(context: any) {
       await env.MEYYA_DB.batch(attrStmts);
     }
 
+    const cleanImages = sanitizeImages(images, image_url);
+    if (cleanImages.length > 0) {
+      await env.MEYYA_DB.batch(cleanImages.map((img: any, index: number) =>
+        env.MEYYA_DB.prepare('INSERT INTO product_images (product_id, image_url, alt_text, sort_order, is_primary, color_name) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(lastRowId, img.image_url, img.alt_text || name, index, img.is_primary ? 1 : 0, img.color_name || null)
+      ));
+    }
+
+    const cleanVariants = sanitizeVariants(variants);
+    if (cleanVariants.length > 0) {
+      await env.MEYYA_DB.batch(cleanVariants.map((variant: any) =>
+        env.MEYYA_DB.prepare('INSERT INTO product_variants (product_id, color_name, size_name, sku, stock, is_active) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(lastRowId, variant.color_name, variant.size_name, variant.sku || null, variant.stock, variant.is_active ? 1 : 0)
+      ));
+    }
+
     if (Number(stock || 0) !== 0) {
       await env.MEYYA_DB.prepare(`
         INSERT INTO stock_movements (product_id, change_qty, reason, note)
@@ -112,3 +147,33 @@ export async function onRequestPost(context: any) {
   }
 }
 
+function sanitizeImages(images: any, fallbackImageUrl?: string) {
+  const source = Array.isArray(images) ? images : [];
+  const clean = source
+    .map((img: any) => ({
+      image_url: String(img?.image_url || '').trim(),
+      alt_text: String(img?.alt_text || '').trim(),
+      color_name: String(img?.color_name || '').trim(),
+      is_primary: Boolean(img?.is_primary),
+    }))
+    .filter((img: any) => img.image_url);
+
+  if (clean.length === 0 && fallbackImageUrl) {
+    clean.push({ image_url: fallbackImageUrl, alt_text: '', color_name: '', is_primary: true });
+  }
+  if (!clean.some((img: any) => img.is_primary) && clean.length > 0) clean[0].is_primary = true;
+  return clean;
+}
+
+function sanitizeVariants(variants: any) {
+  if (!Array.isArray(variants)) return [];
+  return variants
+    .map((variant: any) => ({
+      color_name: String(variant?.color_name || '').trim() || 'Standar',
+      size_name: String(variant?.size_name || '').trim() || 'Semua Ukuran',
+      sku: String(variant?.sku || '').trim(),
+      stock: Number(variant?.stock || 0),
+      is_active: variant?.is_active !== false && variant?.is_active !== 0,
+    }))
+    .filter((variant: any) => variant.color_name || variant.size_name);
+}

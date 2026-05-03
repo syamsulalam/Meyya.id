@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import useSWR, { mutate } from 'swr';
-import { MapPin, Save, Truck } from 'lucide-react';
+import { MapPin, RefreshCw, Save, Truck } from 'lucide-react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
 
@@ -17,6 +17,7 @@ export default function AdminShippingSettings() {
   const authFetch = useAuthFetch();
   const { addToast } = useStore();
   const { data: settings, isLoading } = useSWR('/api/admin/shipping-settings', fetcher);
+  const { data: cacheStats } = useSWR('/api/admin/region-cache', fetcher);
 
   const [originVillageCode, setOriginVillageCode] = useState('');
   const [originVillageName, setOriginVillageName] = useState('');
@@ -70,6 +71,18 @@ export default function AdminShippingSettings() {
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Gagal menyimpan pengiriman');
       mutate('/api/admin/shipping-settings');
       addToast('Setting pengiriman berhasil disimpan', 'success');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    }
+  };
+
+  const refreshRegionCache = async () => {
+    try {
+      const res = await authFetch('/api/admin/region-cache', { method: 'DELETE' });
+      if (!res.ok) throw new Error('Gagal refresh cache wilayah');
+      mutate('/api/admin/region-cache');
+      mutate('/api/regions/provinces?size=100');
+      addToast('Cache wilayah dikosongkan. Data akan diambil ulang saat dropdown dibuka.', 'success');
     } catch (error: any) {
       addToast(error.message, 'error');
     }
@@ -130,6 +143,9 @@ export default function AdminShippingSettings() {
           </div>
           <button onClick={saveSettings} className="w-full bg-ink text-white py-3 rounded-full text-xs uppercase tracking-widest font-semibold hover:bg-black/80 flex items-center justify-center gap-2">
             <Save size={14} /> Simpan Pengiriman
+          </button>
+          <button onClick={refreshRegionCache} className="w-full bg-white border border-black/10 text-ink py-3 rounded-full text-xs uppercase tracking-widest font-semibold hover:bg-black/5 flex items-center justify-center gap-2">
+            <RefreshCw size={14} /> Refresh Cache Wilayah ({cacheStats?.total || 0})
           </button>
         </div>
       </div>

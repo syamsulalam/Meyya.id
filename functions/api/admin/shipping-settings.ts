@@ -1,4 +1,5 @@
 import { debugErrorResponse, jsonResponse } from '../_debug';
+import { auditLog } from '../_commerce';
 
 async function ensureShippingSchema(env: any) {
   await env.MEYYA_DB.prepare(`
@@ -39,7 +40,7 @@ export async function onRequestGet(context: any) {
 }
 
 export async function onRequestPut(context: any) {
-  const { env, request } = context;
+  const { env, request, data } = context;
 
   try {
     await ensureShippingSchema(env);
@@ -58,6 +59,11 @@ export async function onRequestPut(context: any) {
       body.origin_village_name || '',
       JSON.stringify(activeCouriers)
     ).run();
+
+    await auditLog(env, data?.clerkId || null, 'UPDATE_SHIPPING_SETTINGS', 'shipping_settings', '1', {
+      origin_village_code: body.origin_village_code,
+      active_couriers: activeCouriers,
+    });
 
     return jsonResponse({ success: true });
   } catch (error: any) {

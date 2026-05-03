@@ -7,7 +7,7 @@ import CartPreviewDropdown from './CartPreviewDropdown';
 import { useAuthFetch } from '../hooks/useAuthFetch';
 
 export default function Header() {
-  const { cart, user: localUser } = useStore();
+  const { cart, user: localUser, wishlist, setWishlist } = useStore();
   const { user: clerkUser } = useUser();
   const authFetch = useAuthFetch();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -53,6 +53,20 @@ export default function Header() {
         })
         .catch(err => console.error('Failed to sync user to D1:', err));
     }
+  }, [authFetch, clerkUser]);
+
+  useEffect(() => {
+    if (!clerkUser) return;
+    authFetch('/api/user/wishlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_ids: wishlist })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setWishlist(data.map((item: any) => Number(item.product_id || item.id)).filter(Boolean));
+      })
+      .catch(err => console.error('Failed to sync wishlist:', err));
   }, [authFetch, clerkUser]);
 
   return (

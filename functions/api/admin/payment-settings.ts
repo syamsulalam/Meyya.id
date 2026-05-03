@@ -1,4 +1,5 @@
 import { debugErrorResponse, jsonResponse } from '../_debug';
+import { auditLog } from '../_commerce';
 
 async function ensurePaymentSchema(env: any) {
   await env.MEYYA_DB.prepare(`
@@ -38,7 +39,7 @@ export async function onRequestGet(context: any) {
 }
 
 export async function onRequestPut(context: any) {
-  const { env, request } = context;
+  const { env, request, data } = context;
 
   try {
     await ensurePaymentSchema(env);
@@ -74,6 +75,10 @@ export async function onRequestPut(context: any) {
     ).run();
 
     const settings = await env.MEYYA_DB.prepare('SELECT * FROM payment_settings WHERE id = 1').first();
+    await auditLog(env, data?.clerkId || null, 'UPDATE_PAYMENT_SETTINGS', 'payment_settings', '1', {
+      transfer_admin_fee: body.transfer_admin_fee,
+      qris_is_active: body.qris_is_active,
+    });
     return jsonResponse({ success: true, settings });
   } catch (error: any) {
     return debugErrorResponse(error, 500, {

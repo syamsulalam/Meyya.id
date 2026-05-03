@@ -59,6 +59,18 @@ CREATE TABLE IF NOT EXISTS product_sizes (
   size_name TEXT
 );
 
+CREATE TABLE IF NOT EXISTS product_variants (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  color_name TEXT,
+  size_name TEXT,
+  sku TEXT,
+  stock INTEGER DEFAULT 0,
+  is_active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS product_images (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   product_id INTEGER NOT NULL,
@@ -167,6 +179,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   order_id TEXT,
   product_id INTEGER,
   product_name TEXT,
+  variant_id INTEGER,
   color_name TEXT,
   size_name TEXT,
   quantity INTEGER,
@@ -205,6 +218,7 @@ CREATE TABLE IF NOT EXISTS inventory_reservations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id TEXT NOT NULL,
   product_id INTEGER NOT NULL,
+  variant_id INTEGER,
   quantity INTEGER NOT NULL,
   status TEXT DEFAULT 'ACTIVE',
   expires_at DATETIME,

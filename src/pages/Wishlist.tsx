@@ -2,22 +2,35 @@ import { Link } from 'react-router-dom';
 import { Heart } from 'lucide-react';
 import { useStore } from '../store';
 import { useEffect, useState } from 'react';
+import { useUser } from '@clerk/react';
+import { useAuthFetcher } from '../hooks/useAuthFetch';
+import useSWR from 'swr';
 
 export default function Wishlist() {
   const { wishlist } = useStore();
+  const { isSignedIn } = useUser();
+  const authFetcher = useAuthFetcher();
+  const { data: dbWishlist, isLoading: dbLoading } = useSWR(isSignedIn ? '/api/user/wishlist' : null, authFetcher);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (Array.isArray(dbWishlist)) {
+      setProducts(dbWishlist);
+      setLoading(false);
+      return;
+    }
     fetch('/api/products')
       .then(res => res.json())
       .then(data => {
         setProducts(data.filter((p: any) => wishlist.includes(p.id)));
         setLoading(false);
       });
-  }, [wishlist]);
+  }, [wishlist, dbWishlist]);
 
-  if (wishlist.length === 0) {
+  const wishlistCount = Array.isArray(dbWishlist) ? dbWishlist.length : wishlist.length;
+
+  if (wishlistCount === 0 && !dbLoading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 px-4">
         <div className="w-24 h-24 bg-black/5 rounded-full flex items-center justify-center mb-6">

@@ -23,7 +23,10 @@ export async function onRequestGet(context: any) {
       )
     `).run();
 
-    const cached = await env.MEYYA_DB.prepare('SELECT payload FROM region_cache WHERE endpoint = ?').bind(cacheKey).first();
+    const cached = await env.MEYYA_DB.prepare(`
+      SELECT payload FROM region_cache
+      WHERE endpoint = ? AND datetime(cached_at) >= datetime('now', '-30 days')
+    `).bind(cacheKey).first();
     if (cached?.payload) {
       return new Response(cached.payload, {
         headers: jsonHeaders,

@@ -6,14 +6,20 @@ export function jsonResponse(body: any, status = 200) {
 }
 
 export function debugErrorResponse(error: any, status: number, context: Record<string, any> = {}) {
-  const payload = {
-    error: error?.message || String(error),
-    debug: {
-      ...redact(context),
-      error: serializeError(error),
-      timestamp: new Date().toISOString(),
+  const debugEnabled = context.debug_enabled === true || context.environment === 'development';
+  const payload = debugEnabled
+    ? {
+      error: error?.message || String(error),
+      debug: {
+        ...redact(context),
+        error: serializeError(error),
+        timestamp: new Date().toISOString(),
+      }
     }
-  };
+    : {
+      error: error?.message || 'Terjadi kesalahan sistem. Detail sudah dicatat di log internal.',
+      request_id: crypto.randomUUID(),
+    };
 
   console.error('API debug error', payload);
   return jsonResponse(payload, status);

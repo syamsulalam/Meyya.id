@@ -21,7 +21,7 @@ export default function AdminOrderManager() {
   const bundles = Array.isArray(bundlesData) ? bundlesData : [];
   const products = Array.isArray(productsData) ? productsData : [];
   const [trackingDrafts, setTrackingDrafts] = useState<Record<string, { tracking_number: string; tracking_courier: string }>>({});
-  const [bundleForm, setBundleForm] = useState({ name: '', slug: '', bundle_price: 0, product_id: '', quantity: 1 });
+  const [bundleForm, setBundleForm] = useState({ name: '', slug: '', bundle_price: 0, items: [{ product_id: '', quantity: 1 }] });
 
   const exportOrders = () => {
     const rows = [
@@ -86,7 +86,8 @@ export default function AdminOrderManager() {
   };
 
   const createBundle = async () => {
-    if (!bundleForm.name || !bundleForm.slug || !bundleForm.bundle_price || !bundleForm.product_id) {
+    const cleanItems = bundleForm.items.filter(item => item.product_id).map(item => ({ product_id: Number(item.product_id), quantity: Number(item.quantity || 1) }));
+    if (!bundleForm.name || !bundleForm.slug || !bundleForm.bundle_price || cleanItems.length === 0) {
       addToast('Lengkapi nama, slug, harga bundle, dan produk.', 'error');
       return;
     }
@@ -98,13 +99,13 @@ export default function AdminOrderManager() {
           name: bundleForm.name,
           slug: bundleForm.slug,
           bundle_price: bundleForm.bundle_price,
-          items: [{ product_id: Number(bundleForm.product_id), quantity: bundleForm.quantity }]
+          items: cleanItems
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Gagal membuat bundle');
       mutate('/api/admin/bundles');
-      setBundleForm({ name: '', slug: '', bundle_price: 0, product_id: '', quantity: 1 });
+      setBundleForm({ name: '', slug: '', bundle_price: 0, items: [{ product_id: '', quantity: 1 }] });
       addToast('Bundle berhasil dibuat', 'success');
     } catch (error: any) {
       addToast(error.message, 'error');
@@ -212,12 +213,20 @@ export default function AdminOrderManager() {
               <input value={bundleForm.name} onChange={e => setBundleForm({ ...bundleForm, name: e.target.value, slug: bundleForm.slug || e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') })} placeholder="Nama bundle" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-sm" />
               <input value={bundleForm.slug} onChange={e => setBundleForm({ ...bundleForm, slug: e.target.value })} placeholder="slug-bundle" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-sm" />
               <input type="number" value={bundleForm.bundle_price || ''} onChange={e => setBundleForm({ ...bundleForm, bundle_price: Number(e.target.value || 0) })} placeholder="Harga bundle" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-sm" />
-              <input type="number" value={bundleForm.quantity || 1} onChange={e => setBundleForm({ ...bundleForm, quantity: Number(e.target.value || 1) })} placeholder="Qty produk" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-sm" />
             </div>
-            <select value={bundleForm.product_id} onChange={e => setBundleForm({ ...bundleForm, product_id: e.target.value })} className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 text-sm">
-              <option value="">Pilih produk utama bundle</option>
-              {products.map((product: any) => <option key={product.id} value={product.id}>{product.name}</option>)}
-            </select>
+            <div className="space-y-2">
+              {bundleForm.items.map((item, index) => (
+                <div key={index} className="grid grid-cols-[1fr_90px_36px] gap-2">
+                  <select value={item.product_id} onChange={e => setBundleForm({ ...bundleForm, items: bundleForm.items.map((row, i) => i === index ? { ...row, product_id: e.target.value } : row) })} className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 text-sm">
+                    <option value="">Pilih produk</option>
+                    {products.map((product: any) => <option key={product.id} value={product.id}>{product.name}</option>)}
+                  </select>
+                  <input type="number" value={item.quantity || 1} onChange={e => setBundleForm({ ...bundleForm, items: bundleForm.items.map((row, i) => i === index ? { ...row, quantity: Number(e.target.value || 1) } : row) })} className="bg-white border border-black/10 rounded-xl px-3 py-2 text-sm" />
+                  <button type="button" onClick={() => setBundleForm({ ...bundleForm, items: bundleForm.items.filter((_, i) => i !== index) })} className="bg-red-50 text-red-600 rounded-xl">×</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setBundleForm({ ...bundleForm, items: [...bundleForm.items, { product_id: '', quantity: 1 }] })} className="text-xs bg-black/5 px-3 py-2 rounded-full">Tambah Item Bundle</button>
+            </div>
             <button onClick={createBundle} className="px-5 py-2.5 bg-ink text-white rounded-full text-xs uppercase tracking-widest font-semibold">Buat Bundle</button>
           </div>
           <div className="space-y-3">

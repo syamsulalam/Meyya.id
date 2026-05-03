@@ -47,6 +47,9 @@ Perbaikan yang sudah diterapkan:
   upload bukti transfer, payment expiry + auto-cancel, inventory reservation, admin fulfillment/resi/status, template pesan,
   low stock alert, stock movement log, audit log, SEO produk, review produk, related products fallback, bundle API/UI sederhana,
   coupon personal/segment, return/exchange request, dashboard margin, CSV export orders/products, dan soft delete produk/kategori.
+- Batch lanjutan 2026-05-04 sudah diterapkan:
+  product multi-image/gallery, D1-backed wishlist customer, stok varian size/color, admin refresh `region_cache`, editor manual related product,
+  bundle multi-item, audit log payment/shipping settings, TTL regional cache 30 hari, dan debug JSON produksi dipersempit.
 - `npm run lint` berhasil.
 - `npm run build` berhasil, masih dengan warning chunk size Vite.
 
@@ -87,7 +90,7 @@ Catatan:
 - `schema.sql` masih berisi seed demo. Untuk production, lebih aman pisahkan migration schema-only dari seed.
 - Jangan commit full dump karena bisa berisi PII customer/order.
 
-### 2. Product multi-image baru sebatas schema
+### 2. Product multi-image
 
 File terkait:
 
@@ -99,19 +102,16 @@ File terkait:
 
 Kondisi saat ini:
 
-- `schema.sql` lokal sudah punya `product_images`.
-- Produk masih memakai satu `products.image_url`.
-- Belum ada CRUD gallery di admin product form.
-- Product detail belum punya carousel/thumbnails.
+- `product_images` sudah self-heal via `ensureCommerceSchema`.
+- Admin product form sudah punya gallery uploader, thumbnail selector, primary image, dan optional bind `color_name`.
+- Product detail sudah punya thumbnails dan mengganti image utama sesuai pilihan.
+- Product card tetap memakai primary image dari `product_images` jika tersedia.
 
-Saran:
+Catatan lanjutan:
 
-- Admin product form punya gallery uploader dan reorder.
-- Product detail punya carousel/thumbnails.
-- Product card tetap pakai primary image.
-- Opsional: bind image ke `color_name`.
+- Reorder masih berdasarkan urutan array saat save; belum ada drag-and-drop khusus.
 
-### 3. Wishlist masih local/semi-local
+### 3. Wishlist D1-backed
 
 File terkait:
 
@@ -125,32 +125,28 @@ Kondisi saat ini:
 
 - Tabel `wishlists` ada.
 - Admin CRM sudah bisa menghitung `wishlistCount` dari D1 jika data tersedia.
-- UI wishlist customer masih memakai Zustand/local state.
-- Belum ada endpoint D1-backed wishlist.
+- Endpoint `GET/POST/DELETE /api/user/wishlist` sudah tersedia.
+- Saat user login, wishlist lokal disinkronkan ke D1 dan store diperbarui dari D1.
+- Product card/detail toggle wishlist melakukan sync ke D1 untuk user login.
 
-Saran:
+Catatan lanjutan:
 
-- Tambah `GET/POST/DELETE /api/user/wishlist`.
-- Saat login, sync wishlist lokal ke D1.
-- Product card/detail membaca status wishlist dari D1 untuk user login.
+- Jika user logout, wishlist tetap local untuk guest.
 
-### 4. Varian produk belum punya stok per size/color
+### 4. Varian produk size/color
 
 Kondisi saat ini:
 
 - Produk punya stok global.
 - Warna dan ukuran disimpan sebagai opsi terpisah.
-- Order item menyimpan `color_name` dan `size_name`, tetapi belum ada `variant_id`.
+- Tabel `product_variants` sudah tersedia.
+- Admin product form bisa mengisi `color_name`, `size_name`, `sku`, dan stok varian.
+- Cart/order menyimpan `variant_id` bila varian dipilih.
+- Checkout validasi dan reserve stok varian jika `variant_id` tersedia.
 
-Risiko:
+Catatan lanjutan:
 
-- Oversell bisa terjadi untuk size/color tertentu walaupun stok global masih tersedia.
-
-Saran:
-
-- Tambah tabel `product_variants` dengan `product_id`, `color_name`, `size_name`, `sku`, `stock`, dan `is_active`.
-- Cart/order simpan `variant_id`.
-- Decrement stok berdasarkan variant, bukan hanya product.
+- Stok global masih ikut dikurangi sebagai ringkasan stok produk. Ke depan bisa dihitung otomatis dari total varian.
 
 ## Prioritas Menengah
 
@@ -162,13 +158,13 @@ Kondisi saat ini:
 - Detail order sudah dari D1.
 - Journey timeline sudah dari join date dan order D1.
 - Return/exchange belum ada, sehingga `returnRate` belum bisa dihitung.
-- Tombol "Buat Kupon" masih placeholder menuju kebutuhan voucher personal/segment.
+- Return/exchange sudah ada; `returnRate` belum ditampilkan sebagai metrik CRM.
+- Voucher personal/segment sudah didukung di voucher form/API.
 
 Saran:
 
-- Tambah voucher personal/per-segment.
-- Tambah event tracking untuk cart, view product, dan campaign touch.
 - Hitung return rate setelah return/exchange workflow ada.
+- Tambah event tracking untuk cart, view product, dan campaign touch.
 
 ### 6. Marketing panel sudah tidak memakai scenario palsu, tetapi datanya masih terbatas
 
@@ -189,25 +185,21 @@ Kondisi saat ini:
 
 - `region_cache` membuat form alamat tidak terus memukul api.co.id.
 - Cache akan terisi per endpoint saat user/admin memilih wilayah.
-- Belum ada tombol admin untuk clear/refetch cache jika api.co.id memperbarui data wilayah.
+- Cache punya TTL 30 hari.
+- Admin shipping settings punya tombol refresh untuk clear `region_cache`.
 
-Saran:
-
-- Tambah endpoint admin `DELETE /api/admin/region-cache`.
-- Tambah tombol "Refresh Cache Wilayah" di admin shipping settings.
-- Opsional: tambah TTL otomatis 30 hari jika data wilayah dianggap cukup stabil.
+Status: implemented.
 
 ### 8. Debug JSON produksi masih aktif
 
 Kondisi saat ini:
 
-- Debug JSON sangat membantu saat stabilisasi auth/D1.
-- Response debug menampilkan stack dan schema info, dengan secret/token di-redact.
+- Debug JSON detail sudah dipersempit. `debugErrorResponse` default hanya mengirim pesan error pendek dan `request_id`.
+- Stack/context detail tetap dicatat ke `console.error`.
 
 Saran:
 
-- Setelah produksi stabil, batasi debug detail hanya untuk admin atau environment development.
-- Untuk public/customer error, gunakan pesan pendek dan simpan detail di log internal.
+- Jika butuh debug sementara, aktifkan flag khusus internal dan pastikan tidak dibuka ke public.
 
 ## Audit Kecil 2026-05-04
 
@@ -221,10 +213,10 @@ Temuan yang sudah dibereskan:
 
 Temuan lanjutan yang masih layak dikerjakan:
 
-- `region_cache` sebaiknya punya admin refresh manual.
-- Debug JSON produksi perlu dipersempit setelah deploy stabil.
 - `schema.sql` masih bercampur schema dan seed demo; migration production sebaiknya dipisah.
 - `shipping_settings.active_couriers` seed lama masih memakai variasi nama kurir campuran (`JNE`, `JT`, `paxel`); normalisasi kode kurir perlu disamakan dengan response api.co.id.
+- Return rate CRM belum dihitung dari tabel `return_requests`.
+- Event tracking untuk cart/view product/campaign touch belum tersedia.
 
 ## Backlog Fitur Toko Online
 
@@ -250,19 +242,16 @@ Status 2026-05-04:
 
 Catatan lanjutan:
 
-- Bundle creator admin saat ini MVP satu produk utama per create; endpoint sudah mendukung banyak item jika UI diperluas.
-- Related product manual mapping sudah punya schema dan fallback UI, tetapi belum ada editor mapping khusus.
+- Bundle creator admin sudah mendukung multi-item dalam satu submit.
+- Related product manual mapping sudah punya editor di admin product form.
 - Template pesan belum otomatis mengirim WhatsApp/email; saat ini dikelola sebagai template operasional untuk disalin/dipakai admin.
 
 ## Urutan Fix Disarankan Berikutnya
 
 1. Apply/verify D1 remote schema dengan `CLOUDFLARE_API_TOKEN`.
-2. Tambah UI/code `product_images` untuk multi-image product.
-3. Implement D1-backed wishlist customer.
-4. Tambah product variants dan stok per size/color.
-5. Tambah admin refresh untuk `region_cache`.
-6. Tambah editor manual related product mapping.
-7. Perluas bundle editor untuk multi item dalam satu submit.
-8. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
-9. Tambah audit log admin untuk perubahan payment/shipping settings.
-10. Batasi debug JSON produksi setelah stabil.
+2. Pisahkan `schema.sql` menjadi migration schema-only dan seed demo agar apply production lebih aman.
+3. Hitung dan tampilkan return rate CRM dari `return_requests`.
+4. Tambah event tracking untuk cart/view product/campaign touch.
+5. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
+6. Tambah drag-and-drop reorder untuk product gallery.
+7. Normalisasi stok global agar bisa dihitung otomatis dari total `product_variants`.

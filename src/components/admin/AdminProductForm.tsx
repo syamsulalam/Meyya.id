@@ -72,6 +72,9 @@ export default function AdminProductForm() {
   const [metaDescription, setMetaDescription] = useState('');
   const [canonicalSlug, setCanonicalSlug] = useState('');
   const [ogImageUrl, setOgImageUrl] = useState('');
+  const [galleryImages, setGalleryImages] = useState<{ image_url: string; alt_text?: string; color_name?: string; is_primary?: boolean }[]>([]);
+  const [productVariants, setProductVariants] = useState<{ color_name: string; size_name: string; sku: string; stock: number; is_active: boolean }[]>([]);
+  const [relatedProductIds, setRelatedProductIds] = useState<number[]>([]);
   
   const [hargaKainRoll, setHargaKainRoll] = useState(0);
   const [yieldKain, setYieldKain] = useState(1);
@@ -105,6 +108,7 @@ export default function AdminProductForm() {
         const data = await res.json();
         if (data.url) {
           setImageUrl(data.url);
+          setGalleryImages(prev => prev.length === 0 ? [{ image_url: data.url, alt_text: productName, is_primary: true }] : prev);
         }
       } catch (err) {
         console.error('Upload failed', err);
@@ -163,6 +167,20 @@ export default function AdminProductForm() {
     setLowStockThreshold(p.low_stock_threshold || 5);
     setHargaJual(p.base_price || 0);
     setImageUrl(p.image_url || null);
+    setGalleryImages(Array.isArray(p.images) && p.images.length > 0 ? p.images.map((img: any) => ({
+      image_url: img.image_url,
+      alt_text: img.alt_text || p.name,
+      color_name: img.color_name || '',
+      is_primary: img.is_primary === 1,
+    })) : (p.image_url ? [{ image_url: p.image_url, alt_text: p.name, is_primary: true }] : []));
+    setProductVariants(Array.isArray(p.variants) ? p.variants.map((variant: any) => ({
+      color_name: variant.color_name || '',
+      size_name: variant.size_name || '',
+      sku: variant.sku || '',
+      stock: Number(variant.stock || 0),
+      is_active: variant.is_active !== 0,
+    })) : []);
+    setRelatedProductIds(Array.isArray(p.related_products) ? p.related_products.map((item: any) => item.id) : []);
     setMetaTitle(p.meta_title || '');
     setMetaDescription(p.meta_description || '');
     setCanonicalSlug(p.canonical_slug || p.slug || '');
@@ -231,6 +249,9 @@ export default function AdminProductForm() {
     setIsPreorder(false);
     setSelectedSizes(['All Size']);
     setImageUrl(null);
+    setGalleryImages([]);
+    setProductVariants([]);
+    setRelatedProductIds([]);
     setMetaTitle('');
     setMetaDescription('');
     setCanonicalSlug('');
@@ -272,6 +293,22 @@ export default function AdminProductForm() {
         base_price: hargaJual,
         production_cost: totalCostSatuan,
         image_url: imageUrl || '', 
+        images: galleryImages.map((image, index) => ({
+          ...image,
+          alt_text: image.alt_text || productName,
+          is_primary: image.is_primary || index === 0,
+        })),
+        variants: productVariants
+          .map(variant => ({
+            ...variant,
+            color_name: variant.color_name.trim() || 'Standar',
+            size_name: variant.size_name.trim() || 'Semua Ukuran',
+            sku: variant.sku.trim(),
+            stock: Number(variant.stock || 0),
+            is_active: variant.is_active,
+          }))
+          .filter(variant => variant.color_name || variant.size_name),
+        related_product_ids: relatedProductIds,
         meta_title: metaTitle.trim() || productName,
         meta_description: metaDescription.trim(),
         canonical_slug: canonicalSlug.trim() || (slug || productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')),
@@ -308,6 +345,23 @@ export default function AdminProductForm() {
       addToast('Produk berhasil disimpan!', 'success');
     } catch (e: any) {
       addToast(e.message, 'error');
+    }
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []) as File[];
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await authFetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error || 'Gagal upload gallery');
+        setGalleryImages(prev => [...prev, { image_url: data.url, alt_text: productName, is_primary: prev.length === 0 }]);
+        if (!imageUrl) setImageUrl(data.url);
+      } catch (err: any) {
+        addToast(err.message, 'error');
+      }
     }
   };
 
@@ -502,6 +556,28 @@ export default function AdminProductForm() {
                     <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB</p>
                  </label>
                )}
+               {galleryImages.length > 0 && (
+                 <div className="grid grid-cols-4 md:grid-cols-6 gap-3 mt-4">
+                   {galleryImages.map((image, index) => (
+                     <div key={`${image.image_url}-${index}`} className="relative group/gallery">
+                       <button type="button" onClick={() => {
+                         setImageUrl(image.image_url);
+                         setGalleryImages(galleryImages.map((img, i) => ({ ...img, is_primary: i === index })));
+                       }} className={`aspect-square rounded-xl overflow-hidden border bg-white ${image.is_primary ? 'border-ink' : 'border-black/10'}`}>
+                         <img src={image.image_url} alt={image.alt_text || productName} className="w-full h-full object-cover" />
+                       </button>
+                       <button type="button" onClick={() => setGalleryImages(galleryImages.filter((_, i) => i !== index))} className="absolute -top-2 -right-2 bg-red-50 text-red-600 rounded-full p-1 opacity-0 group-hover/gallery:opacity-100 transition-opacity">
+                         <X size={12} />
+                       </button>
+                       <input value={image.color_name || ''} onChange={e => setGalleryImages(galleryImages.map((img, i) => i === index ? { ...img, color_name: e.target.value } : img))} placeholder="Bind warna" className="mt-1 w-full bg-white border border-black/10 rounded-lg px-2 py-1 text-[10px]" />
+                     </div>
+                   ))}
+                 </div>
+               )}
+               <label className="mt-4 inline-flex cursor-pointer items-center gap-2 px-4 py-2 rounded-xl border border-black/10 bg-white text-xs font-semibold uppercase tracking-widest hover:bg-black/5">
+                 <Upload size={14} /> Tambah Gallery
+                 <input type="file" className="hidden" accept="image/*" multiple onChange={handleGalleryUpload} />
+               </label>
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Nama Produk</label>
@@ -630,6 +706,44 @@ export default function AdminProductForm() {
               )}
             </div>
             )}
+
+            <div className="md:col-span-2 bg-white/40 p-5 rounded-2xl border border-black/5 space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <h4 className="text-xs uppercase tracking-widest font-semibold opacity-60">Stok Per Varian</h4>
+                <button type="button" onClick={() => setProductVariants([...productVariants, { color_name: selectedColorNames[0] || 'Standar', size_name: selectedSizes[0] || 'Semua Ukuran', sku: '', stock: 0, is_active: true }])} className="text-xs bg-black/5 px-3 py-1.5 rounded-full hover:bg-black/10">
+                  <Plus size={12} className="inline mr-1" /> Tambah Varian
+                </button>
+              </div>
+              {productVariants.length === 0 && <p className="text-xs text-black/50">Opsional. Jika dikosongkan, checkout memakai stok global produk.</p>}
+              <div className="space-y-2">
+                {productVariants.map((variant, index) => (
+                  <div key={index} className="grid grid-cols-2 md:grid-cols-[1fr_1fr_1fr_100px_40px] gap-2 items-center">
+                    <input value={variant.color_name} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, color_name: e.target.value } : v))} placeholder="Warna" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs" />
+                    <input value={variant.size_name} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, size_name: e.target.value } : v))} placeholder="Size" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs" />
+                    <input value={variant.sku} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, sku: e.target.value } : v))} placeholder="SKU" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs" />
+                    <input type="number" value={variant.stock} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, stock: Number(e.target.value || 0) } : v))} placeholder="Stok" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs font-mono" />
+                    <button type="button" onClick={() => setProductVariants(productVariants.filter((_, i) => i !== index))} className="p-2 text-red-500 hover:bg-red-50 rounded-xl"><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="md:col-span-2 bg-white/40 p-5 rounded-2xl border border-black/5 space-y-3">
+              <h4 className="text-xs uppercase tracking-widest font-semibold opacity-60">Related Products Manual</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {(Array.isArray(products) ? products : [])
+                  .filter((p: any) => p.id !== isEditing)
+                  .slice(0, 24)
+                  .map((p: any) => {
+                    const selected = relatedProductIds.includes(p.id);
+                    return (
+                      <button type="button" key={p.id} onClick={() => setRelatedProductIds(selected ? relatedProductIds.filter(id => id !== p.id) : [...relatedProductIds, p.id])} className={`text-left px-3 py-2 rounded-xl border text-xs ${selected ? 'bg-ink text-white border-ink' : 'bg-white border-black/10 hover:bg-black/5'}`}>
+                        {p.name}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
 
             <div className="md:col-span-2">
                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Deskripsi Produk</label>

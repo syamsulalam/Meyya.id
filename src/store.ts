@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 
 type CartItem = {
   product_id: number;
+  variant_id?: number;
   product_name: string;
   color: string;
   size: string;
@@ -68,6 +69,7 @@ interface AppState {
   removeFromCart: (index: number) => void;
   clearCart: () => void;
   toggleWishlist: (product_id: number) => void;
+  setWishlist: (product_ids: number[]) => void;
   addRecentlyViewed: (product_id: number) => void;
   login: (role: 'customer' | 'admin') => void;
   logout: () => void;
@@ -114,7 +116,7 @@ export const useStore = create<AppState>()(
       addToCart: (item) =>
         set((state) => {
           const existingIndex = state.cart.findIndex(
-            (c) => c.product_id === item.product_id && c.color === item.color && c.size === item.size
+            (c) => c.product_id === item.product_id && c.variant_id === item.variant_id && c.color === item.color && c.size === item.size
           );
           if (existingIndex >= 0) {
             const newCart = [...state.cart];
@@ -144,6 +146,7 @@ export const useStore = create<AppState>()(
             ? state.wishlist.filter((wId) => wId !== id)
             : [...state.wishlist, id],
         })),
+      setWishlist: (ids) => set({ wishlist: Array.from(new Set(ids)) }),
       addRecentlyViewed: (id) =>
         set((state) => ({
           recentlyViewed: [id, ...state.recentlyViewed.filter(r => r !== id)].slice(0, 10)

@@ -64,6 +64,20 @@ export async function onRequestPost(context: any) {
       if (dbProd.is_preorder !== 1 && dbProd.stock < item.quantity) {
         return new Response(JSON.stringify({ error: `Not enough stock for product ${item.product_name}` }), { status: 400 });
       }
+
+      if (item.variant_id) {
+        const variant = await env.MEYYA_DB.prepare(`
+          SELECT * FROM product_variants WHERE id = ? AND product_id = ? AND is_active = 1
+        `).bind(item.variant_id, item.product_id).first();
+        if (!variant) {
+          return new Response(JSON.stringify({ error: `Selected variant for ${item.product_name} is not available` }), { status: 400 });
+        }
+        if (dbProd.is_preorder !== 1 && Number(variant.stock || 0) < item.quantity) {
+          return new Response(JSON.stringify({ error: `Not enough stock for ${item.product_name} variant` }), { status: 400 });
+        }
+        item.color = variant.color_name || item.color;
+        item.size = variant.size_name || item.size;
+      }
       
       // Override price and calculate subtotal
       item.price = dbProd.base_price;
@@ -130,11 +144,11 @@ export async function onRequestPost(context: any) {
     // Insert order items
     // Since Cloudflare D1 supports batching
     const statements = items.map((item: any) => {
-      const { product_id, product_name, color, size, quantity, price, production_cost } = item;
+      const { product_id, product_name, variant_id, color, size, quantity, price, production_cost } = item;
       return env.MEYYA_DB.prepare(`
-        INSERT INTO order_items (order_id, product_id, product_name, color_name, size_name, quantity, price_at_purchase, hpp_at_purchase)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(orderId, product_id, product_name, color, size, quantity, price, production_cost);
+        INSERT INTO order_items (order_id, product_id, product_name, variant_id, color_name, size_name, quantity, price_at_purchase, hpp_at_purchase)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(orderId, product_id, product_name, variant_id || null, color, size, quantity, price, production_cost);
     });
 
     await env.MEYYA_DB.batch(statements);
@@ -149,9 +163,15 @@ export async function onRequestPost(context: any) {
         env.MEYYA_DB.prepare("UPDATE products SET stock = stock - ?, last_stock_update = CURRENT_TIMESTAMP WHERE id = ? AND stock >= ?")
           .bind(item.quantity, item.product_id, item.quantity)
       );
+      if (item.variant_id) {
+        stockStatements.push(
+          env.MEYYA_DB.prepare("UPDATE product_variants SET stock = stock - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND stock >= ?")
+            .bind(item.quantity, item.variant_id, item.quantity)
+        );
+      }
       reservationStatements.push(
-        env.MEYYA_DB.prepare("INSERT INTO inventory_reservations (order_id, product_id, quantity, expires_at) VALUES (?, ?, ?, ?)")
-          .bind(orderId, item.product_id, item.quantity, paymentExpiresAt)
+        env.MEYYA_DB.prepare("INSERT INTO inventory_reservations (order_id, product_id, variant_id, quantity, expires_at) VALUES (?, ?, ?, ?, ?)")
+          .bind(orderId, item.product_id, item.variant_id || null, item.quantity, paymentExpiresAt)
       );
       movementStatements.push(
         env.MEYYA_DB.prepare("INSERT INTO stock_movements (product_id, order_id, change_qty, reason, note) VALUES (?, ?, ?, 'RESERVED', ?)")
@@ -162,13 +182,26 @@ export async function onRequestPost(context: any) {
     if (stockStatements.length > 0) {
       const stockResults = await env.MEYYA_DB.batch(stockStatements);
       if (stockResults.some((result: any) => result.meta?.changes === 0)) {
+        let resultIndex = 0;
         const restoreStatements = items
           .filter((item: any) => {
             const dbProd = dbProducts.find((p: any) => p.id === item.product_id);
             return dbProd?.is_preorder !== 1;
           })
-          .filter((_: any, index: number) => stockResults[index]?.meta?.changes > 0)
-          .map((item: any) => env.MEYYA_DB.prepare("UPDATE products SET stock = stock + ?, last_stock_update = CURRENT_TIMESTAMP WHERE id = ?").bind(item.quantity, item.product_id));
+          .flatMap((item: any) => {
+            const restores = [];
+            const productResult = stockResults[resultIndex++];
+            if (productResult?.meta?.changes > 0) {
+              restores.push(env.MEYYA_DB.prepare("UPDATE products SET stock = stock + ?, last_stock_update = CURRENT_TIMESTAMP WHERE id = ?").bind(item.quantity, item.product_id));
+            }
+            if (item.variant_id) {
+              const variantResult = stockResults[resultIndex++];
+              if (variantResult?.meta?.changes > 0) {
+                restores.push(env.MEYYA_DB.prepare("UPDATE product_variants SET stock = stock + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(item.quantity, item.variant_id));
+              }
+            }
+            return restores;
+          });
         if (restoreStatements.length > 0) await env.MEYYA_DB.batch(restoreStatements);
         await env.MEYYA_DB.prepare("UPDATE orders SET status = 'CANCELLED' WHERE id = ?").bind(orderId).run();
         return new Response(JSON.stringify({ error: 'Some items are no longer available. Please refresh your cart.' }), { status: 409 });

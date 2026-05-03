@@ -1,5 +1,41 @@
 export async function ensureCommerceSchema(env: any) {
   await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS product_images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      image_url TEXT NOT NULL,
+      alt_text TEXT,
+      sort_order INTEGER DEFAULT 0,
+      is_primary INTEGER DEFAULT 0,
+      color_name TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS product_variants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      color_name TEXT,
+      size_name TEXT,
+      sku TEXT,
+      stock INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS wishlists (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT,
+      product_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  await env.MEYYA_DB.prepare(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       actor_clerk_id TEXT,
@@ -118,6 +154,8 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'orders', 'tracking_courier', 'TEXT');
   await addColumn(env, 'orders', 'shipped_at', 'DATETIME');
   await addColumn(env, 'orders', 'completed_at', 'DATETIME');
+  await addColumn(env, 'order_items', 'variant_id', 'INTEGER');
+  await addColumn(env, 'inventory_reservations', 'variant_id', 'INTEGER');
   await addColumn(env, 'vouchers', 'target_clerk_id', 'TEXT');
   await addColumn(env, 'vouchers', 'target_segment', 'TEXT');
 
@@ -174,6 +212,12 @@ export async function cancelOrderAndReleaseReservations(env: any, orderId: strin
     await env.MEYYA_DB.prepare(`
       UPDATE products SET stock = stock + ?, last_stock_update = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(reservation.quantity, reservation.product_id).run();
+
+    if (reservation.variant_id) {
+      await env.MEYYA_DB.prepare(`
+        UPDATE product_variants SET stock = stock + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `).bind(reservation.quantity, reservation.variant_id).run();
+    }
 
     await env.MEYYA_DB.prepare(`
       INSERT INTO stock_movements (product_id, order_id, change_qty, reason, note)

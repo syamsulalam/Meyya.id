@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, CreditCard, Plus, Minus, ArrowLeft, Check } from 'lucide-react';
 import { useStore } from '../store';
 import clsx from 'clsx';
+import { useUser } from '@clerk/react';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 type CatalogProductCardProps = {
   key?: React.Key;
@@ -13,6 +15,8 @@ type CatalogProductCardProps = {
 
 export default function CatalogProductCard({ product, totalQuantityInCart, cartItemsForProduct }: CatalogProductCardProps) {
   const { wishlist, toggleWishlist, addToCart, decreaseQuantity, cart } = useStore();
+  const { isSignedIn } = useUser();
+  const authFetch = useAuthFetch();
   const navigate = useNavigate();
   
   // States for Quick Add Modal
@@ -21,14 +25,29 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
   const [selectedSize, setSelectedSize] = useState<string>('');
   
   const isWished = wishlist.includes(product.id);
+  const displayColors = product.colors?.length > 0
+    ? product.colors
+    : Array.from(new Set((product.variants || []).map((v: any) => v.color_name).filter(Boolean))).map((name) => ({ color_name: name, hex_code: '#111111' }));
+  const displaySizes = product.sizes?.length > 0
+    ? product.sizes
+    : Array.from(new Set((product.variants || []).map((v: any) => v.size_name).filter(Boolean))).map((name) => ({ size_name: name }));
+  const toggleWishlistSynced = async () => {
+    toggleWishlist(product.id);
+    if (!isSignedIn) return;
+    await authFetch(isWished ? `/api/user/wishlist?product_id=${product.id}` : '/api/user/wishlist', {
+      method: isWished ? 'DELETE' : 'POST',
+      headers: isWished ? undefined : { 'Content-Type': 'application/json' },
+      body: isWished ? undefined : JSON.stringify({ product_id: product.id })
+    }).catch(err => console.error('Wishlist sync failed:', err));
+  };
 
   // Quick Action Handler
   const startQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (product.colors?.length > 0) {
+    if (displayColors.length > 0) {
       setQuickAddStep(1);
-    } else if (product.sizes?.length > 0) {
+    } else if (displaySizes.length > 0) {
       setQuickAddStep(2);
     } else {
       // Direct add if no variants
@@ -49,7 +68,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
     e.preventDefault();
     e.stopPropagation();
     if (quickAddStep === 1 && selectedColor) {
-      if (product.sizes?.length > 0) setQuickAddStep(2);
+      if (displaySizes.length > 0) setQuickAddStep(2);
       else finishQuickAdd(e);
     } else if (quickAddStep === 2 && selectedSize) {
       finishQuickAdd(e);
@@ -59,18 +78,25 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
   const handlePrevStep = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (quickAddStep === 2 && product.colors?.length > 0) setQuickAddStep(1);
+    if (quickAddStep === 2 && displayColors.length > 0) setQuickAddStep(1);
     else setQuickAddStep(0);
   };
 
   const finishQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const selectedVariant = Array.isArray(product.variants)
+      ? product.variants.find((variant: any) =>
+        (!selectedColor || variant.color_name === selectedColor?.color_name) &&
+        (!selectedSize || variant.size_name === selectedSize)
+      )
+      : null;
     addToCart({
       product_id: product.id,
+      variant_id: selectedVariant?.id,
       product_name: product.name,
-      color: selectedColor?.color_name || "Standar",
-      size: selectedSize || "Semua Ukuran",
+      color: selectedVariant?.color_name || selectedColor?.color_name || "Standar",
+      size: selectedVariant?.size_name || selectedSize || "Semua Ukuran",
       quantity: 1,
       price: product.base_price,
       weight: product.weight || 250,
@@ -86,9 +112,10 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
     e.stopPropagation();
     addToCart({
       product_id: product.id,
+      variant_id: product.variants?.[0]?.id,
       product_name: product.name,
-      color: "Standar",
-      size: "Semua Ukuran",
+      color: product.variants?.[0]?.color_name || "Standar",
+      size: product.variants?.[0]?.size_name || "Semua Ukuran",
       quantity: 1,
       price: product.base_price,
       weight: product.weight || 250,
@@ -132,7 +159,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
 
         {/* Wishlist Button */}
         <button 
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleWishlist(product.id); }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleWishlistSynced(); }}
           className="absolute top-4 right-4 z-20 hover:scale-110 transition-transform drop-shadow"
         >
           <Heart size={24} strokeWidth={1.5} className={isWished ? 'fill-red-500 stroke-red-500' : 'stroke-white fill-black/10'} />
@@ -155,7 +182,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
               <div className="flex flex-col gap-3">
                 <span className="text-xs uppercase tracking-widest font-semibold text-center mb-2">Pilih Warna</span>
                 <div className="flex flex-wrap justify-center gap-3">
-                  {(Array.isArray(product.colors) ? product.colors : []).map((c: any) => (
+                  {(Array.isArray(displayColors) ? displayColors : []).map((c: any) => (
                     <button
                       key={c.hex_code}
                       onClick={() => setSelectedColor(c)}
@@ -185,7 +212,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
               <div className="flex flex-col gap-3">
                 <span className="text-xs uppercase tracking-widest font-semibold text-center mb-2">Pilih Ukuran</span>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {(Array.isArray(product.sizes) ? product.sizes : []).map((s: any) => (
+                  {(Array.isArray(displaySizes) ? displaySizes : []).map((s: any) => (
                     <button
                       key={s.size_name}
                       onClick={() => setSelectedSize(s.size_name)}
@@ -214,9 +241,9 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
         ) : (
           <>
             {/* Color preview circles (Hidden on group-hover) */}
-            {Array.isArray(product.colors) && product.colors.length > 0 && (
+            {Array.isArray(displayColors) && displayColors.length > 0 && (
               <div className="absolute bottom-4 left-0 right-0 px-4 z-20 flex justify-center gap-1.5 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
-                {(Array.isArray(product.colors) ? product.colors : []).slice(0, 5).map((c: any, index: number) => (
+                {(Array.isArray(displayColors) ? displayColors : []).slice(0, 5).map((c: any, index: number) => (
                   <div 
                     key={index}
                     className="w-4 h-4 rounded-full border border-black/10 shadow-sm"
@@ -224,9 +251,9 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
                     title={c.color_name}
                   />
                 ))}
-                {product.colors.length > 5 && (
+                {displayColors.length > 5 && (
                    <div className="w-4 h-4 rounded-full bg-white/80 backdrop-blur-sm border border-black/10 flex items-center justify-center text-[8px] font-medium shadow-sm text-ink font-mono">
-                     +{product.colors.length - 5}
+                     +{displayColors.length - 5}
                    </div>
                 )}
               </div>

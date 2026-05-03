@@ -44,6 +44,16 @@ export async function onRequestGet(context: any) {
     const attrs = await env.MEYYA_DB.prepare('SELECT attribute_name, attribute_value FROM product_attributes WHERE product_id = ?').bind(p.id).all();
     p.attributes = sanitizeProductAttributes(attrs.results);
 
+    const images = await env.MEYYA_DB.prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order ASC, id ASC').bind(p.id).all();
+    p.images = images.results || [];
+    if (p.images.length > 0) {
+      const primary = p.images.find((img: any) => img.is_primary === 1) || p.images[0];
+      p.image_url = primary.image_url || p.image_url;
+    }
+
+    const variants = await env.MEYYA_DB.prepare('SELECT * FROM product_variants WHERE product_id = ? AND is_active = 1 ORDER BY color_name ASC, size_name ASC').bind(p.id).all();
+    p.variants = variants.results || [];
+
     const reviews = await env.MEYYA_DB.prepare(`
       SELECT rating, review_text, created_at
       FROM product_reviews
@@ -81,7 +91,7 @@ export async function onRequestPut(context: any) {
     const { env, request, params, data } = context;
     await ensureCommerceSchema(env);
     const body = await request.json();
-    const { name, category_id, slug: productSlug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder, colors, sizes, attributes, meta_title, meta_description, canonical_slug, og_image_url, low_stock_threshold } = body;
+    const { name, category_id, slug: productSlug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder, colors, sizes, attributes, images, variants, related_product_ids, meta_title, meta_description, canonical_slug, og_image_url, low_stock_threshold } = body;
     
     // In CF Pages, params is populated from the filename [xyz].ts
     // If it's not defined we fallback to URL parsing
@@ -137,6 +147,39 @@ export async function onRequestPut(context: any) {
       }
     }
 
+    if (images) {
+      await env.MEYYA_DB.prepare('DELETE FROM product_images WHERE product_id = ?').bind(id).run();
+      const cleanImages = sanitizeImages(images, image_url);
+      if (cleanImages.length > 0) {
+        await env.MEYYA_DB.batch(cleanImages.map((img: any, index: number) =>
+          env.MEYYA_DB.prepare('INSERT INTO product_images (product_id, image_url, alt_text, sort_order, is_primary, color_name) VALUES (?, ?, ?, ?, ?, ?)')
+            .bind(id, img.image_url, img.alt_text || name, index, img.is_primary ? 1 : 0, img.color_name || null)
+        ));
+      }
+    }
+
+    if (variants) {
+      await env.MEYYA_DB.prepare('DELETE FROM product_variants WHERE product_id = ?').bind(id).run();
+      const cleanVariants = sanitizeVariants(variants);
+      if (cleanVariants.length > 0) {
+        await env.MEYYA_DB.batch(cleanVariants.map((variant: any) =>
+          env.MEYYA_DB.prepare('INSERT INTO product_variants (product_id, color_name, size_name, sku, stock, is_active) VALUES (?, ?, ?, ?, ?, ?)')
+            .bind(id, variant.color_name, variant.size_name, variant.sku || null, variant.stock, variant.is_active ? 1 : 0)
+        ));
+      }
+    }
+
+    if (Array.isArray(related_product_ids)) {
+      await env.MEYYA_DB.prepare('DELETE FROM product_related WHERE product_id = ?').bind(id).run();
+      const relatedIds = related_product_ids.map((value: any) => Number(value)).filter((value: number) => value && value !== Number(id));
+      if (relatedIds.length > 0) {
+        await env.MEYYA_DB.batch(relatedIds.map((relatedId: number, index: number) =>
+          env.MEYYA_DB.prepare('INSERT INTO product_related (product_id, related_product_id, sort_order) VALUES (?, ?, ?)')
+            .bind(id, relatedId, index)
+        ));
+      }
+    }
+
     await auditLog(env, data?.clerkId || null, 'UPDATE_PRODUCT', 'product', String(id), { name, slug: productSlug });
 
     return new Response(JSON.stringify({ success: true }), {
@@ -146,6 +189,37 @@ export async function onRequestPut(context: any) {
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
+}
+
+function sanitizeImages(images: any, fallbackImageUrl?: string) {
+  const source = Array.isArray(images) ? images : [];
+  const clean = source
+    .map((img: any) => ({
+      image_url: String(img?.image_url || '').trim(),
+      alt_text: String(img?.alt_text || '').trim(),
+      color_name: String(img?.color_name || '').trim(),
+      is_primary: Boolean(img?.is_primary),
+    }))
+    .filter((img: any) => img.image_url);
+
+  if (clean.length === 0 && fallbackImageUrl) {
+    clean.push({ image_url: fallbackImageUrl, alt_text: '', color_name: '', is_primary: true });
+  }
+  if (!clean.some((img: any) => img.is_primary) && clean.length > 0) clean[0].is_primary = true;
+  return clean;
+}
+
+function sanitizeVariants(variants: any) {
+  if (!Array.isArray(variants)) return [];
+  return variants
+    .map((variant: any) => ({
+      color_name: String(variant?.color_name || '').trim() || 'Standar',
+      size_name: String(variant?.size_name || '').trim() || 'Semua Ukuran',
+      sku: String(variant?.sku || '').trim(),
+      stock: Number(variant?.stock || 0),
+      is_active: variant?.is_active !== false && variant?.is_active !== 0,
+    }))
+    .filter((variant: any) => variant.color_name || variant.size_name);
 }
 
 export async function onRequestDelete(context: any) {

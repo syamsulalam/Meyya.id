@@ -9,6 +9,7 @@ type GroupedCartItem = {
   price: number;
   total_quantity: number;
   variations: {
+    variant_id?: number;
     color: string;
     size: string;
     quantity: number;
@@ -30,6 +31,7 @@ export default function Cart() {
       existingProduct.total_quantity += item.quantity;
       existingProduct.variations.push({
         color: item.color,
+        variant_id: item.variant_id,
         size: item.size,
         quantity: item.quantity,
         originalIndex: index
@@ -43,6 +45,7 @@ export default function Cart() {
         total_quantity: item.quantity,
         variations: [{
           color: item.color,
+          variant_id: item.variant_id,
           size: item.size,
           quantity: item.quantity,
           originalIndex: index
@@ -148,6 +151,7 @@ export default function Cart() {
                                 e.preventDefault(); 
                                 addToCart({
                                   product_id: product.product_id,
+                                  variant_id: v.variant_id,
                                   product_name: product.product_name,
                                   color: v.color,
                                   size: v.size,

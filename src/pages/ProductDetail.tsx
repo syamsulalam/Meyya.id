@@ -18,6 +18,7 @@ export default function ProductDetail() {
   
   const [selectedColor, setSelectedColor] = useState<any>(null);
   const [selectedSize, setSelectedSize] = useState<string>('');
+  const [selectedImageUrl, setSelectedImageUrl] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
 
@@ -30,8 +31,13 @@ export default function ProductDetail() {
         } else {
            setProduct(data);
            addRecentlyViewed(data.id);
-           if (data.colors?.length > 0) setSelectedColor(data.colors[0]);
-           if (data.sizes?.length > 0) setSelectedSize(data.sizes[0].size_name);
+           const variantColors = Array.isArray(data.variants) ? Array.from(new Set(data.variants.map((v: any) => v.color_name).filter(Boolean))).map((name) => ({ color_name: name, hex_code: data.colors?.find((c: any) => c.color_name === name)?.hex_code || '#111111' })) : [];
+           const variantSizes = Array.isArray(data.variants) ? Array.from(new Set(data.variants.map((v: any) => v.size_name).filter(Boolean))).map((name) => ({ size_name: name })) : [];
+           const colors = data.colors?.length > 0 ? data.colors : variantColors;
+           const sizes = data.sizes?.length > 0 ? data.sizes : variantSizes;
+           if (colors.length > 0) setSelectedColor(colors[0]);
+           if (sizes.length > 0) setSelectedSize(sizes[0].size_name);
+           setSelectedImageUrl(data.image_url || data.images?.[0]?.image_url || '');
            document.title = data.meta_title || `${data.name} | MEYYA.ID`;
            const metaDescription = document.querySelector('meta[name="description"]') || document.head.appendChild(document.createElement('meta'));
            metaDescription.setAttribute('name', 'description');
@@ -51,17 +57,33 @@ export default function ProductDetail() {
   if (!product) return null;
 
   const isWished = wishlist.includes(product.id);
+  const selectedVariant = Array.isArray(product.variants)
+    ? product.variants.find((variant: any) =>
+      (!selectedColor || variant.color_name === selectedColor?.color_name) &&
+      (!selectedSize || variant.size_name === selectedSize)
+    )
+    : null;
+  const effectiveStock = selectedVariant ? Number(selectedVariant.stock || 0) : Number(product.stock || 0);
+  const isOutOfStock = product.is_preorder !== 1 && effectiveStock <= 0;
+  const displayColors = product.colors?.length > 0
+    ? product.colors
+    : Array.from(new Set((product.variants || []).map((v: any) => v.color_name).filter(Boolean))).map((name) => ({ color_name: name, hex_code: '#111111' }));
+  const displaySizes = product.sizes?.length > 0
+    ? product.sizes
+    : Array.from(new Set((product.variants || []).map((v: any) => v.size_name).filter(Boolean))).map((name) => ({ size_name: name }));
 
   const handleAddToCart = () => {
+    if (isOutOfStock) return addToast('Varian ini sedang habis.', 'error');
     addToCart({
       product_id: product.id,
+      variant_id: selectedVariant?.id,
       product_name: product.name,
       color: selectedColor?.color_name || 'Default',
       size: selectedSize || 'All Size',
       quantity: 1,
       price: product.base_price,
       weight: product.weight || 250,
-      image_url: product.image_url
+      image_url: selectedImageUrl || product.image_url
     });
     addToast('Produk ditambahkan ke keranjang!', 'success');
   };
@@ -89,6 +111,16 @@ export default function ProductDetail() {
     }
   };
 
+  const toggleWishlistSynced = async () => {
+    toggleWishlist(product.id);
+    if (!isSignedIn) return;
+    await authFetch(isWished ? `/api/user/wishlist?product_id=${product.id}` : '/api/user/wishlist', {
+      method: isWished ? 'DELETE' : 'POST',
+      headers: isWished ? undefined : { 'Content-Type': 'application/json' },
+      body: isWished ? undefined : JSON.stringify({ product_id: product.id })
+    }).catch(err => console.error('Wishlist sync failed:', err));
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-16 w-full flex-1 flex flex-col md:flex-row gap-8 lg:gap-16">
       
@@ -97,9 +129,9 @@ export default function ProductDetail() {
         <div className="aspect-[3/4] rounded-[2rem] glass-panel overflow-hidden relative p-4 group">
           {/* Inner image container */}
           <div className="w-full h-full relative rounded-xl overflow-hidden bg-transparent">
-            {product.image_url ? (
+            {(selectedImageUrl || product.image_url) ? (
               <img 
-                src={product.image_url} 
+                src={selectedImageUrl || product.image_url}
                 alt={product.name} 
                 className="w-full h-full object-cover relative z-10 transition-transform duration-700 ease-out group-hover:scale-105"
                 referrerPolicy="no-referrer"
@@ -121,12 +153,21 @@ export default function ProductDetail() {
           
           {/* Wishlist button floating on glass panel */}
           <button 
-            onClick={() => toggleWishlist(product.id)}
+            onClick={toggleWishlistSynced}
             className="absolute top-8 right-8 p-3 glass-panel hover:bg-white/80 transition-colors rounded-full z-20"
           >
             <Heart size={24} className={clsx("transition-colors", isWished ? "fill-red-500 stroke-red-500" : "stroke-gray-600")} />
           </button>
         </div>
+        {Array.isArray(product.images) && product.images.length > 1 && (
+          <div className="grid grid-cols-5 gap-3 mt-4">
+            {product.images.slice(0, 10).map((image: any) => (
+              <button key={image.id || image.image_url} onClick={() => setSelectedImageUrl(image.image_url)} className={clsx("aspect-square rounded-xl overflow-hidden border bg-white/50", selectedImageUrl === image.image_url ? "border-ink" : "border-black/10")}>
+                <img src={image.image_url} alt={image.alt_text || product.name} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Product Info Section */}
@@ -147,12 +188,12 @@ export default function ProductDetail() {
           <div className="mb-6 inline-block bg-ink text-white text-xs uppercase tracking-widest font-bold px-4 py-1.5 rounded-full shadow-sm">
             Tersedia untuk Pre-Order
           </div>
-        ) : product.stock === 0 ? (
+        ) : isOutOfStock ? (
           <div className="mb-6 inline-block bg-red-500 text-white text-xs uppercase tracking-widest font-bold px-4 py-1.5 rounded-full shadow-sm">
             Stok Habis
           </div>
         ) : (
-          <p className="text-sm text-gray-500 mb-6 font-mono">Tersedia {product.stock} pcs</p>
+          <p className="text-sm text-gray-500 mb-6 font-mono">Tersedia {effectiveStock} pcs</p>
         )}
         
         <div className="mb-8">
@@ -160,10 +201,14 @@ export default function ProductDetail() {
             Warna: {selectedColor?.color_name}
           </p>
           <div className="flex gap-3">
-            {(Array.isArray(product.colors) ? product.colors : []).map((c: any) => (
+            {(Array.isArray(displayColors) ? displayColors : []).map((c: any) => (
               <button
                 key={c.hex_code}
-                onClick={() => setSelectedColor(c)}
+                onClick={() => {
+                  setSelectedColor(c);
+                  const colorImage = product.images?.find((img: any) => img.color_name === c.color_name);
+                  if (colorImage) setSelectedImageUrl(colorImage.image_url);
+                }}
                 className={clsx(
                   "w-10 h-10 rounded-full border-2 transition-all duration-300 relative",
                   selectedColor?.hex_code === c.hex_code 
@@ -179,11 +224,11 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {Array.isArray(product.sizes) && product.sizes.length > 0 && (
+        {Array.isArray(displaySizes) && displaySizes.length > 0 && (
           <div className="mb-8">
             <p className="text-sm text-gray-600 mb-4 font-medium uppercase tracking-wider">Ukuran</p>
             <div className="flex gap-3">
-              {(Array.isArray(product.sizes) ? product.sizes : []).map((s: any) => (
+              {(Array.isArray(displaySizes) ? displaySizes : []).map((s: any) => (
                 <button
                   key={s.size_name}
                   onClick={() => setSelectedSize(s.size_name)}
@@ -207,16 +252,16 @@ export default function ProductDetail() {
 
         <div className="flex gap-4 mt-8 pt-4">
           <button 
-            disabled={product.stock === 0 && product.is_preorder !== 1}
+            disabled={isOutOfStock}
             onClick={handleAddToCart}
             className={`flex-1 flex items-center justify-center gap-2 py-4 text-base transition-colors ${
-               product.stock === 0 && product.is_preorder !== 1 
+               isOutOfStock
                ? 'bg-black/10 text-black/40 cursor-not-allowed rounded-full' 
                : 'glass-button'
             }`}
           >
             <ShoppingBag size={20} />
-            {product.stock === 0 && product.is_preorder !== 1 ? 'Stok Habis' : product.is_preorder === 1 ? 'Pre-Order Sekarang' : 'Tambah ke Keranjang'}
+            {isOutOfStock ? 'Stok Habis' : product.is_preorder === 1 ? 'Pre-Order Sekarang' : 'Tambah ke Keranjang'}
           </button>
         </div>
 
