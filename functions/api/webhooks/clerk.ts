@@ -6,8 +6,8 @@ export async function onRequestPost(context: any) {
   const WEBHOOK_SECRET = env.CLERK_WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
-    // If not configured, just proceed for dev, but log error
     console.error('Please add CLERK_WEBHOOK_SECRET to env');
+    return new Response("Webhook secret not configured", { status: 500 });
   }
 
   const payloadString = await request.text();
@@ -16,7 +16,7 @@ export async function onRequestPost(context: any) {
   const svix_signature = request.headers.get("svix-signature");
 
   let body;
-  if (WEBHOOK_SECRET && svix_id && svix_timestamp && svix_signature) {
+  if (svix_id && svix_timestamp && svix_signature) {
     const wh = new Webhook(WEBHOOK_SECRET);
     try {
       body = wh.verify(payloadString, {
@@ -28,11 +28,7 @@ export async function onRequestPost(context: any) {
       return new Response("Invalid signature", { status: 400 });
     }
   } else {
-    // Fallback if no secret provided in dev (not recommended for prod)
-    if (WEBHOOK_SECRET) {
-        return new Response("Missing signature headers", { status: 400 });
-    }
-    body = JSON.parse(payloadString);
+    return new Response("Missing signature headers", { status: 400 });
   }
 
   try {

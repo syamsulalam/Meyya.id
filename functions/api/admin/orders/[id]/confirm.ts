@@ -3,6 +3,14 @@ export async function onRequestPost(context: any) {
   const id = params.id;
 
   try {
+    const orderResult = await env.MEYYA_DB.prepare("SELECT status FROM orders WHERE id = ?").bind(id).first();
+    if (!orderResult) {
+      return new Response(JSON.stringify({ error: 'Order not found' }), { status: 404 });
+    }
+    if (orderResult.status !== 'PENDING') {
+      return new Response(JSON.stringify({ error: 'Order is not in PENDING status' }), { status: 400 });
+    }
+
     const orderItemsResult = await env.MEYYA_DB.prepare("SELECT product_id, quantity FROM order_items WHERE order_id = ?").bind(id).all();
     const items = orderItemsResult.results;
 
@@ -11,7 +19,7 @@ export async function onRequestPost(context: any) {
     });
 
     updates.push(
-      env.MEYYA_DB.prepare("UPDATE orders SET status = 'PROCESSING' WHERE id = ?").bind(id)
+      env.MEYYA_DB.prepare("UPDATE orders SET status = 'PROCESSING' WHERE id = ? AND status = 'PENDING'").bind(id)
     );
 
     await env.MEYYA_DB.batch(updates);

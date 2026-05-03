@@ -24,14 +24,15 @@ export default function Checkout() {
     recipientName: a.recipient_name,
     phone: a.recipient_phone,
     street: a.street_address,
+    village_code: a.village_code,
     village_name: a.village_name,
     district_name: a.district_name,
     regency_name: a.regency_name,
     province_name: a.province_name,
     postal_code: a.postal_code,
-    is_primary: a.is_primary,
-    label: a.is_primary ? 'Utama' : `Alamat ${idx + 1}`,
-    icon: a.is_primary ? '🏠' : '📦'
+    is_default: a.is_default,
+    label: a.is_default ? 'Utama' : `Alamat ${idx + 1}`,
+    icon: a.is_default ? '🏠' : '📦'
   })) : savedAddresses;
 
   const navigate = useNavigate();
@@ -135,7 +136,8 @@ export default function Checkout() {
 
   // When village changes, fetch shipping options!
   useEffect(() => {
-    if (selectedVill && selectedVill.code) {
+    const fetchVillCode = selectedVill?.code || (isAddressCollapsed && selectedAddressId ? d1SavedAddresses.find(a => a.id === selectedAddressId)?.village_code : null);
+    if (fetchVillCode) {
       const getShipping = async () => {
         setShippingLoading(true);
         setCouriers([]);
@@ -145,7 +147,7 @@ export default function Checkout() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              destination_village_code: selectedVill.code,
+              destination_village_code: fetchVillCode,
               weight: totalWeightKilos > 0 ? totalWeightKilos : 1
             })
           });
@@ -161,7 +163,7 @@ export default function Checkout() {
       };
       getShipping();
     }
-  }, [selectedVill, totalWeightKilos]);
+  }, [selectedVill, selectedAddressId, isAddressCollapsed, totalWeightKilos, d1SavedAddresses]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -407,12 +409,12 @@ export default function Checkout() {
             
             {/* Courier Selection Box */}
             <div className="pt-6 border-t border-black/5 mt-4">
-              <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">
                 Pilih Kurir Ekspedisi <span className="normal-case tracking-normal opacity-50">({totalWeightKilos} Kg)</span>
                 {shippingLoading && <Loader2 size={12} className="animate-spin text-ink" />}
-              </label>
+              </div>
 
-              {(!selectedVill && !isAddressCollapsed) ? (
+              {((!selectedVill && !isAddressCollapsed) || (isAddressCollapsed && !selectedAddressId)) ? (
                  <div className="text-xs text-gray-400 bg-white/50 p-4 rounded-xl text-center border border-dashed border-black/10">
                    Selesaikan pengisian Form Alamat hingga baris Kelurahan/Desa untuk melihat ongkos kirim resmi ke daerah Anda.
                  </div>

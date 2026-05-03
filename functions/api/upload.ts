@@ -9,6 +9,15 @@ export async function onRequestPost(context: any) {
       return new Response(JSON.stringify({ error: 'No file uploaded' }), { status: 400 });
     }
 
+    if (file.size > 5 * 1024 * 1024) {
+      return new Response(JSON.stringify({ error: 'File size exceeds 5MB limit' }), { status: 400 });
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    if (!allowedTypes.includes(file.type)) {
+      return new Response(JSON.stringify({ error: 'Invalid file type. Only JPEG, PNG, WEBP, and AVIF are allowed.' }), { status: 400 });
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     
     // Generate a unique file name

@@ -17,7 +17,7 @@ export async function onRequest(context: any) {
       // Decode JWT payload (without verification, as edge workers might not have full crypto or Clerk backend easily available without additional config).
       // Assuming Clerk protects the token source, but ideally use @clerk/backend or SVIX to verify.
       const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/, '/');
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(atob(base64));
       
       const clerkId = payload.sub;
