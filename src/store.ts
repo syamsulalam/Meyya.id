@@ -9,6 +9,7 @@ type CartItem = {
   quantity: number;
   price: number;
   image_url: string;
+  weight?: number;
 };
 
 export interface ColorDefinition {

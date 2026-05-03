@@ -4,11 +4,14 @@ import { Heart, ShoppingCart, CreditCard, Plus, Minus, ArrowLeft, Check } from '
 import { useStore } from '../store';
 import clsx from 'clsx';
 
-export default function CatalogProductCard({ product, totalQuantityInCart, cartItemsForProduct }: { 
-  product: any, 
-  totalQuantityInCart: number,
-  cartItemsForProduct: any[]
-}) {
+type CatalogProductCardProps = {
+  key?: React.Key;
+  product: any;
+  totalQuantityInCart: number;
+  cartItemsForProduct: any[];
+}
+
+export default function CatalogProductCard({ product, totalQuantityInCart, cartItemsForProduct }: CatalogProductCardProps) {
   const { wishlist, toggleWishlist, addToCart, decreaseQuantity, cart } = useStore();
   const navigate = useNavigate();
   

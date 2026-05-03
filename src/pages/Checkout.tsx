@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import { useStore } from '../store';
 import { Loader2 } from 'lucide-react';
+import { useUser } from '@clerk/react';
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -16,6 +17,23 @@ const fetcher = async (url: string) => {
 
 export default function Checkout() {
   const { cart, user, clearCart, addToCart, savedAddresses, addToast } = useStore();
+  const { user: clerkUser } = useUser();
+  const { data: dbAddresses } = useSWR(clerkUser?.id ? `/api/user/addresses/${clerkUser.id}` : null, fetcher);
+  const d1SavedAddresses = Array.isArray(dbAddresses) ? dbAddresses.map((a, idx) => ({
+    id: String(a.id),
+    recipientName: a.recipient_name,
+    phone: a.recipient_phone,
+    street: a.street_address,
+    village_name: a.village_name,
+    district_name: a.district_name,
+    regency_name: a.regency_name,
+    province_name: a.province_name,
+    postal_code: a.postal_code,
+    is_primary: a.is_primary,
+    label: a.is_primary ? 'Utama' : `Alamat ${idx + 1}`,
+    icon: a.is_primary ? '🏠' : '📦'
+  })) : savedAddresses;
+
   const navigate = useNavigate();
   
   const [address, setAddress] = useState({
@@ -29,8 +47,15 @@ export default function Checkout() {
   const [selectedDist, setSelectedDist] = useState<{code: string, name: string} | null>(null);
   const [selectedVill, setSelectedVill] = useState<{code: string, name: string, postal_codes?: string[]} | null>(null);
   
-  const [selectedAddressId, setSelectedAddressId] = useState<string>(savedAddresses[0]?.id || '');
-  const [isAddressCollapsed, setIsAddressCollapsed] = useState(savedAddresses.length > 0);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+  const [isAddressCollapsed, setIsAddressCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (d1SavedAddresses.length > 0 && !selectedAddressId) {
+       setSelectedAddressId(d1SavedAddresses[0].id);
+       setIsAddressCollapsed(true);
+    }
+  }, [d1SavedAddresses]);
 
   const [couriers, setCouriers] = useState<any[]>([]);
   const [selectedCourier, setSelectedCourier] = useState<any>(null);
@@ -50,7 +75,7 @@ export default function Checkout() {
 
   // Derive cart specs
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const totalWeightKilos = Math.ceil(cart.reduce((acc, item) => acc + (250 * item.quantity), 0) / 1000); // Temporary mock weight assumption (250g per item), rounded up to nearest KG for calculation
+  const totalWeightKilos = Math.ceil(cart.reduce((acc, item) => acc + ((item.weight || 250) * item.quantity), 0) / 1000);
 
   const adminFee = paymentMethod === 'CC' ? 4500 : paymentMethod === 'QRIS' ? 1000 : 0;
   const shippingCost = selectedCourier ? selectedCourier.price : 0;
@@ -143,7 +168,7 @@ export default function Checkout() {
     let finalAddressSnapshot = '';
 
     if (isAddressCollapsed && selectedAddressId) {
-      const selected = savedAddresses.find(a => a.id === selectedAddressId);
+      const selected = d1SavedAddresses.find(a => a.id === selectedAddressId);
       if (!selected) return addToast('Pilih alamat pengiriman yang valid', 'error');
       finalAddressSnapshot = `${selected.recipientName} (${selected.phone}) - ${selected.street}, ${selected.village_name}, ${selected.district_name}, ${selected.regency_name}, ${selected.province_name}`;
     } else {
@@ -157,29 +182,40 @@ export default function Checkout() {
     setLoading(true);
     
     try {
+      if (!clerkUser?.id) return addToast("Sesi tidak valid. Harap login kembali.", "error");
+      
+      const payload = {
+        clerk_id: clerkUser.id,
+        address_snapshot: finalAddressSnapshot,
+        items: cart,
+        subtotal: subtotal,
+        shipping_cost: shippingCost,
+        admin_fee: adminFee,
+        order_bump: orderBump ? 29000 : 0,
+        discount_amount: appliedVoucher ? appliedVoucher.discount : 0,
+        voucher_code: appliedVoucher ? appliedVoucher.code : undefined,
+        payment_method: paymentMethod,
+        total_paid: totalAkhir,
+        unique_code: uniqueCode,
+        note: orderNote
+      };
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user?.id,
-          address_snapshot: finalAddressSnapshot,
-          items: cart,
-          shipping_cost: shippingCost,
-          payment_method: paymentMethod,
-          total_paid: totalAkhir,
-          unique_code: uniqueCode,
-          note: orderNote
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal membuat pesanan');
+      }
+
       clearCart();
       // Redirect to new order page
-      navigate(`/order/${data.order_id || '9981293'}`);
-    } catch (e) {
-      addToast('Terjadi kesalahan sistem, akan disimulasikan sukses', 'error');
-      clearCart();
-      navigate(`/order/${Math.floor(Math.random() * 100000)}`);
+      navigate(`/order/${data.orderId}`);
+    } catch (e: any) {
+      addToast(e.message || 'Terjadi kesalahan sistem saat membuat pesanan.', 'error');
     } finally {
       setLoading(false);
     }
@@ -221,7 +257,7 @@ export default function Checkout() {
         <form id="checkout-form" onSubmit={handleSubmit} className="glass-panel p-6 md:p-8 rounded-[2rem] space-y-6">
           <div className="flex justify-between items-center mb-4 border-b border-black/5 pb-2">
             <h2 className="text-xl font-medium">Destinasi Pengiriman</h2>
-            {savedAddresses.length > 0 && (
+            {d1SavedAddresses.length > 0 && (
                <button 
                  type="button" 
                  onClick={() => setIsAddressCollapsed(!isAddressCollapsed)}
@@ -233,9 +269,9 @@ export default function Checkout() {
           </div>
           
           <div className="space-y-4">
-            {isAddressCollapsed && savedAddresses.length > 0 ? (
+            {isAddressCollapsed && d1SavedAddresses.length > 0 ? (
               <div className="space-y-3">
-                {savedAddresses.map(addr => (
+                {d1SavedAddresses.map(addr => (
                   <label key={addr.id} className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-colors ${selectedAddressId === addr.id ? 'bg-black/5 border-black/30' : 'bg-white hover:bg-black/5 border-black/10'}`}>
                     <input 
                       type="radio" 

@@ -5,7 +5,7 @@ import { useStore } from '../../store';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
-export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing') => void }) {
   const { addToast } = useStore();
   const [timeline, setTimeline] = useState('all');
   

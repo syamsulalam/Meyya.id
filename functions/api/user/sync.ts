@@ -18,8 +18,8 @@ export async function onRequestPost(context: any) {
         email = COALESCE(NULLIF(excluded.email, ''), users.email),
         first_name = COALESCE(NULLIF(excluded.first_name, ''), users.first_name),
         last_name = COALESCE(NULLIF(excluded.last_name, ''), users.last_name),
-        role = COALESCE(NULLIF(excluded.role, ''), 'customer')
-    `).bind(clerk_id, email || '', first_name || '', last_name || '', phone_wa || '', role || 'customer').run();
+        role = COALESCE(NULLIF(excluded.role, ''), users.role, 'customer')
+    `).bind(clerk_id, email || '', first_name || '', last_name || '', phone_wa || '', role || '').run();
 
     return new Response(JSON.stringify({ success: true, message: 'User synchronized' }), { status: 200 });
 

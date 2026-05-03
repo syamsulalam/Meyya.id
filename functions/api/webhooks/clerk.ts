@@ -50,7 +50,10 @@ export async function onRequestPost(context: any) {
 
       await env.MEYYA_DB.prepare(`
         UPDATE users 
-        SET email = ?, first_name = ?, last_name = ?
+        SET 
+          email = COALESCE(NULLIF(?, ''), email), 
+          first_name = COALESCE(NULLIF(?, ''), first_name), 
+          last_name = COALESCE(NULLIF(?, ''), last_name)
         WHERE clerk_id = ?
       `).bind(email, first_name, last_name, clerk_id).run();
 

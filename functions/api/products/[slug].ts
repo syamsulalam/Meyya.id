@@ -19,7 +19,7 @@ export async function onRequestGet(context: any) {
     p.colors = colors.results;
 
     const sizes = await env.MEYYA_DB.prepare('SELECT size_name FROM product_sizes WHERE product_id = ?').bind(p.id).all();
-    p.sizes = sizes.results.map((s: any) => s.size_name);
+    p.sizes = sizes.results;
 
     const attrs = await env.MEYYA_DB.prepare('SELECT attribute_name, attribute_value FROM product_attributes WHERE product_id = ?').bind(p.id).all();
     p.attributes = attrs.results;

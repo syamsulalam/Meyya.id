@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Settings, Plus, Check, Edit2, Package, X } from 'lucide-react';
+import { Upload, Settings, Plus, Check, Edit2, Package, X, ChevronLeft } from 'lucide-react';
 import { useStore } from '../../store';
 import useSWR from 'swr';
 import { mutate } from 'swr';
@@ -335,11 +335,11 @@ export default function AdminProductForm() {
       {subTab === 'form' && (
       <>
       <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4">
-        <div className="flex items-center gap-4">
-           <button type="button" onClick={() => resetForm()} className="text-sm font-medium border border-black/10 bg-white/50 px-4 py-2 rounded-xl hover:bg-black/5 flex items-center gap-2">
-              &larr; Kembali ke Daftar Produk
+        <div>
+           <button type="button" onClick={() => resetForm()} className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-black/40 hover:text-ink mb-2">
+              <ChevronLeft size={16} /> Kembali ke Daftar Produk
            </button>
-           <h2 className="text-2xl font-light font-heading text-ink ml-4">
+           <h2 className="text-2xl font-light font-heading text-ink">
              {isEditing ? 'Edit Produk' : 'Tambah Produk Baru'}
            </h2>
         </div>
@@ -645,8 +645,8 @@ export default function AdminProductForm() {
         </div>
 
         <div className="pt-8 text-right border-t border-black/10 flex justify-between">
-          <button type="button" onClick={() => setFormStep(isEditing ? 'list' : 'select-category')} className="px-6 py-4 bg-white border border-black/10 text-ink rounded-full uppercase tracking-widest text-xs font-medium hover:bg-black/5 transition-colors">
-            Kembali
+          <button type="button" onClick={() => resetForm()} className="px-6 py-4 bg-white border border-black/10 text-ink rounded-full uppercase tracking-widest text-xs font-medium hover:bg-black/5 transition-colors">
+            Batal
           </button>
           <button type="button" onClick={handleSubmit} className="px-10 py-4 bg-ink text-white rounded-full uppercase tracking-[0.2em] text-xs hover:bg-black/80 transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-1">
             {isEditing ? 'Simpan Perubahan' : 'Simpan Produk Baru'}

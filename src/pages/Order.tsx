@@ -1,14 +1,27 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
+import useSWR from 'swr';
 import { CheckCircle2, Package, Copy, ArrowRight, Truck } from 'lucide-react';
+import { useStore } from '../store';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function Order() {
   const { id } = useParams();
+  const { addToast } = useStore();
+  
+  const { data: order, error, isLoading } = useSWR(id ? `/api/orders/${id}` : null, fetcher);
 
-  // Mock checking if order is "transfer" and unpaid or paid
-  // Let's assume order ID starts with 9 means transfer pending, else paid
-  const isTransfer = id?.startsWith('9');
-  const isPaid = !isTransfer;
+  if (isLoading) {
+    return <div className="max-w-3xl mx-auto px-4 py-16 text-center">Memuat detail pesanan...</div>;
+  }
+
+  if (error || !order || order.error) {
+    return <div className="max-w-3xl mx-auto px-4 py-16 text-center text-red-500">Pesanan tidak ditemukan.</div>;
+  }
+
+  const isTransfer = order.payment_method === 'TRANSFER' && (order.status === 'PENDING' || order.status === 'pending');
+  const isPaid = order.status === 'PAID' || order.status === 'PROCESSING' || order.status === 'SHIPPED' || order.status === 'COMPLETED';
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 md:py-16 w-full">
@@ -41,7 +54,7 @@ export default function Order() {
                 <p className="text-[10px] uppercase font-semibold text-gray-500 mb-1 tracking-widest">Bank Tujuan (BCA)</p>
                 <div className="flex items-center justify-between bg-white border border-black/10 p-4 rounded-xl">
                   <span className="font-mono text-lg tracking-wider">8273 1928 321</span>
-                  <button className="text-ink hover:text-black flex items-center gap-1 text-xs font-semibold uppercase bg-black/5 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
+                  <button onClick={() => { navigator.clipboard.writeText('82731928321'); addToast('Disalin!', 'success'); }} className="text-ink hover:text-black flex items-center gap-1 text-xs font-semibold uppercase bg-black/5 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
                     <Copy size={14} /> Salin
                   </button>
                 </div>
@@ -52,13 +65,13 @@ export default function Order() {
                 <p className="text-[10px] uppercase font-semibold text-gray-500 mb-1 tracking-widest">Total Bayar</p>
                 <div className="flex items-center justify-between bg-white border border-black/10 p-4 rounded-xl">
                   <span className="font-mono text-xl tracking-tight text-ink font-bold">
-                    Rp 350.<span className="text-red-500">123</span>
+                    Rp {order.total_paid?.toLocaleString('id-ID')}
                   </span>
-                  <button className="text-ink hover:text-black flex items-center gap-1 text-xs font-semibold uppercase bg-black/5 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
+                  <button onClick={() => { navigator.clipboard.writeText(String(order.total_paid)); addToast('Disalin!', 'success'); }} className="text-ink hover:text-black flex items-center gap-1 text-xs font-semibold uppercase bg-black/5 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
                     <Copy size={14} /> Salin
                   </button>
                 </div>
-                <p className="text-xs text-red-500 mt-2 font-medium">Penting: Transfer tepat hingga 3 digit terakhir!</p>
+                <p className="text-xs text-red-500 mt-2 font-medium">Penting: Transfer tepat hingga 3 digit terakhir! (kode unik: {order.unique_code})</p>
               </div>
               
               <div className="bg-white/60 text-xs p-4 rounded-xl text-gray-600 border border-black/5 leading-relaxed">
@@ -66,11 +79,17 @@ export default function Order() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : isPaid ? (
           <div className="text-left bg-emerald-50/50 border border-emerald-100 p-6 md:p-8 rounded-3xl mb-8 flex flex-col items-center justify-center text-center">
             <Truck size={32} className="text-emerald-500 mb-4" />
             <h2 className="text-lg font-medium text-emerald-800 mb-2">Pesanan Diproses</h2>
             <p className="text-sm text-emerald-700/80 mb-6 max-w-sm mx-auto">Kami sedang mengemas pesanan Anda dengan penuh cinta. Anda akan menerima notifikasi saat paket dikirim.</p>
+          </div>
+        ) : (
+          <div className="text-left bg-orange-50/50 border border-orange-100 p-6 md:p-8 rounded-3xl mb-8 flex flex-col items-center justify-center text-center">
+            <Package size={32} className="text-orange-500 mb-4" />
+            <h2 className="text-lg font-medium text-orange-800 mb-2">Selesaikan Pembayaran</h2>
+            <p className="text-sm text-orange-700/80 mb-6 max-w-sm mx-auto">Selesaikan pembayaran via {order.payment_method === 'QRIS' ? 'QRIS' : 'Kartu Kredit'} dan tunggu verifikasi otomatis.</p>
           </div>
         )}
 

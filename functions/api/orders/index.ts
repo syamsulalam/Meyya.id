@@ -38,7 +38,7 @@ export async function onRequestPost(context: any) {
     const statements = items.map((item: any) => {
       const { product_id, product_name, color, size, quantity, price } = item;
       return env.MEYYA_DB.prepare(`
-        INSERT INTO order_items (order_id, product_id, product_name, color, size, quantity, price)
+        INSERT INTO order_items (order_id, product_id, product_name, color_name, size_name, quantity, price_at_purchase)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).bind(orderId, product_id, product_name, color, size, quantity, price);
     });
