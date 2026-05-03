@@ -1,4 +1,4 @@
-import { verifyToken } from '@clerk/backend';
+import { createClerkClient, verifyToken } from '@clerk/backend';
 
 export async function onRequest(context: any) {
   const { request, env, next } = context;
@@ -25,32 +25,77 @@ export async function onRequest(context: any) {
     }
 
     const token = authHeader.split(' ')[1];
+    let payload: any;
     try {
-      const payload = await verifyToken(token, {
+      payload = await verifyToken(token, {
          secretKey: env.CLERK_SECRET_KEY,
       });
-      
-      const clerkId = payload.sub;
-      if (!clerkId) {
-        return new Response(JSON.stringify({ error: 'Invalid token structure' }), { status: 401 });
-      }
-
-      context.data = { ...context.data, clerkId };
-
-      if (isAdminRoute || isMutationProductRoute || isUploadRoute) {
-        // Check role in DB
-        const user = await env.MEYYA_DB.prepare('SELECT role FROM users WHERE clerk_id = ?').bind(clerkId).first();
-        
-        if (!user || user.role !== 'admin') {
-          return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403 });
-        }
-      }
-
     } catch (err) {
       return new Response(JSON.stringify({ error: 'Token validation failed' }), { status: 401 });
+    }
+      
+    const clerkId = payload.sub;
+    if (!clerkId) {
+      return new Response(JSON.stringify({ error: 'Invalid token structure' }), { status: 401 });
+    }
+
+    context.data = { ...context.data, clerkId };
+
+    if (isAdminRoute || isMutationProductRoute || isUploadRoute) {
+      const isAdmin = await hasAdminAccess(env, clerkId, payload);
+
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403 });
+      }
     }
   }
 
   // Ensure public endpoints continue processing
   return next();
+}
+
+async function hasAdminAccess(env: any, clerkId: string, payload: any) {
+  const dbUser = await env.MEYYA_DB.prepare('SELECT role FROM users WHERE clerk_id = ?').bind(clerkId).first();
+
+  if (dbUser?.role === 'admin') {
+    return true;
+  }
+
+  if (getMetadataRole(payload) === 'admin') {
+    await markD1UserAsAdmin(env, clerkId);
+    return true;
+  }
+
+  const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+  const clerkUser: any = await clerkClient.users.getUser(clerkId);
+
+  if (getMetadataRole(clerkUser) === 'admin') {
+    await markD1UserAsAdmin(env, clerkId, clerkUser);
+    return true;
+  }
+
+  return false;
+}
+
+function getMetadataRole(source: any) {
+  return source?.publicMetadata?.role ||
+    source?.public_metadata?.role ||
+    source?.privateMetadata?.role ||
+    source?.private_metadata?.role ||
+    source?.metadata?.role ||
+    source?.role;
+}
+
+async function markD1UserAsAdmin(env: any, clerkId: string, clerkUser?: any) {
+  const email = clerkUser?.emailAddresses?.find((emailAddress: any) => emailAddress.id === clerkUser.primaryEmailAddressId)?.emailAddress ||
+    clerkUser?.emailAddresses?.[0]?.emailAddress ||
+    '';
+  const firstName = clerkUser?.firstName || '';
+  const lastName = clerkUser?.lastName || '';
+
+  await env.MEYYA_DB.prepare(`
+    INSERT INTO users (clerk_id, email, first_name, last_name, role)
+    VALUES (?, ?, ?, ?, 'admin')
+    ON CONFLICT(clerk_id) DO UPDATE SET role = 'admin'
+  `).bind(clerkId, email, firstName, lastName).run();
 }
