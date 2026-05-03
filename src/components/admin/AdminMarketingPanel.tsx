@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { MessageSquare, ExternalLink, RefreshCw, Send, Users, AlertCircle, Bug } from 'lucide-react';
 import useSWR from 'swr';
 import { useAuthFetcher } from '../../hooks/useAuthFetch';
+import { useAuth } from '@clerk/react';
 
 export default function AdminMarketingPanel() {
   const fetcher = useAuthFetcher();
-  const { data: dbUsers, isLoading, mutate } = useSWR('/api/admin/users', fetcher);
+  const { isLoaded, isSignedIn } = useAuth();
+  const authReady = isLoaded && isSignedIn;
+  const { data: dbUsers, isLoading, mutate } = useSWR(authReady ? '/api/admin/users' : null, fetcher);
   
   const [selectedTarget, setSelectedTarget] = useState<any | null>(null);
   const [customMessage, setCustomMessage] = useState('');
@@ -83,7 +86,7 @@ export default function AdminMarketingPanel() {
       {showDebug && (
         <div className="bg-black text-green-400 font-mono text-[10px] p-4 rounded-xl overflow-x-auto max-h-[300px]">
            <p className="mb-2 text-gray-400">// Debug: RAW Users Data dari D1</p>
-           {isLoading ? 'Loading users from D1...' : JSON.stringify(rawTargets, null, 2)}
+           {!authReady ? 'Waiting for admin session...' : isLoading ? 'Loading users from D1...' : JSON.stringify(rawTargets, null, 2)}
         </div>
       )}
 
@@ -98,8 +101,9 @@ export default function AdminMarketingPanel() {
            </div>
            
            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-             {isLoading && <p className="text-sm text-center py-8 text-black/40">⏳ Memuat pelanggan dari D1...</p>}
-             {!isLoading && targets.length === 0 && <p className="text-sm text-center py-8 text-black/40">Belum ada pelanggan terdaftar.</p>}
+             {!authReady && <p className="text-sm text-center py-8 text-black/40">⏳ Menunggu sesi admin...</p>}
+             {authReady && isLoading && <p className="text-sm text-center py-8 text-black/40">⏳ Memuat pelanggan dari D1...</p>}
+             {authReady && !isLoading && targets.length === 0 && <p className="text-sm text-center py-8 text-black/40">Belum ada pelanggan terdaftar.</p>}
              
              {targets.map((target: any) => (
                <div 

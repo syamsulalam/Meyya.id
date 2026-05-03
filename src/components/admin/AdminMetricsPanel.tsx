@@ -3,15 +3,18 @@ import useSWR from 'swr';
 import { Package, Users, Tags, ArrowRight, TrendingUp, Filter, AlertCircle, RefreshCw } from 'lucide-react';
 import { useStore } from '../../store';
 import { useAuthFetcher, useAuthFetch } from '../../hooks/useAuthFetch';
+import { useAuth } from '@clerk/react';
 
 export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing') => void }) {
   const { addToast } = useStore();
   const [timeline, setTimeline] = useState('all');
   const fetcher = useAuthFetcher();
   const authFetch = useAuthFetch();
+  const { isLoaded, isSignedIn } = useAuth();
+  const authReady = isLoaded && isSignedIn;
   
-  const { data: metrics, error: metricsError, isLoading: metricsLoading, mutate: mutateMetrics } = useSWR(`/api/admin/metrics?timeline=${timeline}`, fetcher);
-  const { data: ordersData, error: ordersError, isLoading: ordersLoading, mutate: mutateOrders } = useSWR('/api/admin/orders', fetcher);
+  const { data: metrics, error: metricsError, isLoading: metricsLoading, mutate: mutateMetrics } = useSWR(authReady ? `/api/admin/metrics?timeline=${timeline}` : null, fetcher);
+  const { data: ordersData, error: ordersError, isLoading: ordersLoading, mutate: mutateOrders } = useSWR(authReady ? '/api/admin/orders' : null, fetcher);
   
   const orders = Array.isArray(ordersData) ? ordersData : [];
   const safeMetrics = metrics || { totalRevenue: 0, totalProfit: 0, totalOrders: 0, pendingOrders: 0, totalUsers: 0, totalProducts: 0, totalCategories: 0 };
@@ -26,7 +29,7 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
     }
   };
 
-  if (metricsLoading || ordersLoading) return <div className="py-20 text-center flex flex-col items-center justify-center opacity-50"><RefreshCw className="animate-spin mb-4" /> Memuat data dashboard...</div>;
+  if (!authReady || metricsLoading || ordersLoading) return <div className="py-20 text-center flex flex-col items-center justify-center opacity-50"><RefreshCw className="animate-spin mb-4" /> {!authReady ? 'Menunggu sesi admin...' : 'Memuat data dashboard...'}</div>;
 
   return (
     <div className="animate-in fade-in duration-300">

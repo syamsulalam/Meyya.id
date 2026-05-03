@@ -3,6 +3,7 @@ import { Plus, Tag, Trash2, Edit2, Clock, Percent, DollarSign, CheckCircle2 } fr
 import useSWR, { mutate } from 'swr';
 import { useStore } from '../../store';
 import { useAuthFetcher, useAuthFetch } from '../../hooks/useAuthFetch';
+import { useAuth } from '@clerk/react';
 
 type VoucherType = 'PERCENTAGE' | 'FIXED' | 'FREE_SHIPPING';
 
@@ -25,7 +26,9 @@ interface Voucher {
 export default function AdminVoucherManager() {
   const fetcher = useAuthFetcher();
   const authFetch = useAuthFetch();
-  const { data: dbVouchers, error, isLoading } = useSWR('/api/admin/vouchers', fetcher);
+  const { isLoaded, isSignedIn } = useAuth();
+  const authReady = isLoaded && isSignedIn;
+  const { data: dbVouchers, error, isLoading } = useSWR(authReady ? '/api/admin/vouchers' : null, fetcher);
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
   const { addToast } = useStore();
 
@@ -157,8 +160,9 @@ export default function AdminVoucherManager() {
         </button>
       </div>
 
-      {isLoading && <div className="text-sm px-4 py-2 bg-yellow-50 text-yellow-600 rounded-lg border border-yellow-200">Sedang memuat data dari database D1...</div>}
-      {error && <div className="text-sm px-4 py-2 bg-red-50 text-red-600 rounded-lg border border-red-200">Debug (D1 Error): Gagal memuat data. {error.message}</div>}
+      {!authReady && <div className="text-sm px-4 py-2 bg-yellow-50 text-yellow-600 rounded-lg border border-yellow-200">Menunggu sesi admin...</div>}
+      {authReady && isLoading && <div className="text-sm px-4 py-2 bg-yellow-50 text-yellow-600 rounded-lg border border-yellow-200">Sedang memuat data dari database D1...</div>}
+      {authReady && error && <div className="text-sm px-4 py-2 bg-red-50 text-red-600 rounded-lg border border-red-200">Debug (D1 Error): Gagal memuat data. {error.message}</div>}
 
       {showForm && (
         <div className="bg-white/60 p-6 md:p-8 rounded-[2rem] border border-black/5 shadow-sm slide-down mb-8">

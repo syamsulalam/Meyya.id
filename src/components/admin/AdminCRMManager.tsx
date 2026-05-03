@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, ChevronLeft, Calendar, FileText, ShoppingBag, ArrowUpRight, Copy, Award, MapPin } from 'lucide-react';
 import useSWR from 'swr';
 import { useAuthFetcher } from '../../hooks/useAuthFetch';
+import { useAuth } from '@clerk/react';
 
 const MOCK_JOURNEY = [
   { id: 1, date: '12 Juni 2026', title: 'Menggunakan voucher PAYDAY50', type: 'voucher' },
@@ -17,8 +18,10 @@ const MOCK_ORDERS = [
 export default function AdminCRMManager() {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const fetcher = useAuthFetcher();
+  const { isLoaded, isSignedIn } = useAuth();
+  const authReady = isLoaded && isSignedIn;
 
-  const { data: dbUsers, error, isLoading } = useSWR('/api/admin/users', fetcher);
+  const { data: dbUsers, error, isLoading } = useSWR(authReady ? '/api/admin/users' : null, fetcher);
   const CUSTOMERS = Array.isArray(dbUsers) ? dbUsers : [];
 
   if (selectedUser) {
@@ -187,9 +190,10 @@ export default function AdminCRMManager() {
       </div>
 
       <div className="mb-4">
-         {isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database D1 (users)...</span>}
-         {error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database D1: {error.message}</span>}
-         {CUSTOMERS && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({CUSTOMERS.length} pelanggan ditemukan)</span>}
+         {!authReady && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Menunggu sesi admin...</span>}
+         {authReady && isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database D1 (users)...</span>}
+         {authReady && error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database D1: {error.message}</span>}
+         {authReady && !isLoading && !error && Array.isArray(dbUsers) && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({CUSTOMERS.length} pelanggan ditemukan)</span>}
       </div>
 
       <div className="bg-white/40 border border-black/5 rounded-[2rem] overflow-hidden">
@@ -235,7 +239,7 @@ export default function AdminCRMManager() {
                   </td>
                 </tr>
               ))}
-              {CUSTOMERS.length === 0 && !isLoading && (
+              {authReady && CUSTOMERS.length === 0 && !isLoading && !error && (
                  <tr>
                    <td colSpan={5} className="p-8 text-center text-black/50">
                      <p className="mb-2">Belum ada pelanggan ditemukan di database D1.</p>
