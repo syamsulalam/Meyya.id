@@ -5,6 +5,7 @@ import { User, MapPin, Phone, Mail, CheckCircle2, Home, Briefcase, Building, Plu
 import AutoSuggest from './AutoSuggest';
 import { useBlocker } from 'react-router-dom';
 import { useStore } from '../../store';
+import { useUser } from '@clerk/react';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -16,6 +17,7 @@ const COUNTRY_CODES = [
 ];
 
 export default function ProfileAccount({ user, setBlockerOpen }: { user: any, setBlockerOpen?: (open: boolean) => void }) {
+  const { user: clerkUser } = useUser();
   const { data: dbAddresses, mutate: mutateAddresses } = useSWR(user?.id ? `/api/user/addresses/${user.id}` : null, fetcher);
   const savedAddresses = Array.isArray(dbAddresses) ? dbAddresses : [];
   const { addToast } = useStore();
@@ -152,6 +154,17 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       });
       
       if (!res.ok) throw new Error("Gagal menyimpan data");
+      
+      if (clerkUser) {
+        const nameParts = profileName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        try {
+          await clerkUser.update({ firstName, lastName });
+        } catch (clerkErr) {
+          console.error("Clerk sync error:", clerkErr);
+        }
+      }
       
       setIsSaved(true);
       addToast('Perubahan data profil berhasil disimpan!', 'success');
