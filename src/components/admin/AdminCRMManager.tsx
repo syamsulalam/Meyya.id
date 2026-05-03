@@ -23,6 +23,7 @@ export default function AdminCRMManager() {
 
   const { data: dbUsers, error, isLoading } = useSWR(authReady ? '/api/admin/users' : null, fetcher);
   const CUSTOMERS = Array.isArray(dbUsers) ? dbUsers : [];
+  const errorInfo = (error as any)?.info;
 
   if (selectedUser) {
     return (
@@ -195,6 +196,13 @@ export default function AdminCRMManager() {
          {authReady && error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database D1: {error.message}</span>}
          {authReady && !isLoading && !error && Array.isArray(dbUsers) && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({CUSTOMERS.length} pelanggan ditemukan)</span>}
       </div>
+
+      {authReady && errorInfo && (
+        <div className="bg-black text-green-300 rounded-2xl p-4 overflow-x-auto text-[11px] font-mono border border-black/20">
+          <div className="text-white/60 mb-2">DEBUG /api/admin/users response body</div>
+          <pre>{JSON.stringify(errorInfo, null, 2)}</pre>
+        </div>
+      )}
 
       <div className="bg-white/40 border border-black/5 rounded-[2rem] overflow-hidden">
         <div className="overflow-x-auto">

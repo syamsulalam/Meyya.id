@@ -1,11 +1,14 @@
-import { ensureUsersSchema } from '../_users';
+import { ensureUsersSchema, getUsersDebugInfo } from '../_users';
+import { debugErrorResponse, jsonResponse } from '../_debug';
 
 export async function onRequestGet(context: any) {
   const { env } = context;
+  let phase = 'ensure-users-schema';
 
   try {
     await ensureUsersSchema(env);
 
+    phase = 'select-admin-users';
     const { results: users } = await env.MEYYA_DB.prepare(`
       SELECT u.clerk_id, u.first_name, u.last_name, u.email, u.role, u.phone_wa, u.last_login_at, u.joined_at,
              COUNT(o.id) as orders,
@@ -34,11 +37,14 @@ export async function onRequestGet(context: any) {
       size: '-' // Mock 
     }));
 
-    return new Response(JSON.stringify(enrichedUsers), {
-      headers: { 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    return jsonResponse(enrichedUsers);
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return debugErrorResponse(error, 500, {
+      endpoint: '/api/admin/users',
+      method: 'GET',
+      phase,
+      has_db_binding: Boolean(env.MEYYA_DB),
+      d1: await getUsersDebugInfo(env),
+    });
   }
 }

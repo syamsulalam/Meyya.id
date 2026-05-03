@@ -6,30 +6,46 @@ const USER_COLUMNS: Record<string, string> = {
   phone_wa: 'TEXT',
   role: 'TEXT',
   last_login_at: 'DATETIME',
-  joined_at: 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+  joined_at: 'DATETIME'
 };
 
 export async function ensureUsersSchema(env: any) {
-  await env.MEYYA_DB.prepare(`
-    CREATE TABLE IF NOT EXISTS users (
-      clerk_id TEXT PRIMARY KEY,
-      email TEXT,
-      first_name TEXT,
-      last_name TEXT,
-      phone_wa TEXT,
-      role TEXT,
-      last_login_at DATETIME,
-      joined_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `).run();
+  let step = 'create-users-table';
 
-  const { results } = await env.MEYYA_DB.prepare('PRAGMA table_info(users)').all();
-  const existingColumns = new Set((results || []).map((column: any) => column.name));
+  try {
+    await env.MEYYA_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS users (
+        clerk_id TEXT PRIMARY KEY,
+        email TEXT,
+        first_name TEXT,
+        last_name TEXT,
+        phone_wa TEXT,
+        role TEXT,
+        last_login_at DATETIME,
+        joined_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
 
-  for (const [name, definition] of Object.entries(USER_COLUMNS)) {
-    if (!existingColumns.has(name)) {
-      await env.MEYYA_DB.prepare(`ALTER TABLE users ADD COLUMN ${name} ${definition}`).run();
+    step = 'read-users-columns';
+    const { results } = await env.MEYYA_DB.prepare('PRAGMA table_info(users)').all();
+    const existingColumns = new Set((results || []).map((column: any) => column.name));
+
+    for (const [name, definition] of Object.entries(USER_COLUMNS)) {
+      if (!existingColumns.has(name)) {
+        step = `add-users-column-${name}`;
+        await env.MEYYA_DB.prepare(`ALTER TABLE users ADD COLUMN ${name} ${definition}`).run();
+      }
     }
+
+    step = 'backfill-users-joined-at';
+    await env.MEYYA_DB.prepare(`
+      UPDATE users
+      SET joined_at = COALESCE(joined_at, CURRENT_TIMESTAMP)
+      WHERE joined_at IS NULL
+    `).run();
+  } catch (error: any) {
+    error.message = `ensureUsersSchema failed at ${step}: ${error.message}`;
+    throw error;
   }
 }
 
@@ -56,6 +72,45 @@ export async function upsertSelfSyncedUser(env: any, user: any) {
     INSERT INTO users (clerk_id, email, first_name, last_name, phone_wa, role, last_login_at)
     VALUES (?, ?, ?, ?, ?, 'customer', CURRENT_TIMESTAMP)
   `).bind(clerkId, user.email || '', user.first_name || '', user.last_name || '', user.phone_wa || '').run();
+}
+
+export async function getUsersDebugInfo(env: any) {
+  const debug: Record<string, any> = {};
+
+  try {
+    const table = await env.MEYYA_DB.prepare(`
+      SELECT name, sql
+      FROM sqlite_master
+      WHERE type = 'table' AND name IN ('users', 'orders')
+      ORDER BY name
+    `).all();
+    debug.tables = table.results || [];
+  } catch (error: any) {
+    debug.tables_error = error.message;
+  }
+
+  try {
+    const usersColumns = await env.MEYYA_DB.prepare('PRAGMA table_info(users)').all();
+    debug.users_columns = usersColumns.results || [];
+  } catch (error: any) {
+    debug.users_columns_error = error.message;
+  }
+
+  try {
+    const ordersColumns = await env.MEYYA_DB.prepare('PRAGMA table_info(orders)').all();
+    debug.orders_columns = ordersColumns.results || [];
+  } catch (error: any) {
+    debug.orders_columns_error = error.message;
+  }
+
+  try {
+    const usersCount = await env.MEYYA_DB.prepare('SELECT COUNT(*) AS count FROM users').first();
+    debug.users_count = usersCount?.count;
+  } catch (error: any) {
+    debug.users_count_error = error.message;
+  }
+
+  return debug;
 }
 
 export async function markUserAsAdmin(env: any, clerkId: string, clerkUser?: any) {

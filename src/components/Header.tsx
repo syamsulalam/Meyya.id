@@ -44,7 +44,14 @@ export default function Header() {
           last_name: clerkUser.lastName,
           phone_wa: clerkUser.primaryPhoneNumber?.phoneNumber || ''
         })
-      }).catch(err => console.error('Failed to sync user to D1:', err));
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const body = await res.json().catch(() => null);
+            console.error('Failed to sync user to D1:', { status: res.status, body });
+          }
+        })
+        .catch(err => console.error('Failed to sync user to D1:', err));
     }
   }, [authFetch, clerkUser]);
 

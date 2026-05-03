@@ -55,13 +55,17 @@ export function useAuthFetcher() {
     const response = await fetch(url, { headers });
     if (!response.ok) {
       let errorMessage = `Request failed with status ${response.status}`;
+      let errorBody: any;
       try {
-        const errorBody = await response.json();
+        errorBody = await response.json();
         errorMessage = errorBody.error || errorMessage;
       } catch {
         // Keep the status-based fallback.
       }
-      throw new Error(errorMessage);
+      const error = new Error(errorMessage);
+      (error as any).status = response.status;
+      (error as any).info = errorBody;
+      throw error;
     }
     return response.json();
   }, [getToken, isLoaded, isSignedIn]);
