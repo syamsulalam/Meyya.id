@@ -31,6 +31,21 @@ export async function onRequest(context: any) {
       }, 500);
     }
 
+    const clerkPublishableKey = env.VITE_CLERK_PUBLISHABLE_KEY || env.CLERK_PUBLISHABLE_KEY;
+    if (!clerkPublishableKey) {
+      return jsonResponse({
+        error: 'Clerk publishable key is not configured',
+        debug: {
+          endpoint: url.pathname,
+          phase: 'missing-clerk-publishable-key',
+          expected_env_names: ['VITE_CLERK_PUBLISHABLE_KEY', 'CLERK_PUBLISHABLE_KEY'],
+          has_clerk_secret: Boolean(env.CLERK_SECRET_KEY),
+          has_db_binding: Boolean(env.MEYYA_DB),
+          timestamp: new Date().toISOString(),
+        }
+      }, 500);
+    }
+
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return jsonResponse({
@@ -46,16 +61,21 @@ export async function onRequest(context: any) {
 
     let requestState: any;
     try {
-      const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+      const clerkClient = createClerkClient({
+        secretKey: env.CLERK_SECRET_KEY,
+        publishableKey: clerkPublishableKey,
+      });
       requestState = await clerkClient.authenticateRequest(request, {
         acceptsToken: 'session_token',
         secretKey: env.CLERK_SECRET_KEY,
+        publishableKey: clerkPublishableKey,
       });
     } catch (err: any) {
       return debugErrorResponse(err, 500, {
         endpoint: url.pathname,
         phase: 'clerk-authenticate-request',
         has_clerk_secret: Boolean(env.CLERK_SECRET_KEY),
+        has_clerk_publishable_key: Boolean(clerkPublishableKey),
         has_db_binding: Boolean(env.MEYYA_DB),
         authorization_header_present: true,
       });
@@ -99,7 +119,7 @@ export async function onRequest(context: any) {
 
     try {
       if (isAdminRoute || isMutationProductRoute || isUploadRoute) {
-        const isAdmin = await hasAdminAccess(env, clerkId, payload);
+        const isAdmin = await hasAdminAccess(env, clerkId, payload, clerkPublishableKey);
 
         if (!isAdmin) {
           return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403 });
@@ -139,7 +159,7 @@ function ensureProcessEnv() {
   }
 }
 
-async function hasAdminAccess(env: any, clerkId: string, payload: any) {
+async function hasAdminAccess(env: any, clerkId: string, payload: any, clerkPublishableKey: string) {
   await ensureUsersSchema(env);
 
   const dbUser = await env.MEYYA_DB.prepare('SELECT role FROM users WHERE clerk_id = ?').bind(clerkId).first();
@@ -153,7 +173,10 @@ async function hasAdminAccess(env: any, clerkId: string, payload: any) {
     return true;
   }
 
-  const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+  const clerkClient = createClerkClient({
+    secretKey: env.CLERK_SECRET_KEY,
+    publishableKey: clerkPublishableKey,
+  });
   const clerkUser: any = await clerkClient.users.getUser(clerkId);
 
   if (getMetadataRole(clerkUser) === 'admin') {
