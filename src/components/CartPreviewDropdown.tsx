@@ -11,8 +11,11 @@ type GroupedCartItem = {
   price: number;
   total_quantity: number;
   variations: {
+    variant_id?: number;
     color: string;
+    color_hex?: string;
     size: string;
+    variant_options?: Record<string, string>;
     quantity: number;
     originalIndex: number;
   }[];
@@ -54,7 +57,10 @@ export default function CartPreviewDropdown() {
       existingProduct.total_quantity += item.quantity;
       existingProduct.variations.push({
         color: item.color,
+        variant_id: item.variant_id,
+        color_hex: item.color_hex,
         size: item.size,
+        variant_options: item.variant_options,
         quantity: item.quantity,
         originalIndex: index
       });
@@ -67,7 +73,10 @@ export default function CartPreviewDropdown() {
         total_quantity: item.quantity,
         variations: [{
           color: item.color,
+          variant_id: item.variant_id,
+          color_hex: item.color_hex,
           size: item.size,
+          variant_options: item.variant_options,
           quantity: item.quantity,
           originalIndex: index
         }]
@@ -143,7 +152,8 @@ export default function CartPreviewDropdown() {
                         <div className="mt-2 space-y-1">
                           {product.variations.map((v, i) => (
                             <div key={i} className="flex justify-between items-center text-[10px] bg-white/50 p-1 rounded">
-                              <span className="text-gray-500 truncate pr-2" title={`${v.color} / ${v.size}`}>
+                              <span className="text-gray-500 truncate pr-2 flex items-center gap-1" title={`${v.color} / ${v.size}`}>
+                                {v.color_hex && <span className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: v.color_hex }} />}
                                 {v.color} / {v.size}
                               </span>
                               
@@ -160,9 +170,12 @@ export default function CartPreviewDropdown() {
                                     e.preventDefault(); 
                                     addToCart({
                                       product_id: product.product_id,
+                                      variant_id: v.variant_id,
                                       product_name: product.product_name,
                                       color: v.color,
+                                      color_hex: v.color_hex,
                                       size: v.size,
+                                      variant_options: v.variant_options,
                                       price: product.price,
                                       image_url: product.image_url,
                                       quantity: 1

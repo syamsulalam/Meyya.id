@@ -46,6 +46,49 @@ const parseCategoryOptions = (value: unknown): string[] => {
   return value.split(/[,\n;]+/).map((item) => item.trim()).filter(Boolean);
 };
 
+type ProductVariantForm = {
+  color_name: string;
+  size_name: string;
+  option_values: Record<string, string>;
+  option_signature: string;
+  option_label: string;
+  sku: string;
+  stock: number;
+  is_active: boolean;
+};
+
+const normalizeOptionValues = (values: Record<string, string>) =>
+  Object.keys(values).sort().reduce((acc: Record<string, string>, key) => {
+    const cleanKey = key.trim();
+    const cleanValue = String(values[key] || '').trim();
+    if (cleanKey && cleanValue) acc[cleanKey] = cleanValue;
+    return acc;
+  }, {});
+
+const getVariantSignature = (values: Record<string, string>) => JSON.stringify(normalizeOptionValues(values));
+
+const getVariantLabel = (values: Record<string, string>) =>
+  Object.entries(normalizeOptionValues(values)).map(([key, value]) => `${key}: ${value}`).join(' / ') || 'Standar';
+
+const buildVariantFromOptions = (values: Record<string, string>, existing?: Partial<ProductVariantForm>): ProductVariantForm => {
+  const optionValues = normalizeOptionValues(values);
+  return {
+    color_name: optionValues.Warna || existing?.color_name || 'Standar',
+    size_name: optionValues.Ukuran || existing?.size_name || 'Semua Ukuran',
+    option_values: optionValues,
+    option_signature: getVariantSignature(optionValues),
+    option_label: getVariantLabel(optionValues),
+    sku: existing?.sku || '',
+    stock: Number(existing?.stock || 0),
+    is_active: existing?.is_active !== false,
+  };
+};
+
+const buildOptionCombinations = (axes: { name: string; values: string[] }[]) =>
+  axes.reduce<Record<string, string>[]>((rows, axis) =>
+    rows.flatMap(row => axis.values.map(value => ({ ...row, [axis.name]: value }))),
+  [{}]);
+
 export default function AdminProductForm() {
   const authFetch = useAuthFetch();
   const { globalColors, addGlobalColor, addToast, showConfirm } = useStore();
@@ -73,7 +116,7 @@ export default function AdminProductForm() {
   const [canonicalSlug, setCanonicalSlug] = useState('');
   const [ogImageUrl, setOgImageUrl] = useState('');
   const [galleryImages, setGalleryImages] = useState<{ image_url: string; alt_text?: string; color_name?: string; is_primary?: boolean }[]>([]);
-  const [productVariants, setProductVariants] = useState<{ color_name: string; size_name: string; sku: string; stock: number; is_active: boolean }[]>([]);
+  const [productVariants, setProductVariants] = useState<ProductVariantForm[]>([]);
   const [relatedProductIds, setRelatedProductIds] = useState<number[]>([]);
   
   const [hargaKainRoll, setHargaKainRoll] = useState(0);
@@ -173,13 +216,19 @@ export default function AdminProductForm() {
       color_name: img.color_name || '',
       is_primary: img.is_primary === 1,
     })) : (p.image_url ? [{ image_url: p.image_url, alt_text: p.name, is_primary: true }] : []));
-    setProductVariants(Array.isArray(p.variants) ? p.variants.map((variant: any) => ({
-      color_name: variant.color_name || '',
-      size_name: variant.size_name || '',
-      sku: variant.sku || '',
-      stock: Number(variant.stock || 0),
-      is_active: variant.is_active !== 0,
-    })) : []);
+    setProductVariants(Array.isArray(p.variants) ? p.variants.map((variant: any) => buildVariantFromOptions(
+      variant.option_values || {
+        ...(variant.color_name ? { Warna: variant.color_name } : {}),
+        ...(variant.size_name ? { Ukuran: variant.size_name } : {}),
+      },
+      {
+        color_name: variant.color_name || '',
+        size_name: variant.size_name || '',
+        sku: variant.sku || '',
+        stock: Number(variant.stock || 0),
+        is_active: variant.is_active !== 0,
+      }
+    )) : []);
     setRelatedProductIds(Array.isArray(p.related_products) ? p.related_products.map((item: any) => item.id) : []);
     setMetaTitle(p.meta_title || '');
     setMetaDescription(p.meta_description || '');
@@ -299,15 +348,21 @@ export default function AdminProductForm() {
           is_primary: image.is_primary || index === 0,
         })),
         variants: productVariants
-          .map(variant => ({
+          .map(variant => {
+            const optionValues = normalizeOptionValues(variant.option_values || {});
+            return {
             ...variant,
-            color_name: variant.color_name.trim() || 'Standar',
-            size_name: variant.size_name.trim() || 'Semua Ukuran',
+            color_name: String(optionValues.Warna || variant.color_name || '').trim() || 'Standar',
+            size_name: String(optionValues.Ukuran || variant.size_name || '').trim() || 'Semua Ukuran',
+            option_values: optionValues,
+            option_signature: getVariantSignature(optionValues),
+            option_label: getVariantLabel(optionValues),
             sku: variant.sku.trim(),
             stock: Number(variant.stock || 0),
             is_active: variant.is_active,
-          }))
-          .filter(variant => variant.color_name || variant.size_name),
+          };
+          })
+          .filter(variant => Object.keys(variant.option_values).length > 0),
         related_product_ids: relatedProductIds,
         meta_title: metaTitle.trim() || productName,
         meta_description: metaDescription.trim(),
@@ -529,6 +584,33 @@ export default function AdminProductForm() {
            })).filter((attr: any) => attr.name && attr.options.length > 0);
         }
 
+        const variantAxes = [
+          ...(hasColors && selectedColorNames.length > 0 ? [{ name: 'Warna', values: selectedColorNames }] : []),
+          ...(hasSizes && selectedSizes.length > 0 ? [{ name: 'Ukuran', values: selectedSizes }] : []),
+          ...catAttrs.map((attr: any) => ({ name: attr.name, values: attr.options })),
+        ].filter(axis => axis.values.length > 0);
+
+        const generateVariantMatrix = () => {
+          if (variantAxes.length === 0) {
+            addToast('Pilih opsi warna, ukuran, atau spesifikasi kategori dulu.', 'error');
+            return;
+          }
+          const combinations = buildOptionCombinations(variantAxes);
+          if (combinations.length > 160) {
+            addToast('Kombinasi varian terlalu banyak. Kurangi opsi kategori terlebih dahulu.', 'error');
+            return;
+          }
+          const existingBySignature = new Map<string, ProductVariantForm>(productVariants.map(variant => [variant.option_signature || getVariantSignature(variant.option_values), variant]));
+          setProductVariants(combinations.map(values => {
+            const signature = getVariantSignature(values);
+            return buildVariantFromOptions(values, existingBySignature.get(signature));
+          }));
+          setStock(combinations.reduce((sum, values) => {
+            const existing = existingBySignature.get(getVariantSignature(values));
+            return sum + Number(existing?.stock || 0);
+          }, 0));
+        };
+
         return (
         <form className="space-y-12 slide-down">
         {/* 1. Basic Info */}
@@ -708,20 +790,30 @@ export default function AdminProductForm() {
             )}
 
             <div className="md:col-span-2 bg-white/40 p-5 rounded-2xl border border-black/5 space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <h4 className="text-xs uppercase tracking-widest font-semibold opacity-60">Stok Per Varian</h4>
-                <button type="button" onClick={() => setProductVariants([...productVariants, { color_name: selectedColorNames[0] || 'Standar', size_name: selectedSizes[0] || 'Semua Ukuran', sku: '', stock: 0, is_active: true }])} className="text-xs bg-black/5 px-3 py-1.5 rounded-full hover:bg-black/10">
-                  <Plus size={12} className="inline mr-1" /> Tambah Varian
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h4 className="text-xs uppercase tracking-widest font-semibold opacity-60">Stok Per Kombinasi Varian</h4>
+                  <p className="text-xs text-black/50 mt-1">
+                    Stok di-bind ke kombinasi opsi: {variantAxes.map(axis => axis.name).join(' + ') || 'belum ada opsi'}.
+                  </p>
+                </div>
+                <button type="button" onClick={generateVariantMatrix} className="text-xs bg-ink text-white px-4 py-2 rounded-full hover:bg-black/80">
+                  <Plus size={12} className="inline mr-1" /> Generate Kombinasi
                 </button>
               </div>
-              {productVariants.length === 0 && <p className="text-xs text-black/50">Opsional. Jika dikosongkan, checkout memakai stok global produk.</p>}
-              <div className="space-y-2">
+              {productVariants.length === 0 && <p className="text-xs text-black/50">Generate kombinasi setelah memilih warna, ukuran, dan opsi spesifikasi kategori.</p>}
+              <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
                 {productVariants.map((variant, index) => (
-                  <div key={index} className="grid grid-cols-2 md:grid-cols-[1fr_1fr_1fr_100px_40px] gap-2 items-center">
-                    <input value={variant.color_name} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, color_name: e.target.value } : v))} placeholder="Warna" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs" />
-                    <input value={variant.size_name} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, size_name: e.target.value } : v))} placeholder="Size" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs" />
+                  <div key={variant.option_signature || index} className="grid grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_1fr_110px_96px_40px] gap-2 items-center bg-white/60 border border-black/5 rounded-xl p-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-ink truncate" title={variant.option_label}>{variant.option_label}</p>
+                      <p className="text-[10px] text-black/40 truncate">{variant.option_signature}</p>
+                    </div>
                     <input value={variant.sku} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, sku: e.target.value } : v))} placeholder="SKU" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs" />
-                    <input type="number" value={variant.stock} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, stock: Number(e.target.value || 0) } : v))} placeholder="Stok" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs font-mono" />
+                    <input type="number" min={0} value={variant.stock} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, stock: Number(e.target.value || 0) } : v))} placeholder="Stok" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs font-mono" />
+                    <button type="button" onClick={() => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, is_active: !v.is_active } : v))} className={`px-3 py-2 rounded-xl text-[10px] uppercase tracking-widest font-semibold ${variant.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-black/5 text-black/40 border border-black/10'}`}>
+                      {variant.is_active ? 'Aktif' : 'Nonaktif'}
+                    </button>
                     <button type="button" onClick={() => setProductVariants(productVariants.filter((_, i) => i !== index))} className="p-2 text-red-500 hover:bg-red-50 rounded-xl"><X size={14} /></button>
                   </div>
                 ))}

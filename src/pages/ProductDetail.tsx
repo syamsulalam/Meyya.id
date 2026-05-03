@@ -6,6 +6,34 @@ import clsx from 'clsx';
 import { useAuthFetch } from '../hooks/useAuthFetch';
 import { useUser } from '@clerk/react';
 
+const getVariantOptionValue = (variant: any, key: string) => {
+  if (variant?.option_values && typeof variant.option_values === 'object' && variant.option_values[key]) {
+    return String(variant.option_values[key]);
+  }
+  if (key === 'Warna') return String(variant?.color_name || '');
+  if (key === 'Ukuran') return String(variant?.size_name || '');
+  return '';
+};
+
+const getOptionSignature = (values: Record<string, string>) => JSON.stringify(
+  Object.keys(values).sort().reduce((acc: Record<string, string>, key) => {
+    const clean = String(values[key] || '').trim();
+    if (clean) acc[key] = clean;
+    return acc;
+  }, {})
+);
+
+const doesVariantMatch = (variant: any, selectedValues: Record<string, string>, selectedColor: any, selectedSize: string) => {
+  const optionValues = variant.option_values || {};
+  const optionKeys = Object.keys(optionValues);
+  if (optionKeys.length > 0) {
+    return optionKeys.every((key) => !selectedValues[key] || optionValues[key] === selectedValues[key])
+      && Object.entries(selectedValues).every(([key, value]) => !optionValues[key] || optionValues[key] === value);
+  }
+
+  return (!selectedColor || variant.color_name === selectedColor?.color_name) && (!selectedSize || variant.size_name === selectedSize);
+};
+
 export default function ProductDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -18,6 +46,7 @@ export default function ProductDetail() {
   
   const [selectedColor, setSelectedColor] = useState<any>(null);
   const [selectedSize, setSelectedSize] = useState<string>('');
+  const [selectedSpecs, setSelectedSpecs] = useState<Record<string, string>>({});
   const [selectedImageUrl, setSelectedImageUrl] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
@@ -31,12 +60,17 @@ export default function ProductDetail() {
         } else {
            setProduct(data);
            addRecentlyViewed(data.id);
-           const variantColors = Array.isArray(data.variants) ? Array.from(new Set(data.variants.map((v: any) => v.color_name).filter(Boolean))).map((name) => ({ color_name: name, hex_code: data.colors?.find((c: any) => c.color_name === name)?.hex_code || '#111111' })) : [];
-           const variantSizes = Array.isArray(data.variants) ? Array.from(new Set(data.variants.map((v: any) => v.size_name).filter(Boolean))).map((name) => ({ size_name: name })) : [];
+           const variantColors = Array.isArray(data.variants) ? Array.from(new Set(data.variants.map((v: any) => getVariantOptionValue(v, 'Warna')).filter(Boolean))).map((name) => ({ color_name: name, hex_code: data.colors?.find((c: any) => c.color_name === name)?.hex_code || '#111111' })) : [];
+           const variantSizes = Array.isArray(data.variants) ? Array.from(new Set(data.variants.map((v: any) => getVariantOptionValue(v, 'Ukuran')).filter(Boolean))).map((name) => ({ size_name: name })) : [];
            const colors = data.colors?.length > 0 ? data.colors : variantColors;
            const sizes = data.sizes?.length > 0 ? data.sizes : variantSizes;
            if (colors.length > 0) setSelectedColor(colors[0]);
            if (sizes.length > 0) setSelectedSize(sizes[0].size_name);
+           const firstVariantOptions = data.variants?.[0]?.option_values || {};
+           setSelectedSpecs(Object.keys(firstVariantOptions).reduce((acc: Record<string, string>, key) => {
+             if (key !== 'Warna' && key !== 'Ukuran') acc[key] = firstVariantOptions[key];
+             return acc;
+           }, {}));
            setSelectedImageUrl(data.image_url || data.images?.[0]?.image_url || '');
            document.title = data.meta_title || `${data.name} | MEYYA.ID`;
            const metaDescription = document.querySelector('meta[name="description"]') || document.head.appendChild(document.createElement('meta'));
@@ -57,20 +91,30 @@ export default function ProductDetail() {
   if (!product) return null;
 
   const isWished = wishlist.includes(product.id);
+  const variantAxes = Array.isArray(product.variants)
+    ? Array.from(new Set<string>(product.variants.flatMap((variant: any) => Object.keys(variant.option_values || {})))).filter((key) => key !== 'Warna' && key !== 'Ukuran')
+    : [];
+  const selectedOptionValues = {
+    ...(selectedColor?.color_name ? { Warna: selectedColor.color_name } : {}),
+    ...(selectedSize ? { Ukuran: selectedSize } : {}),
+    ...selectedSpecs,
+  };
   const selectedVariant = Array.isArray(product.variants)
     ? product.variants.find((variant: any) =>
-      (!selectedColor || variant.color_name === selectedColor?.color_name) &&
-      (!selectedSize || variant.size_name === selectedSize)
+      variant.option_signature
+        ? variant.option_signature === getOptionSignature(selectedOptionValues) || doesVariantMatch(variant, selectedOptionValues, selectedColor, selectedSize)
+        : doesVariantMatch(variant, selectedOptionValues, selectedColor, selectedSize)
     )
     : null;
+  const requiresVariantSelection = Array.isArray(product.variants) && product.variants.length > 0;
   const effectiveStock = selectedVariant ? Number(selectedVariant.stock || 0) : Number(product.stock || 0);
-  const isOutOfStock = product.is_preorder !== 1 && effectiveStock <= 0;
+  const isOutOfStock = product.is_preorder !== 1 && (effectiveStock <= 0 || (requiresVariantSelection && !selectedVariant));
   const displayColors = product.colors?.length > 0
     ? product.colors
-    : Array.from(new Set((product.variants || []).map((v: any) => v.color_name).filter(Boolean))).map((name) => ({ color_name: name, hex_code: '#111111' }));
+    : Array.from(new Set((product.variants || []).map((v: any) => getVariantOptionValue(v, 'Warna')).filter(Boolean))).map((name) => ({ color_name: name, hex_code: '#111111' }));
   const displaySizes = product.sizes?.length > 0
     ? product.sizes
-    : Array.from(new Set((product.variants || []).map((v: any) => v.size_name).filter(Boolean))).map((name) => ({ size_name: name }));
+    : Array.from(new Set((product.variants || []).map((v: any) => getVariantOptionValue(v, 'Ukuran')).filter(Boolean))).map((name) => ({ size_name: name }));
 
   const handleAddToCart = () => {
     if (isOutOfStock) return addToast('Varian ini sedang habis.', 'error');
@@ -79,7 +123,9 @@ export default function ProductDetail() {
       variant_id: selectedVariant?.id,
       product_name: product.name,
       color: selectedColor?.color_name || 'Default',
+      color_hex: selectedColor?.hex_code,
       size: selectedSize || 'All Size',
+      variant_options: selectedVariant?.option_values || selectedOptionValues,
       quantity: 1,
       price: product.base_price,
       weight: product.weight || 250,
@@ -196,33 +242,35 @@ export default function ProductDetail() {
           <p className="text-sm text-gray-500 mb-6 font-mono">Tersedia {effectiveStock} pcs</p>
         )}
         
-        <div className="mb-8">
-          <p className="text-sm text-gray-600 mb-4 font-medium uppercase tracking-wider">
-            Warna: {selectedColor?.color_name}
-          </p>
-          <div className="flex gap-3">
-            {(Array.isArray(displayColors) ? displayColors : []).map((c: any) => (
-              <button
-                key={c.hex_code}
-                onClick={() => {
-                  setSelectedColor(c);
-                  const colorImage = product.images?.find((img: any) => img.color_name === c.color_name);
-                  if (colorImage) setSelectedImageUrl(colorImage.image_url);
-                }}
-                className={clsx(
-                  "w-10 h-10 rounded-full border-2 transition-all duration-300 relative",
-                  selectedColor?.hex_code === c.hex_code 
-                    ? "border-black scale-110 shadow-lg" 
-                    : "border-transparent hover:scale-105 shadow-sm"
-                )}
-                style={{ backgroundColor: c.hex_code }}
-                title={c.color_name}
-              >
-                <span className="sr-only">{c.color_name}</span>
-              </button>
-            ))}
+        {Array.isArray(displayColors) && displayColors.length > 0 && (
+          <div className="mb-8">
+            <p className="text-sm text-gray-600 mb-4 font-medium uppercase tracking-wider">
+              Warna: {selectedColor?.color_name}
+            </p>
+            <div className="flex gap-3">
+              {(Array.isArray(displayColors) ? displayColors : []).map((c: any) => (
+                <button
+                  key={`${c.color_name}-${c.hex_code}`}
+                  onClick={() => {
+                    setSelectedColor(c);
+                    const colorImage = product.images?.find((img: any) => img.color_name === c.color_name);
+                    if (colorImage) setSelectedImageUrl(colorImage.image_url);
+                  }}
+                  className={clsx(
+                    "w-10 h-10 rounded-full border-2 transition-all duration-300 relative",
+                    selectedColor?.color_name === c.color_name
+                      ? "border-black scale-110 shadow-lg"
+                      : "border-transparent hover:scale-105 shadow-sm"
+                  )}
+                  style={{ backgroundColor: c.hex_code }}
+                  title={c.color_name}
+                >
+                  <span className="sr-only">{c.color_name}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {Array.isArray(displaySizes) && displaySizes.length > 0 && (
           <div className="mb-8">
@@ -245,6 +293,31 @@ export default function ProductDetail() {
             </div>
           </div>
         )}
+
+        {variantAxes.map((axis) => {
+          const values = Array.from(new Set((product.variants || []).map((variant: any) => getVariantOptionValue(variant, axis)).filter(Boolean)));
+          return (
+            <div key={axis} className="mb-8">
+              <p className="text-sm text-gray-600 mb-4 font-medium uppercase tracking-wider">{axis}</p>
+              <div className="flex flex-wrap gap-3">
+                {values.map((value) => (
+                  <button
+                    key={value}
+                    onClick={() => setSelectedSpecs(prev => ({ ...prev, [axis]: value }))}
+                    className={clsx(
+                      "min-w-14 h-12 px-4 rounded-2xl glass-panel flex items-center justify-center text-sm font-medium transition-all duration-300",
+                      selectedSpecs[axis] === value
+                        ? "bg-black/90 text-white border-black"
+                        : "hover:bg-white/80"
+                    )}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
 
         <div className="prose prose-sm text-gray-600 mb-8 max-w-none leading-relaxed">
           <p>{product.description}</p>

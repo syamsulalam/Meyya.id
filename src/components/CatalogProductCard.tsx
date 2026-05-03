@@ -6,6 +6,15 @@ import clsx from 'clsx';
 import { useUser } from '@clerk/react';
 import { useAuthFetch } from '../hooks/useAuthFetch';
 
+const getVariantOptionValue = (variant: any, key: string) => {
+  if (variant?.option_values && typeof variant.option_values === 'object' && variant.option_values[key]) {
+    return String(variant.option_values[key]);
+  }
+  if (key === 'Warna') return String(variant?.color_name || '');
+  if (key === 'Ukuran') return String(variant?.size_name || '');
+  return '';
+};
+
 type CatalogProductCardProps = {
   key?: React.Key;
   product: any;
@@ -27,10 +36,13 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
   const isWished = wishlist.includes(product.id);
   const displayColors = product.colors?.length > 0
     ? product.colors
-    : Array.from(new Set((product.variants || []).map((v: any) => v.color_name).filter(Boolean))).map((name) => ({ color_name: name, hex_code: '#111111' }));
+    : Array.from(new Set((product.variants || []).map((v: any) => getVariantOptionValue(v, 'Warna')).filter(Boolean))).map((name) => ({ color_name: name, hex_code: '#111111' }));
   const displaySizes = product.sizes?.length > 0
     ? product.sizes
-    : Array.from(new Set((product.variants || []).map((v: any) => v.size_name).filter(Boolean))).map((name) => ({ size_name: name }));
+    : Array.from(new Set((product.variants || []).map((v: any) => getVariantOptionValue(v, 'Ukuran')).filter(Boolean))).map((name) => ({ size_name: name }));
+  const hasCustomVariantAxes = Array.isArray(product.variants) && product.variants.some((variant: any) =>
+    Object.keys(variant.option_values || {}).some((key) => key !== 'Warna' && key !== 'Ukuran')
+  );
   const toggleWishlistSynced = async () => {
     toggleWishlist(product.id);
     if (!isSignedIn) return;
@@ -45,6 +57,10 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
   const startQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (hasCustomVariantAxes) {
+      navigate(`/produk/${product.slug}`);
+      return;
+    }
     if (displayColors.length > 0) {
       setQuickAddStep(1);
     } else if (displaySizes.length > 0) {
@@ -56,6 +72,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
         product_name: product.name,
         color: "Standar",
         size: "Semua Ukuran",
+        variant_options: {},
         quantity: 1,
         price: product.base_price,
         weight: product.weight || 250,
@@ -87,8 +104,8 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
     e.stopPropagation();
     const selectedVariant = Array.isArray(product.variants)
       ? product.variants.find((variant: any) =>
-        (!selectedColor || variant.color_name === selectedColor?.color_name) &&
-        (!selectedSize || variant.size_name === selectedSize)
+        (!selectedColor || getVariantOptionValue(variant, 'Warna') === selectedColor?.color_name) &&
+        (!selectedSize || getVariantOptionValue(variant, 'Ukuran') === selectedSize)
       )
       : null;
     addToCart({
@@ -96,7 +113,12 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
       variant_id: selectedVariant?.id,
       product_name: product.name,
       color: selectedVariant?.color_name || selectedColor?.color_name || "Standar",
+      color_hex: selectedColor?.hex_code,
       size: selectedVariant?.size_name || selectedSize || "Semua Ukuran",
+      variant_options: selectedVariant?.option_values || {
+        ...(selectedColor?.color_name ? { Warna: selectedColor.color_name } : {}),
+        ...(selectedSize ? { Ukuran: selectedSize } : {}),
+      },
       quantity: 1,
       price: product.base_price,
       weight: product.weight || 250,
@@ -110,12 +132,18 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (hasCustomVariantAxes) {
+      navigate(`/produk/${product.slug}`);
+      return;
+    }
     addToCart({
       product_id: product.id,
       variant_id: product.variants?.[0]?.id,
       product_name: product.name,
       color: product.variants?.[0]?.color_name || "Standar",
+      color_hex: product.colors?.find((color: any) => color.color_name === product.variants?.[0]?.color_name)?.hex_code,
       size: product.variants?.[0]?.size_name || "Semua Ukuran",
+      variant_options: product.variants?.[0]?.option_values || {},
       quantity: 1,
       price: product.base_price,
       weight: product.weight || 250,
@@ -125,8 +153,8 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
   };
 
   // If variants are hovered, get its real original cart index for quantity modifier
-  const getCartIndexForVariation = (color: string, size: string) => {
-    return cart.findIndex(c => c.product_id === product.id && c.color === color && c.size === size);
+  const getCartIndexForVariation = (variation: any) => {
+    return cart.findIndex(c => c.product_id === product.id && c.variant_id === variation.variant_id && c.color === variation.color && c.size === variation.size);
   };
 
   return (
@@ -311,7 +339,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
                 <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 border-b border-black/5 pb-2 text-center">Variasi di Keranjang</div>
                 <div className="flex flex-col gap-2">
                   {cartItemsForProduct.map((cv, idx) => {
-                    const originalCartIndex = getCartIndexForVariation(cv.color, cv.size);
+                    const originalCartIndex = getCartIndexForVariation(cv);
                     return (
                       <div key={idx} className="flex flex-col gap-1 bg-black/5 rounded p-2">
                         <span className="text-[10px] text-left truncate">{cv.color} / {cv.size}</span>
@@ -329,9 +357,12 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
                               e.stopPropagation(); 
                               addToCart({
                                 product_id: product.id,
+                                variant_id: cv.variant_id,
                                 product_name: product.name,
                                 color: cv.color,
                                 size: cv.size,
+                                color_hex: cv.color_hex,
+                                variant_options: cv.variant_options,
                                 quantity: 1,
                                 price: product.base_price,
                                 weight: product.weight || 250,

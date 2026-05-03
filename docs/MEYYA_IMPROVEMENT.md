@@ -50,6 +50,9 @@ Perbaikan yang sudah diterapkan:
 - Batch lanjutan 2026-05-04 sudah diterapkan:
   product multi-image/gallery, D1-backed wishlist customer, stok varian size/color, admin refresh `region_cache`, editor manual related product,
   bundle multi-item, audit log payment/shipping settings, TTL regional cache 30 hari, dan debug JSON produksi dipersempit.
+- Stok varian sekarang berbasis kombinasi opsi lengkap: warna + ukuran + spesifikasi custom kategori disimpan sebagai `option_signature`/`option_label`.
+- Admin product form bisa generate matrix varian dari opsi kategori, lalu stok/SKU diisi per kombinasi.
+- Cart, checkout, dan order create membawa `variant_id` serta `variant_options`; checkout menampilkan swatch warna terpilih, bukan hanya nama warna.
 - `npm run lint` berhasil.
 - `npm run build` berhasil, masih dengan warning chunk size Vite.
 
@@ -89,68 +92,25 @@ Catatan:
 
 - `schema.sql` masih berisi seed demo. Untuk production, lebih aman pisahkan migration schema-only dari seed.
 - Jangan commit full dump karena bisa berisi PII customer/order.
+- D1 schema tambahan yang sekarang dibutuhkan untuk varian lengkap:
+  `product_variants.option_signature`, `product_variants.option_label`, dan `order_items.variant_options`.
+  `ensureCommerceSchema` sudah melakukan self-heal, tetapi remote tetap sebaiknya diverifikasi.
 
-### 2. Product multi-image
-
-File terkait:
-
-- `schema.sql`
-- `src/components/admin/AdminProductForm.tsx`
-- `src/pages/ProductDetail.tsx`
-- `functions/api/products.ts`
-- `functions/api/products/[slug].ts`
+### 2. Pisahkan migration production dari seed demo
 
 Kondisi saat ini:
 
-- `product_images` sudah self-heal via `ensureCommerceSchema`.
-- Admin product form sudah punya gallery uploader, thumbnail selector, primary image, dan optional bind `color_name`.
-- Product detail sudah punya thumbnails dan mengganti image utama sesuai pilihan.
-- Product card tetap memakai primary image dari `product_images` jika tersedia.
+- `schema.sql` masih bercampur definisi tabel dan seed/demo data.
+- Applying full `schema.sql` ke production berisiko membawa data contoh atau menimpa asumsi seed.
 
-Catatan lanjutan:
+Saran:
 
-- Reorder masih berdasarkan urutan array saat save; belum ada drag-and-drop khusus.
-
-### 3. Wishlist D1-backed
-
-File terkait:
-
-- `src/store.ts`
-- `src/pages/Wishlist.tsx`
-- `src/components/CatalogProductCard.tsx`
-- `src/pages/ProductDetail.tsx`
-- `schema.sql`
-
-Kondisi saat ini:
-
-- Tabel `wishlists` ada.
-- Admin CRM sudah bisa menghitung `wishlistCount` dari D1 jika data tersedia.
-- Endpoint `GET/POST/DELETE /api/user/wishlist` sudah tersedia.
-- Saat user login, wishlist lokal disinkronkan ke D1 dan store diperbarui dari D1.
-- Product card/detail toggle wishlist melakukan sync ke D1 untuk user login.
-
-Catatan lanjutan:
-
-- Jika user logout, wishlist tetap local untuk guest.
-
-### 4. Varian produk size/color
-
-Kondisi saat ini:
-
-- Produk punya stok global.
-- Warna dan ukuran disimpan sebagai opsi terpisah.
-- Tabel `product_variants` sudah tersedia.
-- Admin product form bisa mengisi `color_name`, `size_name`, `sku`, dan stok varian.
-- Cart/order menyimpan `variant_id` bila varian dipilih.
-- Checkout validasi dan reserve stok varian jika `variant_id` tersedia.
-
-Catatan lanjutan:
-
-- Stok global masih ikut dikurangi sebagai ringkasan stok produk. Ke depan bisa dihitung otomatis dari total varian.
+- Buat file migration schema-only untuk D1 production.
+- Simpan seed demo sebagai file terpisah untuk local/dev.
 
 ## Prioritas Menengah
 
-### 5. CRM sudah lebih nyata, tetapi belum lengkap
+### 3. CRM sudah lebih nyata, tetapi belum lengkap
 
 Kondisi saat ini:
 
@@ -166,7 +126,7 @@ Saran:
 - Hitung return rate setelah return/exchange workflow ada.
 - Tambah event tracking untuk cart, view product, dan campaign touch.
 
-### 6. Marketing panel sudah tidak memakai scenario palsu, tetapi datanya masih terbatas
+### 4. Marketing panel sudah tidak memakai scenario palsu, tetapi datanya masih terbatas
 
 Kondisi saat ini:
 
@@ -179,18 +139,7 @@ Saran:
 - Abandoned cart butuh persistent cart/event tracking.
 - Tambah template campaign dari status order dan segment.
 
-### 7. Regional cache belum punya invalidation UI
-
-Kondisi saat ini:
-
-- `region_cache` membuat form alamat tidak terus memukul api.co.id.
-- Cache akan terisi per endpoint saat user/admin memilih wilayah.
-- Cache punya TTL 30 hari.
-- Admin shipping settings punya tombol refresh untuk clear `region_cache`.
-
-Status: implemented.
-
-### 8. Debug JSON produksi masih aktif
+### 5. Debug JSON produksi masih aktif
 
 Kondisi saat ini:
 
@@ -239,6 +188,7 @@ Status 2026-05-04:
 - Dashboard margin per produk dan kategori: product margin tampil di dashboard metrics; API juga mengirim `categoryMargins`.
 - CSV export orders/products: implemented di admin Operasional Toko dan admin Produk.
 - Soft delete produk/kategori: delete produk/kategori sekarang arsip (`deleted_at`) agar histori order tetap aman.
+- Full variant stock matrix: implemented dengan `product_variants.option_signature`, admin generator kombinasi warna/ukuran/spek custom, `variant_options` di order item, dan swatch warna di checkout.
 
 Catatan lanjutan:
 
@@ -254,4 +204,4 @@ Catatan lanjutan:
 4. Tambah event tracking untuk cart/view product/campaign touch.
 5. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
 6. Tambah drag-and-drop reorder untuk product gallery.
-7. Normalisasi stok global agar bisa dihitung otomatis dari total `product_variants`.
+7. Normalisasi stok global agar otomatis dihitung dari total `product_variants`, bukan diinput manual.

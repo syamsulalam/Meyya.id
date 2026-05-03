@@ -523,7 +523,15 @@ export default function Checkout() {
                 </div>
                 <div className="flex-1 text-xs">
                   <p className="font-medium line-clamp-1">{item.product_name}</p>
-                  <p className="text-gray-500 opacity-80">{item.color} | {item.size} x{item.quantity}</p>
+                  <p className="text-gray-500 opacity-80 flex items-center gap-1.5">
+                    {item.color_hex && <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: item.color_hex }} />}
+                    <span>{item.color} | {item.size} x{item.quantity}</span>
+                  </p>
+                  {item.variant_options && Object.keys(item.variant_options).filter(key => key !== 'Warna' && key !== 'Ukuran').length > 0 && (
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {Object.entries(item.variant_options).filter(([key]) => key !== 'Warna' && key !== 'Ukuran').map(([key, value]) => `${key}: ${value}`).join(' / ')}
+                    </p>
+                  )}
                 </div>
                 <div className="text-xs font-semibold">
                   Rp {(item.price * item.quantity).toLocaleString('id-ID')}
@@ -572,6 +580,7 @@ export default function Checkout() {
                               product_id: product.id,
                               product_name: product.name,
                               color: Array.isArray(product.colors) && product.colors.length > 0 ? (product.colors[0].color_name || product.colors[0]) : 'Default',
+                              color_hex: Array.isArray(product.colors) && product.colors.length > 0 ? product.colors[0].hex_code : undefined,
                               size: Array.isArray(product.sizes) && product.sizes.length > 0 ? (product.sizes[0].size_name || product.sizes[0]) : 'Default',
                               price: product.base_price || product.price || 0,
                               quantity: 1,

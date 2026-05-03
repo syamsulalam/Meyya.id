@@ -18,6 +18,8 @@ export async function ensureCommerceSchema(env: any) {
       product_id INTEGER NOT NULL,
       color_name TEXT,
       size_name TEXT,
+      option_signature TEXT,
+      option_label TEXT,
       sku TEXT,
       stock INTEGER DEFAULT 0,
       is_active INTEGER DEFAULT 1,
@@ -155,6 +157,9 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'orders', 'shipped_at', 'DATETIME');
   await addColumn(env, 'orders', 'completed_at', 'DATETIME');
   await addColumn(env, 'order_items', 'variant_id', 'INTEGER');
+  await addColumn(env, 'order_items', 'variant_options', 'TEXT');
+  await addColumn(env, 'product_variants', 'option_signature', 'TEXT');
+  await addColumn(env, 'product_variants', 'option_label', 'TEXT');
   await addColumn(env, 'inventory_reservations', 'variant_id', 'INTEGER');
   await addColumn(env, 'vouchers', 'target_clerk_id', 'TEXT');
   await addColumn(env, 'vouchers', 'target_segment', 'TEXT');

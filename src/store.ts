@@ -6,7 +6,9 @@ type CartItem = {
   variant_id?: number;
   product_name: string;
   color: string;
+  color_hex?: string;
   size: string;
+  variant_options?: Record<string, string>;
   quantity: number;
   price: number;
   image_url: string;
@@ -115,8 +117,9 @@ export const useStore = create<AppState>()(
         })),
       addToCart: (item) =>
         set((state) => {
+          const itemOptions = JSON.stringify(item.variant_options || {});
           const existingIndex = state.cart.findIndex(
-            (c) => c.product_id === item.product_id && c.variant_id === item.variant_id && c.color === item.color && c.size === item.size
+            (c) => c.product_id === item.product_id && c.variant_id === item.variant_id && c.color === item.color && c.size === item.size && JSON.stringify(c.variant_options || {}) === itemOptions
           );
           if (existingIndex >= 0) {
             const newCart = [...state.cart];

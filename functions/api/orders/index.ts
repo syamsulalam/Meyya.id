@@ -77,6 +77,7 @@ export async function onRequestPost(context: any) {
         }
         item.color = variant.color_name || item.color;
         item.size = variant.size_name || item.size;
+        item.variant_options = variant.option_signature || item.variant_options || null;
       }
       
       // Override price and calculate subtotal
@@ -144,11 +145,11 @@ export async function onRequestPost(context: any) {
     // Insert order items
     // Since Cloudflare D1 supports batching
     const statements = items.map((item: any) => {
-      const { product_id, product_name, variant_id, color, size, quantity, price, production_cost } = item;
+      const { product_id, product_name, variant_id, variant_options, color, size, quantity, price, production_cost } = item;
       return env.MEYYA_DB.prepare(`
-        INSERT INTO order_items (order_id, product_id, product_name, variant_id, color_name, size_name, quantity, price_at_purchase, hpp_at_purchase)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(orderId, product_id, product_name, variant_id || null, color, size, quantity, price, production_cost);
+        INSERT INTO order_items (order_id, product_id, product_name, variant_id, variant_options, color_name, size_name, quantity, price_at_purchase, hpp_at_purchase)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(orderId, product_id, product_name, variant_id || null, normalizeVariantOptions(variant_options), color, size, quantity, price, production_cost);
     });
 
     await env.MEYYA_DB.batch(statements);
@@ -230,6 +231,21 @@ export async function onRequestPost(context: any) {
       status: 500,
     });
   }
+}
+
+function normalizeVariantOptions(value: any) {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const clean = Object.keys(value).sort().reduce((acc: Record<string, string>, key) => {
+    const cleanKey = String(key).trim();
+    const cleanValue = String(value[key] ?? '').trim();
+    if (cleanKey && cleanValue) acc[cleanKey] = cleanValue;
+    return acc;
+  }, {});
+
+  return Object.keys(clean).length > 0 ? JSON.stringify(clean) : null;
 }
 
 async function resolveShippingCost(env: any, quote: any) {

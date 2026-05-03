@@ -51,8 +51,8 @@ export async function onRequestGet(context: any) {
       p.image_url = primary.image_url || p.image_url;
     }
 
-    const variants = await env.MEYYA_DB.prepare('SELECT * FROM product_variants WHERE product_id = ? AND is_active = 1 ORDER BY color_name ASC, size_name ASC').bind(p.id).all();
-    p.variants = variants.results || [];
+    const variants = await env.MEYYA_DB.prepare('SELECT * FROM product_variants WHERE product_id = ? AND is_active = 1 ORDER BY color_name ASC, size_name ASC, option_label ASC').bind(p.id).all();
+    p.variants = hydrateVariants(variants.results || []);
 
     const reviews = await env.MEYYA_DB.prepare(`
       SELECT rating, review_text, created_at
@@ -163,8 +163,8 @@ export async function onRequestPut(context: any) {
       const cleanVariants = sanitizeVariants(variants);
       if (cleanVariants.length > 0) {
         await env.MEYYA_DB.batch(cleanVariants.map((variant: any) =>
-          env.MEYYA_DB.prepare('INSERT INTO product_variants (product_id, color_name, size_name, sku, stock, is_active) VALUES (?, ?, ?, ?, ?, ?)')
-            .bind(id, variant.color_name, variant.size_name, variant.sku || null, variant.stock, variant.is_active ? 1 : 0)
+          env.MEYYA_DB.prepare('INSERT INTO product_variants (product_id, color_name, size_name, option_signature, option_label, sku, stock, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+            .bind(id, variant.color_name, variant.size_name, variant.option_signature, variant.option_label, variant.sku || null, variant.stock, variant.is_active ? 1 : 0)
         ));
       }
     }
@@ -212,14 +212,67 @@ function sanitizeImages(images: any, fallbackImageUrl?: string) {
 function sanitizeVariants(variants: any) {
   if (!Array.isArray(variants)) return [];
   return variants
-    .map((variant: any) => ({
-      color_name: String(variant?.color_name || '').trim() || 'Standar',
-      size_name: String(variant?.size_name || '').trim() || 'Semua Ukuran',
-      sku: String(variant?.sku || '').trim(),
-      stock: Number(variant?.stock || 0),
-      is_active: variant?.is_active !== false && variant?.is_active !== 0,
-    }))
-    .filter((variant: any) => variant.color_name || variant.size_name);
+    .map((variant: any) => {
+      const colorName = String(variant?.color_name || '').trim() || 'Standar';
+      const sizeName = String(variant?.size_name || '').trim() || 'Semua Ukuran';
+      const optionValues = normalizeOptionValues(variant?.option_values, colorName, sizeName);
+      return {
+        color_name: colorName,
+        size_name: sizeName,
+        option_signature: canonicalOptionSignature(optionValues),
+        option_label: buildOptionLabel(optionValues),
+        sku: String(variant?.sku || '').trim(),
+        stock: Number(variant?.stock || 0),
+        is_active: variant?.is_active !== false && variant?.is_active !== 0,
+      };
+    })
+    .filter((variant: any) => variant.option_signature || variant.color_name || variant.size_name);
+}
+
+function hydrateVariants(variants: any[]) {
+  return variants.map((variant: any) => {
+    const optionValues = parseOptionSignature(variant.option_signature) || normalizeOptionValues(null, variant.color_name, variant.size_name);
+    return {
+      ...variant,
+      option_values: optionValues,
+      option_label: variant.option_label || buildOptionLabel(optionValues),
+    };
+  });
+}
+
+function normalizeOptionValues(input: any, colorName?: string, sizeName?: string) {
+  const values: Record<string, string> = {};
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    for (const [key, value] of Object.entries(input)) {
+      const cleanKey = String(key).trim();
+      const cleanValue = String(value ?? '').trim();
+      if (cleanKey && cleanValue) values[cleanKey] = cleanValue;
+    }
+  }
+  if (colorName && colorName !== 'Standar' && !values.Warna) values.Warna = colorName;
+  if (sizeName && sizeName !== 'Semua Ukuran' && !values.Ukuran) values.Ukuran = sizeName;
+  return values;
+}
+
+function canonicalOptionSignature(values: Record<string, string>) {
+  const sorted = Object.keys(values).sort().reduce((acc: Record<string, string>, key) => {
+    acc[key] = values[key];
+    return acc;
+  }, {});
+  return Object.keys(sorted).length > 0 ? JSON.stringify(sorted) : '';
+}
+
+function buildOptionLabel(values: Record<string, string>) {
+  return Object.entries(values).map(([key, value]) => `${key}: ${value}`).join(' / ') || 'Standar';
+}
+
+function parseOptionSignature(signature: any) {
+  if (!signature || typeof signature !== 'string') return null;
+  try {
+    return normalizeOptionValues(JSON.parse(signature));
+  } catch {
+    return null;
+  }
 }
 
 export async function onRequestDelete(context: any) {

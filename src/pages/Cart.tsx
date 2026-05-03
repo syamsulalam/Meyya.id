@@ -11,7 +11,9 @@ type GroupedCartItem = {
   variations: {
     variant_id?: number;
     color: string;
+    color_hex?: string;
     size: string;
+    variant_options?: Record<string, string>;
     quantity: number;
     originalIndex: number;
   }[];
@@ -31,8 +33,10 @@ export default function Cart() {
       existingProduct.total_quantity += item.quantity;
       existingProduct.variations.push({
         color: item.color,
+        color_hex: item.color_hex,
         variant_id: item.variant_id,
         size: item.size,
+        variant_options: item.variant_options,
         quantity: item.quantity,
         originalIndex: index
       });
@@ -45,8 +49,10 @@ export default function Cart() {
         total_quantity: item.quantity,
         variations: [{
           color: item.color,
+          color_hex: item.color_hex,
           variant_id: item.variant_id,
           size: item.size,
+          variant_options: item.variant_options,
           quantity: item.quantity,
           originalIndex: index
         }]
@@ -134,7 +140,15 @@ export default function Cart() {
                       <div key={i} className="flex flex-wrap sm:flex-nowrap justify-between items-center bg-white/50 border border-black/5 p-3 rounded-xl gap-3">
                         <div className="flex flex-col w-full sm:w-auto">
                           <span className="text-[10px] uppercase tracking-widest text-gray-500 mb-0.5">Varian {(i + 1).toString().padStart(2, '0')}</span>
-                          <span className="text-xs font-semibold">{v.color} / {v.size}</span>
+                          <span className="text-xs font-semibold flex items-center gap-2">
+                            {v.color_hex && <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: v.color_hex }} />}
+                            {v.color} / {v.size}
+                          </span>
+                          {v.variant_options && Object.keys(v.variant_options).filter(key => key !== 'Warna' && key !== 'Ukuran').length > 0 && (
+                            <span className="text-[10px] text-black/50 mt-1">
+                              {Object.entries(v.variant_options).filter(([key]) => key !== 'Warna' && key !== 'Ukuran').map(([key, value]) => `${key}: ${value}`).join(' / ')}
+                            </span>
+                          )}
                         </div>
                         
                         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end mt-1 sm:mt-0">
@@ -154,7 +168,9 @@ export default function Cart() {
                                   variant_id: v.variant_id,
                                   product_name: product.product_name,
                                   color: v.color,
+                                  color_hex: v.color_hex,
                                   size: v.size,
+                                  variant_options: v.variant_options,
                                   price: product.price,
                                   image_url: product.image_url,
                                   quantity: 1
