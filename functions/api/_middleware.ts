@@ -5,6 +5,7 @@ import { ensureUsersSchema, markUserAsAdmin } from './_users';
 export async function onRequest(context: any) {
   const { request, env, next } = context;
   const url = new URL(request.url);
+  ensureProcessEnv();
 
   const isAdminRoute = url.pathname.startsWith('/api/admin/');
   const isMutationProductRoute = (url.pathname.startsWith('/api/products') || url.pathname.startsWith('/api/categories')) && request.method !== 'GET';
@@ -123,6 +124,18 @@ export async function onRequest(context: any) {
       phase: 'route-handler',
       has_db_binding: Boolean(env.MEYYA_DB),
     });
+  }
+}
+
+function ensureProcessEnv() {
+  const globalScope = globalThis as any;
+  if (!globalScope.process) {
+    globalScope.process = { env: {} };
+    return;
+  }
+
+  if (!globalScope.process.env) {
+    globalScope.process.env = {};
   }
 }
 
