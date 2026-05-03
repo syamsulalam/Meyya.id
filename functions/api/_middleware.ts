@@ -1,4 +1,4 @@
-import { createClerkClient, verifyToken } from '@clerk/backend';
+import { createClerkClient } from '@clerk/backend';
 
 export async function onRequest(context: any) {
   const { request, env, next } = context;
@@ -24,29 +24,41 @@ export async function onRequest(context: any) {
       return new Response(JSON.stringify({ error: 'Unauthorized: Missing or invalid Authorization header' }), { status: 401 });
     }
 
-    const token = authHeader.split(' ')[1];
-    let payload: any;
-    try {
-      payload = await verifyToken(token, {
-         secretKey: env.CLERK_SECRET_KEY,
+    const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+    const requestState = await clerkClient.authenticateRequest(request, {
+      acceptsToken: 'session_token',
+      secretKey: env.CLERK_SECRET_KEY,
+    });
+
+    if (!requestState.isAuthenticated) {
+      console.error('Clerk authentication failed', {
+        reason: requestState.reason,
+        message: requestState.message,
       });
-    } catch (err) {
-      return new Response(JSON.stringify({ error: 'Token validation failed' }), { status: 401 });
+      return new Response(JSON.stringify({ error: requestState.message || 'Token validation failed' }), { status: 401 });
     }
-      
-    const clerkId = payload.sub;
+
+    const auth = requestState.toAuth();
+    const clerkId = auth.userId;
+    const payload = auth.sessionClaims;
+
     if (!clerkId) {
       return new Response(JSON.stringify({ error: 'Invalid token structure' }), { status: 401 });
     }
 
     context.data = { ...context.data, clerkId };
 
-    if (isAdminRoute || isMutationProductRoute || isUploadRoute) {
-      const isAdmin = await hasAdminAccess(env, clerkId, payload);
+    try {
+      if (isAdminRoute || isMutationProductRoute || isUploadRoute) {
+        const isAdmin = await hasAdminAccess(env, clerkId, payload);
 
-      if (!isAdmin) {
-        return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403 });
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403 });
+        }
       }
+    } catch (err) {
+      console.error('Admin authorization failed', err);
+      return new Response(JSON.stringify({ error: 'Admin authorization failed' }), { status: 500 });
     }
   }
 
