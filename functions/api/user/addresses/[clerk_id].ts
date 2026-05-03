@@ -1,6 +1,10 @@
 export async function onRequestGet(context: any) {
-  const { env, params } = context;
+  const { env, params, data } = context;
   const clerk_id = params.clerk_id;
+  const reqClerkId = data?.clerkId;
+  
+  if (!reqClerkId || clerk_id !== reqClerkId) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+
   try {
     const { results } = await env.MEYYA_DB.prepare(
       `SELECT * FROM user_addresses WHERE user_id = ?`
@@ -12,8 +16,12 @@ export async function onRequestGet(context: any) {
 }
 
 export async function onRequestPost(context: any) {
-  const { env, params, request } = context;
+  const { env, params, request, data } = context;
   const clerk_id = params.clerk_id;
+  const reqClerkId = data?.clerkId;
+  
+  if (!reqClerkId || clerk_id !== reqClerkId) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+
   try {
     const body = await request.json();
     const id = body.id || crypto.randomUUID();

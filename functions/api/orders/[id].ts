@@ -1,12 +1,17 @@
 export async function onRequestGet(context: any) {
-  const { env, params } = context;
+  const { env, params, data } = context;
   const id = params.id;
+  const clerkId = data?.clerkId;
 
   try {
     const order = await env.MEYYA_DB.prepare('SELECT * FROM orders WHERE id = ?').bind(id).first();
     
     if (!order) {
       return new Response(JSON.stringify({ error: 'Order not found' }), { status: 404 });
+    }
+
+    if (order.clerk_id !== clerkId) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
     }
 
     const items = await env.MEYYA_DB.prepare('SELECT * FROM order_items WHERE order_id = ?').bind(id).all();

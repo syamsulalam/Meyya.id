@@ -11,6 +11,7 @@ export default function Order() {
   const { addToast } = useStore();
   
   const { data: order, error, isLoading } = useSWR(id ? `/api/orders/${id}` : null, fetcher);
+  const { data: paymentOptions } = useSWR('/api/payment/options', fetcher);
 
   if (isLoading) {
     return <div className="max-w-3xl mx-auto px-4 py-16 text-center">Memuat detail pesanan...</div>;
@@ -22,6 +23,9 @@ export default function Order() {
 
   const isTransfer = order.payment_method === 'TRANSFER' && (order.status === 'PENDING' || order.status === 'pending');
   const isPaid = order.status === 'PAID' || order.status === 'PROCESSING' || order.status === 'SHIPPED' || order.status === 'COMPLETED';
+
+  const defaultBank = paymentOptions?.banks?.[0] || { bank_name: 'BCA', account_number: '8273 1928 321', account_holder: 'PT Alam Pintar Nusantara' };
+  const instruction = paymentOptions?.settings?.transfer_instruction || 'Verifikasi manual dilakukan dalam 1x24 jam kerja.';
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 md:py-16 w-full">
@@ -51,14 +55,14 @@ export default function Order() {
             
             <div className="space-y-6">
               <div>
-                <p className="text-[10px] uppercase font-semibold text-gray-500 mb-1 tracking-widest">Bank Tujuan (BCA)</p>
+                <p className="text-[10px] uppercase font-semibold text-gray-500 mb-1 tracking-widest">Bank Tujuan ({defaultBank.bank_name})</p>
                 <div className="flex items-center justify-between bg-white border border-black/10 p-4 rounded-xl">
-                  <span className="font-mono text-lg tracking-wider">8273 1928 321</span>
-                  <button onClick={() => { navigator.clipboard.writeText('82731928321'); addToast('Disalin!', 'success'); }} className="text-ink hover:text-black flex items-center gap-1 text-xs font-semibold uppercase bg-black/5 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
+                  <span className="font-mono text-lg tracking-wider">{defaultBank.account_number}</span>
+                  <button onClick={() => { navigator.clipboard.writeText(defaultBank.account_number.replace(/\D/g, '')); addToast('Disalin!', 'success'); }} className="text-ink hover:text-black flex items-center gap-1 text-xs font-semibold uppercase bg-black/5 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
                     <Copy size={14} /> Salin
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">a.n. PT Alam Pintar Nusantara</p>
+                <p className="text-xs text-gray-500 mt-2">a.n. {defaultBank.account_holder}</p>
               </div>
 
               <div>
@@ -75,7 +79,7 @@ export default function Order() {
               </div>
               
               <div className="bg-white/60 text-xs p-4 rounded-xl text-gray-600 border border-black/5 leading-relaxed">
-                Pesanan akan diverifikasi otomatis dalam 10 menit setelah transfer berhasil. Pastikan nominal sesuai hingga 3 angka terakhir.
+                {instruction}
               </div>
             </div>
           </div>

@@ -1,3 +1,5 @@
+import { verifyToken } from '@clerk/backend';
+
 export async function onRequest(context: any) {
   const { request, env, next } = context;
   const url = new URL(request.url);
@@ -5,8 +7,13 @@ export async function onRequest(context: any) {
   const isAdminRoute = url.pathname.startsWith('/api/admin/');
   const isMutationProductRoute = (url.pathname.startsWith('/api/products') || url.pathname.startsWith('/api/categories')) && request.method !== 'GET';
   const isUploadRoute = url.pathname.startsWith('/api/upload');
+  
+  const isUserRoute = url.pathname.startsWith('/api/user/');
+  const isOrdersRoute = url.pathname.startsWith('/api/orders');
 
-  if (isAdminRoute || isMutationProductRoute || isUploadRoute) {
+  if (url.pathname.startsWith('/api/webhooks/')) return next();
+
+  if (isAdminRoute || isMutationProductRoute || isUploadRoute || isUserRoute || isOrdersRoute) {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized: Missing or invalid Authorization header' }), { status: 401 });
@@ -14,22 +21,24 @@ export async function onRequest(context: any) {
 
     const token = authHeader.split(' ')[1];
     try {
-      // Decode JWT payload (without verification, as edge workers might not have full crypto or Clerk backend easily available without additional config).
-      // Assuming Clerk protects the token source, but ideally use @clerk/backend or SVIX to verify.
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(atob(base64));
+      const payload = await verifyToken(token, {
+         secretKey: env.CLERK_SECRET_KEY,
+      });
       
       const clerkId = payload.sub;
       if (!clerkId) {
         return new Response(JSON.stringify({ error: 'Invalid token structure' }), { status: 401 });
       }
 
-      // Check role in DB
-      const user = await env.MEYYA_DB.prepare('SELECT role FROM users WHERE clerk_id = ?').bind(clerkId).first();
-      
-      if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403 });
+      context.data = { ...context.data, clerkId };
+
+      if (isAdminRoute || isMutationProductRoute || isUploadRoute) {
+        // Check role in DB
+        const user = await env.MEYYA_DB.prepare('SELECT role FROM users WHERE clerk_id = ?').bind(clerkId).first();
+        
+        if (!user || user.role !== 'admin') {
+          return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403 });
+        }
       }
 
     } catch (err) {

@@ -19,7 +19,7 @@ export default function Checkout() {
   const { cart, user, clearCart, addToCart, savedAddresses, addToast } = useStore();
   const { user: clerkUser } = useUser();
   const { data: dbAddresses } = useSWR(clerkUser?.id ? `/api/user/addresses/${clerkUser.id}` : null, fetcher);
-  const d1SavedAddresses = Array.isArray(dbAddresses) ? dbAddresses.map((a, idx) => ({
+  const d1SavedAddresses = React.useMemo(() => Array.isArray(dbAddresses) ? dbAddresses.map((a, idx) => ({
     id: String(a.id),
     recipientName: a.recipient_name,
     phone: a.recipient_phone,
@@ -33,7 +33,7 @@ export default function Checkout() {
     is_default: a.is_default,
     label: a.is_default ? 'Utama' : `Alamat ${idx + 1}`,
     icon: a.is_default ? '🏠' : '📦'
-  })) : savedAddresses;
+  })) : savedAddresses, [dbAddresses, savedAddresses]);
 
   const navigate = useNavigate();
   
@@ -564,8 +564,8 @@ export default function Checkout() {
                             addToCart({
                               product_id: product.id,
                               product_name: product.name,
-                              color: Array.isArray(product.colors) && product.colors.length > 0 ? product.colors[0].color_name : 'Default',
-                              size: Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes[0] : 'Default',
+                              color: Array.isArray(product.colors) && product.colors.length > 0 ? (product.colors[0].color_name || product.colors[0]) : 'Default',
+                              size: Array.isArray(product.sizes) && product.sizes.length > 0 ? (product.sizes[0].size_name || product.sizes[0]) : 'Default',
                               price: product.base_price || product.price || 0,
                               quantity: 1,
                               weight: product.weight || 250,

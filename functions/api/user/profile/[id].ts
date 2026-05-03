@@ -1,6 +1,9 @@
 export async function onRequestGet(context: any) {
-  const { env, request, params } = context;
+  const { env, request, params, data } = context;
   const id = params.id;
+  const clerkId = data?.clerkId;
+
+  if (!clerkId || clerkId !== id) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
 
   try {
     const user = await env.MEYYA_DB.prepare('SELECT * FROM users WHERE clerk_id = ?').bind(id).first();
@@ -24,8 +27,11 @@ export async function onRequestGet(context: any) {
 }
 
 export async function onRequestPut(context: any) {
-  const { env, request, params } = context;
+  const { env, request, params, data } = context;
   const id = params.id;
+  const clerkId = data?.clerkId;
+
+  if (!clerkId || clerkId !== id) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
 
   try {
     const body = await request.json();

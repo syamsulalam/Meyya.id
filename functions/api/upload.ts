@@ -31,7 +31,11 @@ export async function onRequestPost(context: any) {
       });
       
       // Get the public URL base from environment variables
-      const baseUrl = env.MEYYA_R2_PUBLIC_URL || 'https://pub-your-r2-subdomain.r2.dev';
+      const baseUrl = env.MEYYA_R2_PUBLIC_URL;
+      if (!baseUrl) {
+        return new Response(JSON.stringify({ error: 'MEYYA_R2_PUBLIC_URL is not configured' }), { status: 500 });
+      }
+      
       // Ensure there is no trailing slash in baseUrl
       const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
       const publicUrl = `${normalizedBase}/${fileName}`;

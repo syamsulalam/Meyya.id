@@ -1,24 +1,30 @@
 export async function onRequestPost(context: any) {
-  const { env, request } = context;
+  const { env, request, data } = context;
+  const clerk_id = data?.clerkId;
+  
+  if (!clerk_id) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
 
   try {
     const body = await request.json();
     const { 
-      clerk_id, 
       address_snapshot, 
       payment_method, 
       subtotal, 
       shipping_cost, 
       admin_fee = 0, 
       order_bump = 0, 
-      unique_code = 0, 
       discount_amount = 0, 
       voucher_code, 
       note, 
       items 
     } = body;
     
-    if (!clerk_id || !items || !items.length) {
+    // server-side generation of unique code
+    const unique_code = Math.floor(Math.random() * 900) + 100;
+    
+    if (!items || !items.length) {
       return new Response(JSON.stringify({ error: 'Missing requirements' }), { status: 400 });
     }
 
@@ -57,11 +63,13 @@ export async function onRequestPost(context: any) {
         const voucher = await env.MEYYA_DB.prepare('SELECT * FROM vouchers WHERE code = ?').bind(voucher_code).first();
         if (voucher) {
             const now = new Date();
-            const valid = (!voucher.valid_until || new Date(voucher.valid_until) >= now) &&
+            const valid = (!voucher.valid_from || new Date(voucher.valid_from) <= now) &&
+                          (!voucher.valid_until || new Date(voucher.valid_until) >= now) &&
                           (!voucher.usage_limit || voucher.used_count < voucher.usage_limit) &&
                           (!voucher.min_purchase || calculatedSubtotal >= voucher.min_purchase);
                           
             if (valid) {
+                 // role check can be simple string match or handled later
                  if (voucher.discount_type === 'FIXED') {
                      finalDiscountAmount = voucher.discount_value;
                  } else if (voucher.discount_type === 'PERCENTAGE') {
@@ -75,6 +83,8 @@ export async function onRequestPost(context: any) {
             } else {
                  return new Response(JSON.stringify({ error: `Voucher ${voucher_code} is invalid or expired` }), { status: 400 });
             }
+        } else {
+            return new Response(JSON.stringify({ error: `Voucher ${voucher_code} not found` }), { status: 400 });
         }
     }
 
@@ -128,19 +138,14 @@ export async function onRequestPost(context: any) {
 }
 
 export async function onRequestGet(context: any) {
-    const { env, request } = context;
-    const url = new URL(request.url);
-    const clerk_id = url.searchParams.get('clerk_id');
+    const { env, data } = context;
+    const clerk_id = data?.clerkId;
+
+    if (!clerk_id) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
     try {
-        let query = 'SELECT * FROM orders ORDER BY created_at DESC';
-        let stmt = env.MEYYA_DB.prepare(query);
-
-        if (clerk_id) {
-            query = 'SELECT * FROM orders WHERE clerk_id = ? ORDER BY created_at DESC';
-            stmt = env.MEYYA_DB.prepare(query).bind(clerk_id);
-        }
-
+        const query = 'SELECT * FROM orders WHERE clerk_id = ? ORDER BY created_at DESC';
+        const stmt = env.MEYYA_DB.prepare(query).bind(clerk_id);
         const { results } = await stmt.all();
 
         return new Response(JSON.stringify({ orders: results }), {

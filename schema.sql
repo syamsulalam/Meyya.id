@@ -143,8 +143,34 @@ CREATE TABLE IF NOT EXISTS order_items (
 CREATE TABLE IF NOT EXISTS wishlists (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT,
-  product_id INTEGER
+  product_id INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS payment_bank_accounts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bank_name TEXT NOT NULL,
+  account_number TEXT NOT NULL,
+  account_holder TEXT NOT NULL,
+  is_active INTEGER DEFAULT 1,
+  sort_order INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS payment_settings (
+  id INTEGER PRIMARY KEY,
+  qris_image_url TEXT,
+  qris_is_active INTEGER DEFAULT 0,
+  transfer_instruction TEXT,
+  payment_expiry_minutes INTEGER DEFAULT 1440,
+  transfer_admin_fee INTEGER DEFAULT 0,
+  qris_admin_fee INTEGER DEFAULT 0,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Seed basic payment setting
+INSERT OR IGNORE INTO payment_settings (id, transfer_instruction) VALUES (1, 'Silakan transfer tepat sesuai nominal hingga 3 digit terakhir. Verifikasi manual dilakukan dalam 1x24 jam kerja.');
 
 
 -- ================= SEEDER (Data Awal) =================
