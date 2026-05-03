@@ -1,19 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingBag } from 'lucide-react';
+import { Heart, ShoppingBag, Star } from 'lucide-react';
 import { useStore } from '../store';
 import clsx from 'clsx';
+import { useAuthFetch } from '../hooks/useAuthFetch';
+import { useUser } from '@clerk/react';
 
 export default function ProductDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addToCart, toggleWishlist, wishlist, addRecentlyViewed, addToast } = useStore();
+  const authFetch = useAuthFetch();
+  const { isSignedIn } = useUser();
   
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
   const [selectedColor, setSelectedColor] = useState<any>(null);
   const [selectedSize, setSelectedSize] = useState<string>('');
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
 
   useEffect(() => {
     fetch(`/api/products/${slug}`)
@@ -26,6 +32,10 @@ export default function ProductDetail() {
            addRecentlyViewed(data.id);
            if (data.colors?.length > 0) setSelectedColor(data.colors[0]);
            if (data.sizes?.length > 0) setSelectedSize(data.sizes[0].size_name);
+           document.title = data.meta_title || `${data.name} | MEYYA.ID`;
+           const metaDescription = document.querySelector('meta[name="description"]') || document.head.appendChild(document.createElement('meta'));
+           metaDescription.setAttribute('name', 'description');
+           metaDescription.setAttribute('content', data.meta_description || data.description || 'Produk MEYYA.ID');
         }
         setLoading(false);
       })
@@ -54,6 +64,29 @@ export default function ProductDetail() {
       image_url: product.image_url
     });
     addToast('Produk ditambahkan ke keranjang!', 'success');
+  };
+
+  const submitReview = async () => {
+    if (!isSignedIn) return addToast('Login dulu untuk menulis review.', 'error');
+    try {
+      const res = await authFetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: product.id, rating: reviewRating, review_text: reviewText })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal mengirim review');
+      setProduct({
+        ...product,
+        reviews: [{ rating: reviewRating, review_text: reviewText, created_at: new Date().toISOString() }, ...(product.reviews || [])],
+        review_count: Number(product.review_count || 0) + 1,
+      });
+      setReviewText('');
+      setReviewRating(5);
+      addToast('Review berhasil dikirim.', 'success');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    }
   };
 
   return (
@@ -103,6 +136,12 @@ export default function ProductDetail() {
           {product.name}
         </h1>
         <p className="text-2xl mb-4">Rp {product.base_price.toLocaleString('id-ID')}</p>
+        {product.review_count > 0 && (
+          <div className="flex items-center gap-2 mb-4 text-sm text-black/60">
+            <Star size={16} className="fill-yellow-400 stroke-yellow-500" />
+            <span>{Number(product.rating_average || 0).toFixed(1)} dari {product.review_count} review</span>
+          </div>
+        )}
         
         {product.is_preorder === 1 ? (
           <div className="mb-6 inline-block bg-ink text-white text-xs uppercase tracking-widest font-bold px-4 py-1.5 rounded-full shadow-sm">
@@ -200,6 +239,53 @@ export default function ProductDetail() {
             </p>
           </div>
         </div>
+
+        {Array.isArray(product.reviews) && (
+          <div className="mt-10 border-t border-black/10 pt-6">
+            <h4 className="font-heading uppercase tracking-widest text-sm font-semibold mb-4">Review Pelanggan</h4>
+            <div className="space-y-3 mb-5">
+              {product.reviews.slice(0, 3).map((review: any, idx: number) => (
+                <div key={idx} className="bg-white/50 border border-black/5 rounded-2xl p-4">
+                  <div className="flex gap-1 mb-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} size={14} className={i < Number(review.rating) ? 'fill-yellow-400 stroke-yellow-500' : 'stroke-black/20'} />
+                    ))}
+                  </div>
+                  <p className="text-sm text-black/70">{review.review_text || 'Tanpa catatan tambahan.'}</p>
+                </div>
+              ))}
+              {product.reviews.length === 0 && <p className="text-sm text-black/50">Belum ada review untuk produk ini.</p>}
+            </div>
+            <div className="bg-white/40 border border-black/5 rounded-2xl p-4 space-y-3">
+              <div className="flex gap-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <button key={i} type="button" onClick={() => setReviewRating(i + 1)}>
+                    <Star size={18} className={i < reviewRating ? 'fill-yellow-400 stroke-yellow-500' : 'stroke-black/30'} />
+                  </button>
+                ))}
+              </div>
+              <textarea value={reviewText} onChange={e => setReviewText(e.target.value)} rows={3} placeholder="Tulis pengalaman Anda..." className="w-full bg-white border border-black/10 rounded-xl p-3 text-sm resize-none" />
+              <button type="button" onClick={submitReview} className="px-5 py-2.5 bg-ink text-white rounded-full text-xs uppercase tracking-widest font-semibold">Kirim Review</button>
+            </div>
+          </div>
+        )}
+
+        {Array.isArray(product.related_products) && product.related_products.length > 0 && (
+          <div className="mt-10 border-t border-black/10 pt-6">
+            <h4 className="font-heading uppercase tracking-widest text-sm font-semibold mb-4">Produk Terkait</h4>
+            <div className="grid grid-cols-2 gap-3">
+              {product.related_products.map((related: any) => (
+                <button key={related.id} onClick={() => navigate(`/produk/${related.slug}`)} className="text-left bg-white/50 border border-black/5 rounded-2xl overflow-hidden hover:bg-white transition-colors">
+                  <img src={related.image_url} alt={related.name} className="w-full aspect-[4/5] object-cover bg-black/5" />
+                  <div className="p-3">
+                    <p className="text-sm font-medium line-clamp-1">{related.name}</p>
+                    <p className="text-xs text-black/50 mt-1">Rp {Number(related.base_price || 0).toLocaleString('id-ID')}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

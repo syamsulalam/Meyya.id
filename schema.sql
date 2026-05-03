@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS categories (
   name TEXT,
   image_url TEXT,
   has_colors INTEGER DEFAULT 0,
-  has_sizes INTEGER DEFAULT 0
+  has_sizes INTEGER DEFAULT 0,
+  deleted_at DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -36,6 +37,12 @@ CREATE TABLE IF NOT EXISTS products (
   last_stock_update DATETIME,
   is_active INTEGER,
   is_preorder INTEGER DEFAULT 0,
+  deleted_at DATETIME,
+  meta_title TEXT,
+  meta_description TEXT,
+  canonical_slug TEXT,
+  og_image_url TEXT,
+  low_stock_threshold INTEGER DEFAULT 5,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -101,6 +108,12 @@ CREATE TABLE IF NOT EXISTS shipping_settings (
   active_couriers TEXT -- Menampung array list dari JSON "["JNE", "SiCepat", "SAP"]"
 );
 
+CREATE TABLE IF NOT EXISTS region_cache (
+  endpoint TEXT PRIMARY KEY,
+  payload TEXT NOT NULL,
+  cached_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS vouchers (
   code TEXT PRIMARY KEY,
   discount_type TEXT,
@@ -111,7 +124,9 @@ CREATE TABLE IF NOT EXISTS vouchers (
   valid_until DATETIME,
   usage_limit INTEGER,
   used_count INTEGER DEFAULT 0,
-  target_user_role TEXT DEFAULT 'all'
+  target_user_role TEXT DEFAULT 'all',
+  target_clerk_id TEXT,
+  target_segment TEXT
 );
 
 CREATE TABLE IF NOT EXISTS voucher_usages (
@@ -137,6 +152,13 @@ CREATE TABLE IF NOT EXISTS orders (
   total_paid numeric,
   voucher_code TEXT,
   note TEXT,
+  payment_expires_at DATETIME,
+  payment_proof_url TEXT,
+  payment_submitted_at DATETIME,
+  tracking_number TEXT,
+  tracking_courier TEXT,
+  shipped_at DATETIME,
+  completed_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -157,6 +179,93 @@ CREATE TABLE IF NOT EXISTS wishlists (
   user_id TEXT,
   product_id INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor_clerk_id TEXT,
+  action TEXT NOT NULL,
+  entity_type TEXT,
+  entity_id TEXT,
+  metadata TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  order_id TEXT,
+  change_qty INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  note TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS inventory_reservations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id TEXT NOT NULL,
+  product_id INTEGER NOT NULL,
+  quantity INTEGER NOT NULL,
+  status TEXT DEFAULT 'ACTIVE',
+  expires_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_reviews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  clerk_id TEXT NOT NULL,
+  order_id TEXT,
+  rating INTEGER NOT NULL,
+  review_text TEXT,
+  status TEXT DEFAULT 'PUBLISHED',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS return_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id TEXT NOT NULL,
+  clerk_id TEXT NOT NULL,
+  type TEXT DEFAULT 'RETURN',
+  reason TEXT,
+  status TEXT DEFAULT 'REQUESTED',
+  admin_note TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_related (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  related_product_id INTEGER NOT NULL,
+  sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS product_bundles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE,
+  description TEXT,
+  image_url TEXT,
+  bundle_price INTEGER NOT NULL,
+  is_active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_bundle_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bundle_id INTEGER NOT NULL,
+  product_id INTEGER NOT NULL,
+  quantity INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS message_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key TEXT UNIQUE NOT NULL,
+  channel TEXT DEFAULT 'WHATSAPP',
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS payment_bank_accounts (
@@ -183,6 +292,11 @@ CREATE TABLE IF NOT EXISTS payment_settings (
 
 -- Seed basic payment setting
 INSERT OR IGNORE INTO payment_settings (id, transfer_instruction) VALUES (1, 'Silakan transfer tepat sesuai nominal hingga 3 digit terakhir. Verifikasi manual dilakukan dalam 1x24 jam kerja.');
+
+INSERT OR IGNORE INTO message_templates (key, channel, title, body) VALUES
+  ('payment_reminder', 'WHATSAPP', 'Pengingat Pembayaran', 'Halo {{name}}, pesanan {{order_id}} masih menunggu pembayaran sebesar Rp {{total_paid}}.'),
+  ('order_shipped', 'WHATSAPP', 'Pesanan Dikirim', 'Halo {{name}}, pesanan {{order_id}} sudah dikirim via {{courier}} dengan resi {{tracking_number}}.'),
+  ('order_completed', 'WHATSAPP', 'Pesanan Selesai', 'Halo {{name}}, terima kasih sudah belanja di MEYYA.ID. Bagikan review untuk pesanan {{order_id}} ya.');
 
 
 -- ================= SEEDER (Data Awal) =================

@@ -1,7 +1,10 @@
+import { auditLog, ensureCommerceSchema } from '../_commerce';
+
 export async function onRequestGet(context: any) {
   const { env } = context;
 
   try {
+    await ensureCommerceSchema(env);
     const { results: vouchers } = await env.MEYYA_DB.prepare(`
       SELECT * FROM vouchers ORDER BY valid_until DESC
     `).all();
@@ -19,7 +22,9 @@ export async function onRequestGet(context: any) {
       usageLimit: v.usage_limit,
       usedCount: v.used_count,
       isActive: new Date(v.valid_until) >= new Date(),
-      targetUserRole: v.target_user_role || 'ALL'
+      targetUserRole: v.target_user_role || 'ALL',
+      targetClerkId: v.target_clerk_id || '',
+      targetSegment: v.target_segment || ''
     }));
 
     return new Response(JSON.stringify(formatted), {
@@ -32,15 +37,16 @@ export async function onRequestGet(context: any) {
 }
 
 export async function onRequestPost(context: any) {
-  const { env, request } = context;
+  const { env, request, data } = context;
 
   try {
+    await ensureCommerceSchema(env);
     const body = await request.json();
-    const { code, discount_type, discount_value, min_purchase, max_discount, valid_from, valid_until, usage_limit, target_user_role } = body;
+    const { code, discount_type, discount_value, min_purchase, max_discount, valid_from, valid_until, usage_limit, target_user_role, target_clerk_id, target_segment } = body;
     
     await env.MEYYA_DB.prepare(`
-      INSERT INTO vouchers (code, discount_type, discount_value, min_purchase, max_discount, valid_from, valid_until, usage_limit, used_count, target_user_role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+      INSERT INTO vouchers (code, discount_type, discount_value, min_purchase, max_discount, valid_from, valid_until, usage_limit, used_count, target_user_role, target_clerk_id, target_segment)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
       ON CONFLICT(code) DO UPDATE SET
         discount_type = excluded.discount_type,
         discount_value = excluded.discount_value,
@@ -49,8 +55,12 @@ export async function onRequestPost(context: any) {
         valid_from = excluded.valid_from,
         valid_until = excluded.valid_until,
         usage_limit = excluded.usage_limit,
-        target_user_role = excluded.target_user_role
-    `).bind(code, discount_type, discount_value, min_purchase || 0, max_discount, valid_from, valid_until, usage_limit || 0, target_user_role || 'ALL').run();
+        target_user_role = excluded.target_user_role,
+        target_clerk_id = excluded.target_clerk_id,
+        target_segment = excluded.target_segment
+    `).bind(code, discount_type, discount_value, min_purchase || 0, max_discount, valid_from, valid_until, usage_limit || 0, target_user_role || 'ALL', target_clerk_id || null, target_segment || null).run();
+
+    await auditLog(env, data?.clerkId || null, 'UPSERT_VOUCHER', 'voucher', code, { target_user_role, target_clerk_id, target_segment });
 
     return new Response(JSON.stringify({ success: true, code }), {
       headers: { 'Content-Type': 'application/json' },

@@ -21,6 +21,8 @@ interface Voucher {
   usedCount: number;
   isActive: boolean;
   targetUserRole: 'ALL' | 'NEW_USER' | 'VIP'; // Simple targeting
+  targetClerkId?: string;
+  targetSegment?: string;
 }
 
 export default function AdminVoucherManager() {
@@ -30,7 +32,7 @@ export default function AdminVoucherManager() {
   const authReady = isLoaded && isSignedIn;
   const { data: dbVouchers, error, isLoading } = useSWR(authReady ? '/api/admin/vouchers' : null, fetcher);
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
-  const { addToast } = useStore();
+  const { addToast, showConfirm } = useStore();
 
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -88,7 +90,9 @@ export default function AdminVoucherManager() {
         valid_from: formVoucher.startDate,
         valid_until: formVoucher.endDate,
         usage_limit: formVoucher.usageLimit || 0,
-        target_user_role: formVoucher.targetUserRole || 'ALL'
+        target_user_role: formVoucher.targetUserRole || 'ALL',
+        target_clerk_id: formVoucher.targetClerkId || null,
+        target_segment: formVoucher.targetSegment || null,
       };
 
       const res = await authFetch('/api/admin/vouchers', {
@@ -121,17 +125,24 @@ export default function AdminVoucherManager() {
   };
 
   const handleDelete = async (code: string) => {
-    if (!confirm('Hapus voucher ' + code + '?')) return;
-    try {
-      const res = await authFetch(`/api/admin/vouchers/${encodeURIComponent(code)}`, {
-        method: 'DELETE'
-      });
-      if (!res.ok) throw new Error('Gagal menghapus');
-      mutate('/api/admin/vouchers');
-      addToast('Voucher berhasil dihapus!', 'success');
-    } catch (e: any) {
-      addToast("Error: " + e.message, 'error');
-    }
+    showConfirm({
+      title: 'Hapus Voucher',
+      message: `Voucher ${code} akan dihapus dari sistem promo.`,
+      confirmLabel: 'Hapus',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await authFetch(`/api/admin/vouchers/${encodeURIComponent(code)}`, {
+            method: 'DELETE'
+          });
+          if (!res.ok) throw new Error('Gagal menghapus');
+          mutate('/api/admin/vouchers');
+          addToast('Voucher berhasil dihapus!', 'success');
+        } catch (e: any) {
+          addToast("Error: " + e.message, 'error');
+        }
+      },
+    });
   };
 
   return (
@@ -270,6 +281,16 @@ export default function AdminVoucherManager() {
                 <option value="NEW_USER">Pengguna Baru / Belum Pernah Belanja</option>
                 <option value="VIP">Pengguna VIP / Pelanggan Setia</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Target Clerk ID (Opsional)</label>
+              <input type="text" value={formVoucher.targetClerkId || ''} onChange={e => setFormVoucher({...formVoucher, targetClerkId: e.target.value})} placeholder="user_xxx untuk kupon personal" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink font-mono" />
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Segment Label (Opsional)</label>
+              <input type="text" value={formVoucher.targetSegment || ''} onChange={e => setFormVoucher({...formVoucher, targetSegment: e.target.value})} placeholder="VIP, NEW_USER, RETENTION" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
             </div>
 
           </div>

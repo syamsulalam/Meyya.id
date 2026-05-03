@@ -82,12 +82,14 @@ const router = createBrowserRouter([
 ]);
 
 import ToastContainer from './components/ToastContainer';
+import ConfirmDialog from './components/ConfirmDialog';
 
 export default function App() {
   return (
     <>
       <RouterProvider router={router} />
       <ToastContainer />
+      <ConfirmDialog />
     </>
   );
 }

@@ -1,6 +1,6 @@
 # MEYYA.ID Improvement Notes
 
-Audit terakhir: 2026-05-03.
+Audit terakhir: 2026-05-04.
 
 Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, checkout, payment, CRM, dan debug produksi terakhir. Item yang sudah fixed tidak lagi dimasukkan sebagai prioritas aktif.
 
@@ -37,6 +37,16 @@ Perbaikan yang sudah diterapkan:
 - Admin shipping settings sudah tersedia: tab "Pengiriman" dan `GET/PUT /api/admin/shipping-settings`.
 - Admin shipping settings bisa memilih origin desa/kelurahan dari region API dan mengatur kurir aktif.
 - `/api/shipping/calculate` memberi pesan jelas jika `API_CO_ID_KEY` belum tersedia.
+- `/api/regions/*` sekarang memakai endpoint api.co.id regional yang benar (`/regional/indonesia/*`) dan menyimpan response ke D1 `region_cache`.
+- Data provinsi/kabupaten/kecamatan/desa dipanggil ke api.co.id hanya saat cache belum ada; kalkulasi ongkir tetap real-time ke API ekspedisi.
+- Browser native `alert`, `confirm`, dan `prompt` sudah dihapus dari source app dan diganti toast/confirm modal styling MEYYA.
+- Spesifikasi kategori sekarang menerima opsi dengan spasi serta input comma/newline/semicolon-separated, lalu disanitasi sebelum disimpan.
+- Spesifikasi kategori/produk kosong difilter di UI dan API agar tidak tampil sebagai spesifikasi tambahan.
+- Nomor WhatsApp di profil dan checkout diformat per 4 digit saat data dimuat dan saat diketik.
+- Backlog fitur toko online batch 2026-05-04 sudah diterapkan dalam bentuk MVP production-ready:
+  upload bukti transfer, payment expiry + auto-cancel, inventory reservation, admin fulfillment/resi/status, template pesan,
+  low stock alert, stock movement log, audit log, SEO produk, review produk, related products fallback, bundle API/UI sederhana,
+  coupon personal/segment, return/exchange request, dashboard margin, CSV export orders/products, dan soft delete produk/kategori.
 - `npm run lint` berhasil.
 - `npm run build` berhasil, masih dengan warning chunk size Vite.
 
@@ -173,7 +183,21 @@ Saran:
 - Abandoned cart butuh persistent cart/event tracking.
 - Tambah template campaign dari status order dan segment.
 
-### 7. Debug JSON produksi masih aktif
+### 7. Regional cache belum punya invalidation UI
+
+Kondisi saat ini:
+
+- `region_cache` membuat form alamat tidak terus memukul api.co.id.
+- Cache akan terisi per endpoint saat user/admin memilih wilayah.
+- Belum ada tombol admin untuk clear/refetch cache jika api.co.id memperbarui data wilayah.
+
+Saran:
+
+- Tambah endpoint admin `DELETE /api/admin/region-cache`.
+- Tambah tombol "Refresh Cache Wilayah" di admin shipping settings.
+- Opsional: tambah TTL otomatis 30 hari jika data wilayah dianggap cukup stabil.
+
+### 8. Debug JSON produksi masih aktif
 
 Kondisi saat ini:
 
@@ -185,25 +209,50 @@ Saran:
 - Setelah produksi stabil, batasi debug detail hanya untuk admin atau environment development.
 - Untuk public/customer error, gunakan pesan pendek dan simpan detail di log internal.
 
+## Audit Kecil 2026-05-04
+
+Temuan yang sudah dibereskan:
+
+- Tidak ada lagi pemanggilan `alert(...)`, `confirm(...)`, atau `prompt(...)` di `src`/`functions`/`docs`.
+- Input spesifikasi kategori tidak lagi menyimpan row kosong.
+- Product attributes kosong difilter saat create/update dan saat response GET.
+- `ProfileAccount` tidak lagi menampilkan nomor lama tanpa grouping 4 digit.
+- Proxy region tidak lagi memakai base path lama `https://use.api.co.id/regions`.
+
+Temuan lanjutan yang masih layak dikerjakan:
+
+- `region_cache` sebaiknya punya admin refresh manual.
+- Debug JSON produksi perlu dipersempit setelah deploy stabil.
+- `schema.sql` masih bercampur schema dan seed demo; migration production sebaiknya dipisah.
+- `shipping_settings.active_couriers` seed lama masih memakai variasi nama kurir campuran (`JNE`, `JT`, `paxel`); normalisasi kode kurir perlu disamakan dengan response api.co.id.
+
 ## Backlog Fitur Toko Online
 
-- Upload bukti transfer untuk manual transfer.
-- Payment expiry dan auto-cancel order `PENDING`.
-- Admin fulfillment: nomor resi, kurir aktual, status `SHIPPED`, `COMPLETED`, `CANCELLED`.
-- Email/WhatsApp template berdasarkan status order.
-- Low stock alert dan restock history.
-- `stock_movements` untuk audit stok.
-- Audit log admin untuk produk, voucher, order confirm, upload, role update, dan payment settings.
-- Product SEO fields: meta title, meta description, canonical slug, Open Graph image.
-- Review/rating produk setelah order completed.
-- Related products/manual upsell mapping.
-- Bundle/paket produk.
-- Coupon per user atau segment.
-- Return/exchange workflow.
-- Inventory reservation jika traffic naik.
-- Dashboard margin per produk dan kategori.
-- CSV export orders/products.
-- Soft delete produk/kategori agar histori order tetap aman.
+Status 2026-05-04:
+
+- Upload bukti transfer manual transfer: implemented di order page dan `POST /api/orders/:id/payment-proof`.
+- Payment expiry dan auto-cancel `PENDING`: implemented via `payment_expires_at`, `expirePendingOrders`, dan release reservation.
+- Admin fulfillment: implemented di tab admin "Operasional Toko" dengan status `PROCESSING`, `SHIPPED`, `COMPLETED`, `CANCELLED`, kurir, dan resi.
+- Email/WhatsApp template berdasarkan status order: implemented sebagai `message_templates` dan editor template di admin.
+- Low stock alert dan restock history: low stock tampil di dashboard; perubahan stok masuk `stock_movements`.
+- `stock_movements` untuk audit stok: implemented untuk initial stock, manual adjustment, reservation, dan reservation release.
+- Audit log admin: implemented `audit_logs` dan viewer di admin Operasional Toko.
+- Product SEO fields: implemented di admin product form dan product detail meta title/description.
+- Review/rating produk: implemented di product detail dan `POST /api/reviews`.
+- Related products/manual upsell mapping: schema `product_related` tersedia; product detail fallback ke produk kategori sama jika mapping manual belum diisi.
+- Bundle/paket produk: implemented dengan `product_bundles`, public `GET /api/bundles`, admin `GET/POST /api/admin/bundles`, dan creator sederhana di admin.
+- Coupon per user atau segment: implemented lewat `target_clerk_id` dan `target_segment` di voucher.
+- Return/exchange workflow: implemented untuk customer order completed dan admin return queue.
+- Inventory reservation: implemented saat checkout membuat order; stok dikurangi saat `PENDING`, lalu reservation consumed saat paid/completed atau released saat cancel/expired.
+- Dashboard margin per produk dan kategori: product margin tampil di dashboard metrics; API juga mengirim `categoryMargins`.
+- CSV export orders/products: implemented di admin Operasional Toko dan admin Produk.
+- Soft delete produk/kategori: delete produk/kategori sekarang arsip (`deleted_at`) agar histori order tetap aman.
+
+Catatan lanjutan:
+
+- Bundle creator admin saat ini MVP satu produk utama per create; endpoint sudah mendukung banyak item jika UI diperluas.
+- Related product manual mapping sudah punya schema dan fallback UI, tetapi belum ada editor mapping khusus.
+- Template pesan belum otomatis mengirim WhatsApp/email; saat ini dikelola sebagai template operasional untuk disalin/dipakai admin.
 
 ## Urutan Fix Disarankan Berikutnya
 
@@ -211,5 +260,9 @@ Saran:
 2. Tambah UI/code `product_images` untuk multi-image product.
 3. Implement D1-backed wishlist customer.
 4. Tambah product variants dan stok per size/color.
-5. Tambah audit log admin untuk perubahan payment/shipping settings.
-6. Batasi debug JSON produksi setelah stabil.
+5. Tambah admin refresh untuk `region_cache`.
+6. Tambah editor manual related product mapping.
+7. Perluas bundle editor untuk multi item dalam satu submit.
+8. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
+9. Tambah audit log admin untuk perubahan payment/shipping settings.
+10. Batasi debug JSON produksi setelah stabil.

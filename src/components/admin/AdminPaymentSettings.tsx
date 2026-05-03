@@ -15,7 +15,7 @@ const emptyBank = {
 export default function AdminPaymentSettings() {
   const fetcher = useAuthFetcher();
   const authFetch = useAuthFetch();
-  const { addToast } = useStore();
+  const { addToast, showConfirm } = useStore();
   const { data: settings, isLoading: settingsLoading } = useSWR('/api/admin/payment-settings', fetcher);
   const { data: banks, isLoading: banksLoading } = useSWR('/api/admin/payment-bank-accounts', fetcher);
 
@@ -104,16 +104,23 @@ export default function AdminPaymentSettings() {
   };
 
   const deleteBank = async (id: number) => {
-    if (!confirm('Hapus rekening ini?')) return;
-    try {
-      const res = await authFetch(`/api/admin/payment-bank-accounts/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Gagal menghapus rekening');
-      mutate('/api/admin/payment-bank-accounts');
-      mutate('/api/payment/options');
-      addToast('Rekening dihapus', 'success');
-    } catch (error: any) {
-      addToast(error.message, 'error');
-    }
+    showConfirm({
+      title: 'Hapus Rekening',
+      message: 'Rekening ini tidak akan tampil lagi sebagai opsi pembayaran transfer.',
+      confirmLabel: 'Hapus',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await authFetch(`/api/admin/payment-bank-accounts/${id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('Gagal menghapus rekening');
+          mutate('/api/admin/payment-bank-accounts');
+          mutate('/api/payment/options');
+          addToast('Rekening dihapus', 'success');
+        } catch (error: any) {
+          addToast(error.message, 'error');
+        }
+      },
+    });
   };
 
   const bankAccounts = Array.isArray(banks) ? banks : [];

@@ -1,8 +1,10 @@
 import { useRouteError } from 'react-router-dom';
 import { RefreshCcw, Bug } from 'lucide-react';
+import { useState } from 'react';
 
 export default function ErrorBoundaryPage() {
   const error: any = useRouteError();
+  const [copied, setCopied] = useState(false);
   
   if (error) {
     console.error("Router caught an error:", error);
@@ -12,7 +14,8 @@ export default function ErrorBoundaryPage() {
     const errText = error ? (error.stack || error.message || String(error)) : 'Unknown Error';
     const reportText = `Bug Report:\nURL: ${window.location.href}\nTime: ${new Date().toISOString()}\n\nError Details:\n${errText}`;
     console.log(reportText);
-    prompt('Silakan salin detail error di bawah ini untuk dilaporkan ke tim (dan error telah dicetak di console log):', reportText);
+    void navigator.clipboard?.writeText(reportText);
+    setCopied(true);
   };
 
   return (
@@ -44,7 +47,7 @@ export default function ErrorBoundaryPage() {
             className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-white text-ink border border-gray-200 rounded-full uppercase tracking-widest text-xs font-medium hover:bg-gray-50 transition-all shadow-sm w-full sm:w-auto"
           >
             <Bug size={16} />
-            Lapor Bug
+            {copied ? 'Detail Disalin' : 'Lapor Bug'}
           </button>
         </div>
       </div>

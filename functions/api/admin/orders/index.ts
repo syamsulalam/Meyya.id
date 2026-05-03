@@ -1,7 +1,11 @@
+import { ensureCommerceSchema, expirePendingOrders } from '../../_commerce';
+
 export async function onRequestGet(context: any) {
   const { env } = context;
 
   try {
+    await ensureCommerceSchema(env);
+    await expirePendingOrders(env);
     const orders = await env.MEYYA_DB.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
     const results = orders.results || [];
 

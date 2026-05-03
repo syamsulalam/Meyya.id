@@ -5,7 +5,7 @@ import { useStore } from '../../store';
 import { useAuthFetcher, useAuthFetch } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
 
-export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing') => void }) {
+export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'orders') => void }) {
   const { addToast } = useStore();
   const [timeline, setTimeline] = useState('all');
   const fetcher = useAuthFetcher();
@@ -73,6 +73,35 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
           <p className="text-4xl font-light text-emerald-800">Rp {safeMetrics.totalProfit?.toLocaleString('id-ID') || 0}</p>
         </div>
       </div>
+
+      {(safeMetrics.lowStockProducts?.length > 0 || safeMetrics.productMargins?.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+          <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Low Stock Alert</h3>
+            <div className="space-y-3">
+              {(safeMetrics.lowStockProducts || []).map((product: any) => (
+                <div key={product.id} className="flex justify-between items-center bg-white/60 rounded-xl px-4 py-3 text-sm">
+                  <span>{product.name}</span>
+                  <span className="font-mono text-red-600">{product.stock} pcs</span>
+                </div>
+              ))}
+              {(safeMetrics.lowStockProducts || []).length === 0 && <p className="text-sm text-black/50">Tidak ada produk low stock.</p>}
+            </div>
+          </div>
+          <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Margin Produk Teratas</h3>
+            <div className="space-y-3">
+              {(safeMetrics.productMargins || []).slice(0, 5).map((product: any) => (
+                <div key={product.product_id} className="flex justify-between items-center bg-white/60 rounded-xl px-4 py-3 text-sm">
+                  <span className="line-clamp-1">{product.product_name}</span>
+                  <span className="font-mono text-emerald-700">Rp {Number(product.profit || 0).toLocaleString('id-ID')}</span>
+                </div>
+              ))}
+              {(safeMetrics.productMargins || []).length === 0 && <p className="text-sm text-black/50">Belum ada data margin produk.</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sub-Metrics (Inventory & Users) */}
       <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Statistik Lanjutan</h3>

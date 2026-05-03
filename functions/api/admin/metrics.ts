@@ -1,9 +1,13 @@
+import { ensureCommerceSchema, expirePendingOrders } from '../_commerce';
+
 export async function onRequestGet(context: any) {
   const { env, request } = context;
   const url = new URL(request.url);
   const timeline = url.searchParams.get('timeline') || 'all'; // 'today', 'month', 'all'
 
   try {
+    await ensureCommerceSchema(env);
+    await expirePendingOrders(env);
     let dateFilter = '';
     let userDateFilter = '';
     
@@ -25,8 +29,41 @@ export async function onRequestGet(context: any) {
     `).all();
     
     const { results: usersCount } = await env.MEYYA_DB.prepare(`SELECT count(*) as total FROM users${userDateFilter}`).all();
-    const { results: productsCount } = await env.MEYYA_DB.prepare(`SELECT count(*) as total FROM products`).all();
-    const { results: categoriesCount } = await env.MEYYA_DB.prepare(`SELECT count(*) as total FROM categories`).all();
+    const { results: productsCount } = await env.MEYYA_DB.prepare(`SELECT count(*) as total FROM products WHERE deleted_at IS NULL`).all();
+    const { results: categoriesCount } = await env.MEYYA_DB.prepare(`SELECT count(*) as total FROM categories WHERE deleted_at IS NULL`).all();
+    const { results: lowStockProducts } = await env.MEYYA_DB.prepare(`
+      SELECT id, name, stock, low_stock_threshold
+      FROM products
+      WHERE deleted_at IS NULL AND is_active = 1 AND is_preorder != 1 AND stock <= COALESCE(low_stock_threshold, 5)
+      ORDER BY stock ASC, name ASC
+      LIMIT 10
+    `).all();
+    const { results: productMargins } = await env.MEYYA_DB.prepare(`
+      SELECT oi.product_id, oi.product_name,
+        SUM(oi.quantity) AS units_sold,
+        SUM(oi.price_at_purchase * oi.quantity) AS revenue,
+        SUM((oi.price_at_purchase - COALESCE(oi.hpp_at_purchase, oi.price_at_purchase * 0.7)) * oi.quantity) AS profit
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.status IN ('PAID', 'PROCESSING', 'SHIPPED', 'COMPLETED', 'SELESAI')
+      GROUP BY oi.product_id, oi.product_name
+      ORDER BY profit DESC
+      LIMIT 8
+    `).all();
+    const { results: categoryMargins } = await env.MEYYA_DB.prepare(`
+      SELECT c.name AS category_name,
+        SUM(oi.quantity) AS units_sold,
+        SUM(oi.price_at_purchase * oi.quantity) AS revenue,
+        SUM((oi.price_at_purchase - COALESCE(oi.hpp_at_purchase, oi.price_at_purchase * 0.7)) * oi.quantity) AS profit
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      JOIN products p ON p.id = oi.product_id
+      JOIN categories c ON c.id = p.category_id
+      WHERE o.status IN ('PAID', 'PROCESSING', 'SHIPPED', 'COMPLETED', 'SELESAI')
+      GROUP BY c.id, c.name
+      ORDER BY profit DESC
+      LIMIT 8
+    `).all();
 
     const validOrders = orders.filter((o: any) => o.status === 'PAID' || o.status === 'SHIPPED' || o.status === 'COMPLETED' || o.status === 'SELESAI' || o.status === 'PROCESSING');
 
@@ -44,6 +81,9 @@ export async function onRequestGet(context: any) {
       totalUsers: usersCount[0]?.total || 0,
       totalProducts: productsCount[0]?.total || 0,
       totalCategories: categoriesCount[0]?.total || 0,
+      lowStockProducts,
+      productMargins,
+      categoryMargins,
       rawOrders: orders // to help with sparkline charts
     }), {
       headers: { 'Content-Type': 'application/json' },

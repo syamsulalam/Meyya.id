@@ -40,16 +40,28 @@ interface ToastMessage {
   type?: 'success' | 'info' | 'error';
 }
 
+interface ConfirmDialog {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: 'default' | 'danger';
+  onConfirm: () => void | Promise<void>;
+}
+
 interface AppState {
   cart: CartItem[];
   wishlist: number[];
   recentlyViewed: number[];
   toasts: ToastMessage[];
+  confirmDialog: ConfirmDialog | null;
   user: { id: string; role: 'customer' | 'admin'; name?: string; email?: string } | null;
   globalColors: ColorDefinition[];
   savedAddresses: SavedAddress[];
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   removeToast: (id: string) => void;
+  showConfirm: (dialog: ConfirmDialog) => void;
+  hideConfirm: () => void;
   addGlobalColor: (color: ColorDefinition) => void;
   addToCart: (item: CartItem) => void;
   decreaseQuantity: (index: number) => void;
@@ -71,6 +83,7 @@ export const useStore = create<AppState>()(
       wishlist: [],
       recentlyViewed: [],
       toasts: [],
+      confirmDialog: null,
       user: null,
       savedAddresses: [],
       globalColors: [
@@ -83,6 +96,8 @@ export const useStore = create<AppState>()(
       savedAddress: [],
       addToast: (msg, type) => set(s => ({ toasts: [...s.toasts, {id: Math.random()+'', message: msg, type: type || 'info'}] })),
       removeToast: (id) => set(s => ({ toasts: s.toasts.filter(t => t.id !== id)})),
+      showConfirm: (dialog) => set({ confirmDialog: dialog }),
+      hideConfirm: () => set({ confirmDialog: null }),
       addSavedAddress: (address) => set((state) => ({
         savedAddresses: [...state.savedAddresses, { ...address, id: Math.random().toString(36).substr(2, 9) }]
       })),
@@ -138,6 +153,14 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'meyya-storage',
+      partialize: (state) => ({
+        cart: state.cart,
+        wishlist: state.wishlist,
+        recentlyViewed: state.recentlyViewed,
+        user: state.user,
+        globalColors: state.globalColors,
+        savedAddresses: state.savedAddresses,
+      }),
     }
   )
 );

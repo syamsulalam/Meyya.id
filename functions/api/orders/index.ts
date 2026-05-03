@@ -1,3 +1,5 @@
+import { auditLog, cancelOrderAndReleaseReservations, ensureCommerceSchema, expirePendingOrders } from '../_commerce';
+
 export async function onRequestPost(context: any) {
   const { env, request, data } = context;
   const clerk_id = data?.clerkId;
@@ -7,6 +9,8 @@ export async function onRequestPost(context: any) {
   }
 
   try {
+    await ensureCommerceSchema(env);
+    await expirePendingOrders(env);
     const body = await request.json();
     const { 
       address_snapshot, 
@@ -34,12 +38,13 @@ export async function onRequestPost(context: any) {
       return new Response(JSON.stringify({ error: 'Payment method is not available' }), { status: 400 });
     }
 
-    const paymentSettings = await env.MEYYA_DB.prepare('SELECT transfer_admin_fee FROM payment_settings WHERE id = 1').first();
+    const paymentSettings = await env.MEYYA_DB.prepare('SELECT transfer_admin_fee, payment_expiry_minutes FROM payment_settings WHERE id = 1').first();
     const finalAdminFee = Number(paymentSettings?.transfer_admin_fee || 0);
+    const expiryMinutes = Number(paymentSettings?.payment_expiry_minutes || 1440);
 
     const productIds = items.map((i: any) => i.product_id);
     const placeholders = productIds.map(() => '?').join(',');
-    const productsRes = await env.MEYYA_DB.prepare(`SELECT id, base_price, production_cost, is_active, is_preorder, stock FROM products WHERE id IN (${placeholders})`).bind(...productIds).all();
+    const productsRes = await env.MEYYA_DB.prepare(`SELECT id, base_price, production_cost, is_active, is_preorder, stock, deleted_at FROM products WHERE id IN (${placeholders})`).bind(...productIds).all();
     const dbProducts = productsRes.results;
 
     let calculatedSubtotal = 0;
@@ -53,7 +58,7 @@ export async function onRequestPost(context: any) {
       if (!dbProd) {
         return new Response(JSON.stringify({ error: `Product ${item.product_name} not found` }), { status: 400 });
       }
-      if (dbProd.is_active !== 1) {
+      if (dbProd.is_active !== 1 || dbProd.deleted_at) {
         return new Response(JSON.stringify({ error: `Product ${item.product_name} is no longer available` }), { status: 400 });
       }
       if (dbProd.is_preorder !== 1 && dbProd.stock < item.quantity) {
@@ -87,7 +92,9 @@ export async function onRequestPost(context: any) {
                           (!voucher.min_purchase || calculatedSubtotal >= voucher.min_purchase);
                           
             if (valid) {
-                 // role check can be simple string match or handled later
+                 if (voucher.target_clerk_id && voucher.target_clerk_id !== clerk_id) {
+                     return new Response(JSON.stringify({ error: `Voucher ${voucher_code} is not available for this account` }), { status: 400 });
+                 }
                  if (voucher.discount_type === 'FIXED') {
                      finalDiscountAmount = voucher.discount_value;
                  } else if (voucher.discount_type === 'PERCENTAGE') {
@@ -110,13 +117,14 @@ export async function onRequestPost(context: any) {
 
     const orderId = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const total_paid = calculatedSubtotal + finalShippingCost + finalAdminFee + finalOrderBump + unique_code - finalDiscountAmount;
+    const paymentExpiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000).toISOString();
 
     await env.MEYYA_DB.prepare(`
-      INSERT INTO orders (id, clerk_id, address_snapshot, status, payment_method, subtotal, shipping_cost, admin_fee, order_bump, unique_code, discount_amount, total_paid, voucher_code, note)
-      VALUES (?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (id, clerk_id, address_snapshot, status, payment_method, subtotal, shipping_cost, admin_fee, order_bump, unique_code, discount_amount, total_paid, voucher_code, note, payment_expires_at)
+      VALUES (?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       orderId, clerk_id, address_snapshot, payment_method, 
-      calculatedSubtotal, finalShippingCost, finalAdminFee, finalOrderBump, unique_code, finalDiscountAmount, total_paid, voucher_code || null, note || null
+      calculatedSubtotal, finalShippingCost, finalAdminFee, finalOrderBump, unique_code, finalDiscountAmount, total_paid, voucher_code || null, note || null, paymentExpiresAt
     ).run();
 
     // Insert order items
@@ -131,6 +139,43 @@ export async function onRequestPost(context: any) {
 
     await env.MEYYA_DB.batch(statements);
 
+    const reservationStatements: any[] = [];
+    const stockStatements: any[] = [];
+    const movementStatements: any[] = [];
+    for (const item of items) {
+      const dbProd = dbProducts.find((p: any) => p.id === item.product_id);
+      if (dbProd?.is_preorder === 1) continue;
+      stockStatements.push(
+        env.MEYYA_DB.prepare("UPDATE products SET stock = stock - ?, last_stock_update = CURRENT_TIMESTAMP WHERE id = ? AND stock >= ?")
+          .bind(item.quantity, item.product_id, item.quantity)
+      );
+      reservationStatements.push(
+        env.MEYYA_DB.prepare("INSERT INTO inventory_reservations (order_id, product_id, quantity, expires_at) VALUES (?, ?, ?, ?)")
+          .bind(orderId, item.product_id, item.quantity, paymentExpiresAt)
+      );
+      movementStatements.push(
+        env.MEYYA_DB.prepare("INSERT INTO stock_movements (product_id, order_id, change_qty, reason, note) VALUES (?, ?, ?, 'RESERVED', ?)")
+          .bind(item.product_id, orderId, -item.quantity, 'Reserved for pending payment')
+      );
+    }
+
+    if (stockStatements.length > 0) {
+      const stockResults = await env.MEYYA_DB.batch(stockStatements);
+      if (stockResults.some((result: any) => result.meta?.changes === 0)) {
+        const restoreStatements = items
+          .filter((item: any) => {
+            const dbProd = dbProducts.find((p: any) => p.id === item.product_id);
+            return dbProd?.is_preorder !== 1;
+          })
+          .filter((_: any, index: number) => stockResults[index]?.meta?.changes > 0)
+          .map((item: any) => env.MEYYA_DB.prepare("UPDATE products SET stock = stock + ?, last_stock_update = CURRENT_TIMESTAMP WHERE id = ?").bind(item.quantity, item.product_id));
+        if (restoreStatements.length > 0) await env.MEYYA_DB.batch(restoreStatements);
+        await env.MEYYA_DB.prepare("UPDATE orders SET status = 'CANCELLED' WHERE id = ?").bind(orderId).run();
+        return new Response(JSON.stringify({ error: 'Some items are no longer available. Please refresh your cart.' }), { status: 409 });
+      }
+      await env.MEYYA_DB.batch([...reservationStatements, ...movementStatements]);
+    }
+
     // If voucher code is used, record it in voucher_usages and increment used_count
     if (voucher_code) {
         await env.MEYYA_DB.batch([
@@ -138,6 +183,8 @@ export async function onRequestPost(context: any) {
             env.MEYYA_DB.prepare(`UPDATE vouchers SET used_count = used_count + 1 WHERE code = ?`).bind(voucher_code)
         ]);
     }
+
+    await auditLog(env, clerk_id, 'CREATE_ORDER', 'order', orderId, { total_paid, item_count: items.length });
 
     return new Response(JSON.stringify({ message: 'Order created', orderId: orderId }), {
       headers: { 'Content-Type': 'application/json' },
@@ -206,6 +253,8 @@ export async function onRequestGet(context: any) {
     if (!clerk_id) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
     try {
+        await ensureCommerceSchema(env);
+        await expirePendingOrders(env);
         const query = 'SELECT * FROM orders WHERE clerk_id = ? ORDER BY created_at DESC';
         const stmt = env.MEYYA_DB.prepare(query).bind(clerk_id);
         const { results } = await stmt.all();

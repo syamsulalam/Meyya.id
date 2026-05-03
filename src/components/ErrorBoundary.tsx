@@ -9,17 +9,19 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
+  copied: boolean;
 }
 
 export default class ErrorBoundary extends React.Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
-    errorInfo: null
+    errorInfo: null,
+    copied: false
   };
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null };
+    return { hasError: true, error, errorInfo: null, copied: false };
   }
 
   public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -40,13 +42,15 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           <button 
             onClick={() => {
               const errorDetails = `Error: ${this.state.error?.toString()}\n\nStack:\n${this.state.errorInfo?.componentStack}`;
-              alert('Error details:\n\n' + errorDetails);
               console.log(errorDetails);
+              void navigator.clipboard?.writeText(errorDetails);
+              // @ts-ignore
+              this.setState({ copied: true });
             }}
             className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
           >
             <Bug className="h-4 w-4" />
-            Lapor Bug (Lihat Detail Error)
+            {this.state.copied ? 'Detail Error Disalin' : 'Lapor Bug'}
           </button>
           
           <div className="mt-8 text-left bg-red-50 text-red-900 p-4 rounded-lg w-full max-w-2xl overflow-auto text-sm font-mono border border-red-200">

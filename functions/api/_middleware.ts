@@ -13,10 +13,12 @@ export async function onRequest(context: any) {
   
   const isUserRoute = url.pathname.startsWith('/api/user/');
   const isOrdersRoute = url.pathname.startsWith('/api/orders');
+  const isReviewRoute = url.pathname.startsWith('/api/reviews');
+  const isReturnRoute = url.pathname.startsWith('/api/returns');
 
   if (url.pathname.startsWith('/api/webhooks/')) return next();
 
-  if (isAdminRoute || isMutationProductRoute || isUploadRoute || isUserRoute || isOrdersRoute) {
+  if (isAdminRoute || isMutationProductRoute || isUploadRoute || isUserRoute || isOrdersRoute || isReviewRoute || isReturnRoute) {
     if (!env.CLERK_SECRET_KEY) {
       console.error('CLERK_SECRET_KEY is not configured for protected API routes');
       return jsonResponse({

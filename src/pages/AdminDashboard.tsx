@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { Settings, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck } from 'lucide-react';
+import { Settings, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck, ClipboardList } from 'lucide-react';
 import AdminMetricsPanel from '../components/admin/AdminMetricsPanel';
 import AdminProductForm from '../components/admin/AdminProductForm';
 import AdminCategoryManager from '../components/admin/AdminCategoryManager';
@@ -10,6 +10,7 @@ import AdminVoucherManager from '../components/admin/AdminVoucherManager';
 import AdminMarketingPanel from '../components/admin/AdminMarketingPanel';
 import AdminPaymentSettings from '../components/admin/AdminPaymentSettings';
 import AdminShippingSettings from '../components/admin/AdminShippingSettings';
+import AdminOrderManager from '../components/admin/AdminOrderManager';
 import Tooltip from '../components/Tooltip';
 import { useUser } from '@clerk/react';
 
@@ -18,7 +19,7 @@ export default function AdminDashboard() {
   const { user: clerkUser, isLoaded } = useUser();
   const navigate = useNavigate();
   
-  type AdminTab = 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'payment' | 'shipping';
+  type AdminTab = 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'payment' | 'shipping' | 'orders';
 
   const [activeTab, setActiveTabState] = useState<AdminTab>(() => {
     return (localStorage.getItem('adminActiveTab') as any) || 'marketing';
@@ -138,6 +139,18 @@ export default function AdminDashboard() {
                     <CreditCard size={20} />
                   </button>
                 </Tooltip>
+                <Tooltip content="Operasional Toko" position="right">
+                  <button
+                    onClick={() => setActiveTab('orders')}
+                    className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
+                      activeTab === 'orders'
+                        ? 'bg-ink text-white shadow-md scale-110'
+                        : 'text-gray-600 hover:bg-black/5 hover:scale-110'
+                    }`}
+                  >
+                    <ClipboardList size={20} />
+                  </button>
+                </Tooltip>
                 <Tooltip content="Pengiriman" position="right">
                   <button
                     onClick={() => setActiveTab('shipping')}
@@ -162,6 +175,7 @@ export default function AdminDashboard() {
           {activeTab === 'produk' && <AdminProductForm />}
           {activeTab === 'voucher' && <AdminVoucherManager />}
           {activeTab === 'payment' && <AdminPaymentSettings />}
+          {activeTab === 'orders' && <AdminOrderManager />}
           {activeTab === 'shipping' && <AdminShippingSettings />}
         </div>
       </div>

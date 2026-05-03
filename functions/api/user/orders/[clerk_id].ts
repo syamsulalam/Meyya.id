@@ -1,3 +1,5 @@
+import { ensureCommerceSchema, expirePendingOrders } from '../../_commerce';
+
 export async function onRequestGet(context: any) {
   const { env, params, data } = context;
   const clerk_id = params.clerk_id;
@@ -6,6 +8,8 @@ export async function onRequestGet(context: any) {
   if (!reqClerkId || clerk_id !== reqClerkId) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
 
   try {
+    await ensureCommerceSchema(env);
+    await expirePendingOrders(env);
     const { results: orders } = await env.MEYYA_DB.prepare(
       `SELECT * FROM orders WHERE clerk_id = ? ORDER BY created_at DESC`
     ).bind(clerk_id).all();

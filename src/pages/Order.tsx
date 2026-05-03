@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import useSWR from 'swr';
 import { CheckCircle2, Package, Copy, ArrowRight, Truck } from 'lucide-react';
 import { useStore } from '../store';
 import { useAuthFetcher } from '../hooks/useAuthFetch';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -11,6 +12,9 @@ export default function Order() {
   const { id } = useParams();
   const { addToast } = useStore();
   const authFetcher = useAuthFetcher();
+  const authFetch = useAuthFetch();
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
   
   const { data: order, error, isLoading } = useSWR(id ? `/api/orders/${id}` : null, authFetcher);
   const { data: paymentOptions } = useSWR('/api/payment/options', fetcher);
@@ -25,9 +29,45 @@ export default function Order() {
 
   const isTransfer = order.payment_method === 'TRANSFER' && (order.status === 'PENDING' || order.status === 'pending');
   const isPaid = order.status === 'PAID' || order.status === 'PROCESSING' || order.status === 'SHIPPED' || order.status === 'COMPLETED';
+  const paymentExpired = order.payment_expires_at && new Date(order.payment_expires_at) <= new Date() && order.status === 'PENDING';
 
   const defaultBank = paymentOptions?.banks?.[0];
   const instruction = paymentOptions?.settings?.transfer_instruction || 'Verifikasi manual dilakukan dalam 1x24 jam kerja.';
+
+  const uploadPaymentProof = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadingProof(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await authFetch(`/api/orders/${id}/payment-proof`, { method: 'POST', body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal upload bukti transfer');
+      addToast('Bukti transfer berhasil diupload.', 'success');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
+  const submitReturnRequest = async (type: 'RETURN' | 'EXCHANGE') => {
+    if (!returnReason.trim()) return addToast('Isi alasan retur/exchange terlebih dahulu.', 'error');
+    try {
+      const res = await authFetch('/api/returns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: id, type, reason: returnReason })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal mengirim request');
+      setReturnReason('');
+      addToast('Request berhasil dikirim ke admin.', 'success');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 md:py-16 w-full">
@@ -44,7 +84,7 @@ export default function Order() {
         )}
 
         <h1 className="text-3xl font-heading font-light mb-2 text-ink">
-          {isPaid ? 'Pesanan Berhasil Dibayar' : 'Menunggu Pembayaran'}
+          {order.status === 'CANCELLED' ? 'Pesanan Dibatalkan' : isPaid ? 'Pesanan Berhasil Dibayar' : 'Menunggu Pembayaran'}
         </h1>
         <p className="text-sm opacity-60 mb-8 font-mono">Order ID: #{id}</p>
 
@@ -84,6 +124,22 @@ export default function Order() {
               <div className="bg-white/60 text-xs p-4 rounded-xl text-gray-600 border border-black/5 leading-relaxed">
                 {instruction}
               </div>
+              {order.payment_expires_at && (
+                <div className={`text-xs p-4 rounded-xl border ${paymentExpired ? 'bg-red-50 text-red-700 border-red-100' : 'bg-white/60 text-gray-600 border-black/5'}`}>
+                  Batas pembayaran: {new Date(order.payment_expires_at).toLocaleString('id-ID')}
+                </div>
+              )}
+              <div className="bg-white/60 border border-black/5 rounded-xl p-4">
+                <p className="text-[10px] uppercase font-semibold text-gray-500 mb-3 tracking-widest">Upload Bukti Transfer</p>
+                {order.payment_proof_url ? (
+                  <a href={order.payment_proof_url} target="_blank" rel="noreferrer" className="text-sm underline text-ink">Bukti transfer sudah diupload</a>
+                ) : (
+                  <label className="inline-flex cursor-pointer px-4 py-2 bg-ink text-white rounded-full text-xs uppercase tracking-widest font-semibold">
+                    {uploadingProof ? 'Mengupload...' : 'Pilih File'}
+                    <input type="file" accept="image/*,application/pdf" onChange={uploadPaymentProof} disabled={uploadingProof || paymentExpired} className="hidden" />
+                  </label>
+                )}
+              </div>
             </div>
             ) : (
               <div className="bg-white/70 text-sm p-5 rounded-xl text-orange-800 border border-orange-100 leading-relaxed">
@@ -96,12 +152,28 @@ export default function Order() {
             <Truck size={32} className="text-emerald-500 mb-4" />
             <h2 className="text-lg font-medium text-emerald-800 mb-2">Pesanan Diproses</h2>
             <p className="text-sm text-emerald-700/80 mb-6 max-w-sm mx-auto">Kami sedang mengemas pesanan Anda dengan penuh cinta. Anda akan menerima notifikasi saat paket dikirim.</p>
+            {order.tracking_number && (
+              <div className="bg-white/70 border border-emerald-100 rounded-xl p-4 text-sm text-emerald-800">
+                Resi {order.tracking_courier || ''}: <span className="font-mono font-semibold">{order.tracking_number}</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-left bg-orange-50/50 border border-orange-100 p-6 md:p-8 rounded-3xl mb-8 flex flex-col items-center justify-center text-center">
             <Package size={32} className="text-orange-500 mb-4" />
             <h2 className="text-lg font-medium text-orange-800 mb-2">Selesaikan Pembayaran</h2>
             <p className="text-sm text-orange-700/80 mb-6 max-w-sm mx-auto">Selesaikan pembayaran via {order.payment_method === 'QRIS' ? 'QRIS' : 'Kartu Kredit'} dan tunggu verifikasi otomatis.</p>
+          </div>
+        )}
+
+        {(order.status === 'COMPLETED' || order.status === 'SELESAI') && (
+          <div className="text-left bg-white/50 border border-black/5 rounded-3xl p-6 mb-8">
+            <h2 className="text-xs uppercase tracking-widest font-semibold mb-3">Retur / Exchange</h2>
+            <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)} rows={3} placeholder="Tuliskan alasan retur atau exchange..." className="w-full bg-white border border-black/10 rounded-xl p-3 text-sm resize-none mb-3" />
+            <div className="flex gap-2">
+              <button type="button" onClick={() => submitReturnRequest('RETURN')} className="px-4 py-2 bg-black/5 rounded-full text-xs uppercase tracking-widest font-semibold">Ajukan Retur</button>
+              <button type="button" onClick={() => submitReturnRequest('EXCHANGE')} className="px-4 py-2 bg-ink text-white rounded-full text-xs uppercase tracking-widest font-semibold">Ajukan Exchange</button>
+            </div>
           </div>
         )}
 

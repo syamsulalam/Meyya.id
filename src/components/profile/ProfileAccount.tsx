@@ -15,13 +15,15 @@ const COUNTRY_CODES = [
   { code: '+673', flag: '🇧🇳', label: 'BN' },
 ];
 
+const formatPhoneDigits = (value: string) => value.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ');
+
 export default function ProfileAccount({ user, setBlockerOpen }: { user: any, setBlockerOpen?: (open: boolean) => void }) {
   const { user: clerkUser } = useUser();
   const authFetch = useAuthFetch();
   const fetcher = useAuthFetcher();
   const { data: dbAddresses, mutate: mutateAddresses } = useSWR(user?.id ? `/api/user/addresses/${user.id}` : null, fetcher);
   const savedAddresses = Array.isArray(dbAddresses) ? dbAddresses : [];
-  const { addToast } = useStore();
+  const { addToast, showConfirm } = useStore();
   
   const [countryCode, setCountryCode] = useState('+62');
   
@@ -62,7 +64,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
             const phone = data.user.phone_wa || '';
             const cc = COUNTRY_CODES.find(c => phone.startsWith(c.code))?.code || '+62';
             setCountryCode(cc);
-            setProfilePhone(phone.replace(cc, ''));
+            setProfilePhone(formatPhoneDigits(phone.replace(cc, '')));
             setTimeout(() => setIsSaved(true), 10);
           }
         });
@@ -235,15 +237,22 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
   };
 
   const removeSavedAddress = async (id: string) => {
-    if (!confirm('Hapus alamat ini?')) return;
-    try {
-      const res = await authFetch(`/api/user/addresses/${user.id}/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Gagal menghapus');
-      mutateAddresses();
-      addToast('Alamat berhasil dihapus!', 'success');
-    } catch (e: any) {
-      addToast(e.message, 'error');
-    }
+    showConfirm({
+      title: 'Hapus Alamat',
+      message: 'Alamat ini akan dihapus dari daftar alamat pengiriman Anda.',
+      confirmLabel: 'Hapus',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await authFetch(`/api/user/addresses/${user.id}/${id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('Gagal menghapus');
+          mutateAddresses();
+          addToast('Alamat berhasil dihapus!', 'success');
+        } catch (e: any) {
+          addToast(e.message, 'error');
+        }
+      },
+    });
   };
 
   return (
@@ -328,8 +337,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                   type="tel"
                   value={profilePhone}
                   onChange={(e) => {
-                    const raw = e.target.value.replace(/\D/g, '');
-                    setProfilePhone(raw.replace(/(\d{4})(?=\d)/g, '$1 '));
+                    setProfilePhone(formatPhoneDigits(e.target.value));
                   }}
                   placeholder="Contoh: 8123 4567 890"
                   className="w-full bg-transparent border-none outline-none py-3 pl-12 pr-4 text-sm"
@@ -367,7 +375,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                      <div className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-xl shrink-0">{addr.icon}</div>
                      <div className="flex-1">
                        <h4 className="font-semibold text-ink text-sm flex items-center gap-2">{addr.label}</h4>
-                       <p className="text-sm mt-1 text-gray-800 font-medium">{addr.recipient_name} ({addr.recipient_phone})</p>
+                       <p className="text-sm mt-1 text-gray-800 font-medium">{addr.recipient_name} ({formatPhoneDigits(addr.recipient_phone || '')})</p>
                        <p className="text-xs text-gray-500 mt-1 line-clamp-3">{addr.street_address}, {addr.village_name}, {addr.district_name}, {addr.regency_name}, {addr.province_name}</p>
                      </div>
                    </div>
@@ -425,8 +433,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                   <div>
                     <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">No WA Penerima</label>
                     <input type="tel" value={addressPhone} onChange={(e) => {
-                      const raw = e.target.value.replace(/\D/g, '');
-                      setAddressPhone(raw.replace(/(\d{4})(?=\d)/g, '$1 '));
+                      setAddressPhone(formatPhoneDigits(e.target.value));
                     }} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" placeholder="Contoh: 0812 3456 7890" />
                   </div>
                 </div>

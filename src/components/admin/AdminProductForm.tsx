@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Settings, Plus, Check, Edit2, Package, X, ChevronLeft } from 'lucide-react';
+import { Upload, Settings, Plus, Check, Edit2, Package, X, ChevronLeft, Download, Trash2 } from 'lucide-react';
 import { useStore } from '../../store';
 import useSWR from 'swr';
 import { mutate } from 'swr';
@@ -29,9 +29,26 @@ const fetcher = async (url: string) => {
   return data;
 };
 
+const parseCategoryOptions = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value !== 'string') return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parseCategoryOptions(parsed);
+  } catch {
+    // Fall back to comma/newline-separated admin input.
+  }
+
+  return value.split(/[,\n;]+/).map((item) => item.trim()).filter(Boolean);
+};
+
 export default function AdminProductForm() {
   const authFetch = useAuthFetch();
-  const { globalColors, addGlobalColor, addToast } = useStore();
+  const { globalColors, addGlobalColor, addToast, showConfirm } = useStore();
   const { data: products, error, isLoading } = useSWR('/api/products', fetcher);
   const { data: dbCategories } = useSWR('/api/categories', fetcher);
   const categories = Array.isArray(dbCategories) ? dbCategories : [];
@@ -49,7 +66,12 @@ export default function AdminProductForm() {
   const AVAILABLE_SIZES = ['All Size', 'S', 'M', 'L', 'XL', 'XXL', 'Standard', 'Jumbo'];
   const [stock, setStock] = useState(0);
   const [weight, setWeight] = useState(250);
+  const [lowStockThreshold, setLowStockThreshold] = useState(5);
   const [customAttributes, setCustomAttributes] = useState<Record<string, string>>({});
+  const [metaTitle, setMetaTitle] = useState('');
+  const [metaDescription, setMetaDescription] = useState('');
+  const [canonicalSlug, setCanonicalSlug] = useState('');
+  const [ogImageUrl, setOgImageUrl] = useState('');
   
   const [hargaKainRoll, setHargaKainRoll] = useState(0);
   const [yieldKain, setYieldKain] = useState(1);
@@ -138,14 +160,21 @@ export default function AdminProductForm() {
     const sizes = Array.isArray(p.sizes) ? p.sizes.map((s: any) => s.size_name || s) : ['All Size'];
     setSelectedSizes(sizes);
     setWeight(p.weight || 250);
+    setLowStockThreshold(p.low_stock_threshold || 5);
     setHargaJual(p.base_price || 0);
     setImageUrl(p.image_url || null);
+    setMetaTitle(p.meta_title || '');
+    setMetaDescription(p.meta_description || '');
+    setCanonicalSlug(p.canonical_slug || p.slug || '');
+    setOgImageUrl(p.og_image_url || p.image_url || '');
     
     // attributes mapping
     const attrs: Record<string, string> = {};
     if (Array.isArray(p.attributes)) {
        for (const a of p.attributes) {
-          attrs[a.attribute_name] = a.attribute_value;
+          const name = String(a.attribute_name || '').trim();
+          const value = String(a.attribute_value || '').trim();
+          if (name && value) attrs[name] = value;
        }
     }
     setCustomAttributes(attrs);
@@ -196,11 +225,16 @@ export default function AdminProductForm() {
     setHargaJual(0);
     setStock(0);
     setWeight(250);
+    setLowStockThreshold(5);
     setBiayaLumpsum(0);
     setSelectedColorNames([]);
     setIsPreorder(false);
     setSelectedSizes(['All Size']);
     setImageUrl(null);
+    setMetaTitle('');
+    setMetaDescription('');
+    setCanonicalSlug('');
+    setOgImageUrl('');
     setCustomAttributes({});
   };
 
@@ -238,13 +272,20 @@ export default function AdminProductForm() {
         base_price: hargaJual,
         production_cost: totalCostSatuan,
         image_url: imageUrl || '', 
+        meta_title: metaTitle.trim() || productName,
+        meta_description: metaDescription.trim(),
+        canonical_slug: canonicalSlug.trim() || (slug || productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')),
+        og_image_url: ogImageUrl.trim() || imageUrl || '',
+        low_stock_threshold: lowStockThreshold,
         is_active: 1,
         is_preorder: isPreorder ? 1 : 0,
         sizes: selectedSizes,
-        attributes: Object.keys(customAttributes).map(k => ({
-           attribute_name: k,
-           attribute_value: customAttributes[k]
-        })),
+        attributes: Object.keys(customAttributes)
+          .map(k => ({
+             attribute_name: k.trim(),
+             attribute_value: String(customAttributes[k] || '').trim()
+          }))
+          .filter(attr => attr.attribute_name && attr.attribute_value),
         colors: selectedColorNames.map(name => {
           const c = globalColors.find(gc => gc.name === name);
           return { color_name: name, hex_code: c?.hex || '#000000' }
@@ -270,6 +311,40 @@ export default function AdminProductForm() {
     }
   };
 
+  const exportProducts = () => {
+    const productRows = Array.isArray(products) ? products : [];
+    const rows = [
+      ['id', 'name', 'slug', 'category', 'price', 'stock', 'weight', 'preorder', 'active'],
+      ...productRows.map((p: any) => [p.id, p.name, p.slug, p.category_name, p.base_price, p.stock, p.weight, p.is_preorder, p.is_active])
+    ];
+    const csv = rows.map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `meyya-products-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const deleteProduct = (productId: number) => {
+    showConfirm({
+      title: 'Hapus Produk',
+      message: 'Produk akan diarsipkan dan tidak tampil di katalog. Histori order tetap aman.',
+      confirmLabel: 'Hapus',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await authFetch(`/api/products/${productId}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('Gagal menghapus produk');
+          mutate('/api/products');
+          addToast('Produk berhasil diarsipkan', 'success');
+        } catch (error: any) {
+          addToast(error.message, 'error');
+        }
+      },
+    });
+  };
+
   return (
     <div>
       {/* Product List */}
@@ -280,11 +355,17 @@ export default function AdminProductForm() {
           <h2 className="text-2xl font-light font-heading text-ink">Manajemen Produk</h2>
           <p className="text-sm opacity-60">Kelola katalog produk e-commerce Anda.</p>
         </div>
-        <button 
+        <button
           onClick={() => setSubTab('form')}
           className="bg-ink text-white px-5 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/80 transition-colors shadow-m flex items-center gap-2"
         >
           <Plus size={16} /> Tambah Produk
+        </button>
+        <button
+          onClick={exportProducts}
+          className="bg-white border border-black/10 text-ink px-5 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/5 transition-colors shadow-m flex items-center gap-2"
+        >
+          <Download size={16} /> Export
         </button>
       </div>
 
@@ -317,6 +398,9 @@ export default function AdminProductForm() {
                 <td className="py-4">
                    <button onClick={() => handleEdit(p)} className="text-black/60 hover:text-ink flex items-center gap-1 font-medium bg-white px-3 py-1.5 rounded-lg border border-black/10 transition-colors">
                      <Edit2 size={14} /> Edit
+                   </button>
+                   <button onClick={() => deleteProduct(p.id)} className="text-red-500 hover:text-red-700 ml-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 transition-colors">
+                     <Trash2 size={14} />
                    </button>
                 </td>
               </tr>
@@ -386,9 +470,9 @@ export default function AdminProductForm() {
         let catAttrs: any[] = [];
         if (currentCat && Array.isArray(currentCat.attributes)) {
            catAttrs = currentCat.attributes.map((a: any) => ({
-             name: a.name,
-             options: typeof a.options === 'string' ? JSON.parse(a.options) : (Array.isArray(a.options) ? a.options : [])
-           }));
+             name: String(a.name || '').trim(),
+             options: parseCategoryOptions(a.options)
+           })).filter((attr: any) => attr.name && attr.options.length > 0);
         }
 
         return (
@@ -449,6 +533,11 @@ export default function AdminProductForm() {
                  <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Berat / Gram</label>
                  <input type="number" value={weight} onChange={e => setWeight(Number(e.target.value))} placeholder="250" className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm font-mono" />
               </div>
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Low Stock Alert</label>
+              <input type="number" value={lowStockThreshold} onChange={e => setLowStockThreshold(Number(e.target.value || 0))} placeholder="5" className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm font-mono" />
+              <p className="text-[10px] opacity-50 mt-1">Produk masuk alert dashboard jika stok sama/di bawah angka ini.</p>
             </div>
 
             {catAttrs.length > 0 && (
@@ -545,6 +634,28 @@ export default function AdminProductForm() {
             <div className="md:col-span-2">
                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Deskripsi Produk</label>
                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 resize-none text-sm"></textarea>
+            </div>
+
+            <div className="md:col-span-2 bg-white/40 p-5 rounded-2xl border border-black/5 space-y-4">
+              <h4 className="text-xs uppercase tracking-widest font-semibold opacity-60">SEO Produk</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2">Meta Title</label>
+                  <input type="text" value={metaTitle} onChange={e => setMetaTitle(e.target.value)} placeholder={productName || 'Judul SEO'} className="w-full bg-white border border-black/10 rounded-xl py-2 px-3 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2">Canonical Slug</label>
+                  <input type="text" value={canonicalSlug} onChange={e => setCanonicalSlug(e.target.value)} placeholder={slug || 'slug-produk'} className="w-full bg-white border border-black/10 rounded-xl py-2 px-3 text-sm" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2">Meta Description</label>
+                  <textarea value={metaDescription} onChange={e => setMetaDescription(e.target.value)} rows={2} className="w-full bg-white border border-black/10 rounded-xl py-2 px-3 text-sm resize-none" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2">Open Graph Image URL</label>
+                  <input type="text" value={ogImageUrl} onChange={e => setOgImageUrl(e.target.value)} placeholder={imageUrl || 'https://...'} className="w-full bg-white border border-black/10 rounded-xl py-2 px-3 text-sm" />
+                </div>
+              </div>
             </div>
             
           </div>

@@ -3,11 +3,13 @@ import { Search, ChevronLeft, Calendar, FileText, ShoppingBag, ArrowUpRight, Awa
 import useSWR from 'swr';
 import { useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
+import { useStore } from '../../store';
 
 export default function AdminCRMManager() {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const fetcher = useAuthFetcher();
+  const { addToast } = useStore();
   const { isLoaded, isSignedIn } = useAuth();
   const authReady = isLoaded && isSignedIn;
 
@@ -94,7 +96,7 @@ export default function AdminCRMManager() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => alert('Kupon personal belum tersedia. Gunakan tab Voucher untuk membuat promo umum.')} className="px-6 py-2 bg-white border border-black/10 rounded-full text-xs font-semibold hover:bg-black/5 transition-colors uppercase tracking-widest">
+            <button onClick={() => addToast('Kupon personal belum tersedia. Gunakan tab Voucher untuk membuat promo umum.', 'info')} className="px-6 py-2 bg-white border border-black/10 rounded-full text-xs font-semibold hover:bg-black/5 transition-colors uppercase tracking-widest">
               Buat Kupon
             </button>
             <button onClick={() => window.location.href = `mailto:${selectedUser.email || ''}`} className="px-6 py-2 bg-ink text-white rounded-full text-xs font-semibold hover:bg-black/80 transition-colors uppercase tracking-widest">

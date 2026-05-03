@@ -1,9 +1,13 @@
+import { ensureCommerceSchema, expirePendingOrders } from '../_commerce';
+
 export async function onRequestGet(context: any) {
   const { env, params, data } = context;
   const id = params.id;
   const clerkId = data?.clerkId;
 
   try {
+    await ensureCommerceSchema(env);
+    await expirePendingOrders(env);
     const order = await env.MEYYA_DB.prepare('SELECT * FROM orders WHERE id = ?').bind(id).first();
     
     if (!order) {

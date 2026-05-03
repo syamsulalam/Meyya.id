@@ -2,6 +2,43 @@ import React, { useState } from 'react';
 import { Plus, Trash2, Tag, Upload, Edit, X, Check } from 'lucide-react';
 import useSWR, { mutate } from 'swr';
 import { useAuthFetch } from '../../hooks/useAuthFetch';
+import { useStore } from '../../store';
+
+type CategoryAttribute = { name: string; options: string[] };
+
+const parseAttributeOptions = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value !== 'string') return [];
+
+  return value
+    .split(/[,\n;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const parseStoredOptions = (value: unknown): string[] => {
+  if (Array.isArray(value)) return parseAttributeOptions(value);
+  if (typeof value !== 'string') return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return parseAttributeOptions(parsed);
+  } catch {
+    return parseAttributeOptions(value);
+  }
+};
+
+const sanitizeAttributes = (attributes: CategoryAttribute[]) => {
+  return attributes
+    .map((attr) => ({
+      name: attr.name.trim(),
+      options: parseAttributeOptions(attr.options),
+    }))
+    .filter((attr) => attr.name && attr.options.length > 0);
+};
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -29,20 +66,21 @@ const fetcher = async (url: string) => {
 
 export default function AdminCategoryManager() {
   const authFetch = useAuthFetch();
+  const { addToast, showConfirm } = useStore();
   const { data: categories, error } = useSWR('/api/categories', fetcher);
   
   const [newCat, setNewCat] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [newHasColors, setNewHasColors] = useState(false);
   const [newHasSizes, setNewHasSizes] = useState(false);
-  const [newAttributes, setNewAttributes] = useState<{name: string, options: string[]}[]>([]);
+  const [newAttributes, setNewAttributes] = useState<CategoryAttribute[]>([]);
   
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
   const [editHasColors, setEditHasColors] = useState(false);
   const [editHasSizes, setEditHasSizes] = useState(false);
-  const [editAttributes, setEditAttributes] = useState<{name: string, options: string[]}[]>([]);
+  const [editAttributes, setEditAttributes] = useState<CategoryAttribute[]>([]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
     const file = e.target.files?.[0];
@@ -72,11 +110,11 @@ export default function AdminCategoryManager() {
             setPreviewUrl(data.url);
           }
         } else {
-          alert('Gagal mengupload gambar');
+          addToast('Gagal mengupload gambar', 'error');
         }
       } catch (err) {
         console.error(err);
-        alert('Terjadi kesalahan saat upload gambar');
+        addToast('Terjadi kesalahan saat upload gambar', 'error');
       }
     }
   };
@@ -95,7 +133,7 @@ export default function AdminCategoryManager() {
           image_url: previewUrl || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&auto=format&fit=crop&q=60',
           has_colors: newHasColors,
           has_sizes: newHasSizes,
-          attributes: newAttributes
+          attributes: sanitizeAttributes(newAttributes)
         })
       });
       mutate('/api/categories');
@@ -104,19 +142,30 @@ export default function AdminCategoryManager() {
       setNewHasColors(false);
       setNewHasSizes(false);
       setNewAttributes([]);
-    } catch (e) {
+      addToast('Kategori berhasil ditambahkan', 'success');
+    } catch (e: any) {
       console.error(e);
+      addToast(e.message || 'Gagal menambahkan kategori', 'error');
     }
   };
 
   const handleDelete = async (id: number) => {
-    try {
-      if (!confirm('Hapus kategori ini?')) return;
-      await authFetch(`/api/categories/${id}`, { method: 'DELETE' });
-      mutate('/api/categories');
-    } catch (e) {
-      console.error(e);
-    }
+    showConfirm({
+      title: 'Hapus Kategori',
+      message: 'Kategori ini akan dihapus dari daftar. Produk yang terhubung bisa terdampak jika masih memakai kategori ini.',
+      confirmLabel: 'Hapus',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          await authFetch(`/api/categories/${id}`, { method: 'DELETE' });
+          mutate('/api/categories');
+          addToast('Kategori berhasil dihapus', 'success');
+        } catch (e: any) {
+          console.error(e);
+          addToast(e.message || 'Gagal menghapus kategori', 'error');
+        }
+      },
+    });
   };
 
   const startEdit = (cat: any) => {
@@ -130,11 +179,11 @@ export default function AdminCategoryManager() {
     let parsedAttrs: any = [];
     if (Array.isArray(cat.attributes)) {
        parsedAttrs = cat.attributes.map((a: any) => ({
-         name: a.name,
-         options: typeof a.options === 'string' ? JSON.parse(a.options) : (Array.isArray(a.options) ? a.options : [])
+         name: String(a.name || ''),
+         options: parseStoredOptions(a.options)
        }));
     }
-    setEditAttributes(parsedAttrs);
+    setEditAttributes(sanitizeAttributes(parsedAttrs));
   };
 
   const cancelEdit = () => {
@@ -153,13 +202,15 @@ export default function AdminCategoryManager() {
           image_url: editPreviewUrl || cat.image_url,
           has_colors: editHasColors,
           has_sizes: editHasSizes,
-          attributes: editAttributes
+          attributes: sanitizeAttributes(editAttributes)
         })
       });
       mutate('/api/categories');
       setEditingId(null);
-    } catch (e) {
+      addToast('Kategori berhasil diperbarui', 'success');
+    } catch (e: any) {
       console.error(e);
+      addToast(e.message || 'Gagal memperbarui kategori', 'error');
     }
   };
 
@@ -218,9 +269,9 @@ export default function AdminCategoryManager() {
                              
                              <input type="text" value={attr.options.join(', ')} onChange={e => {
                                const newAttrs = [...editAttributes];
-                               newAttrs[idx].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                               newAttrs[idx].options = parseAttributeOptions(e.target.value);
                                setEditAttributes(newAttrs);
-                             }} placeholder="Opsi (dipisah koma)" className="flex-1 bg-white border border-black/10 rounded-lg py-1 px-2 text-xs" />
+                             }} placeholder="Opsi: Katun Jepang, Linen Premium" className="flex-1 bg-white border border-black/10 rounded-lg py-1 px-2 text-xs" />
                              
                              <button type="button" onClick={() => setEditAttributes(editAttributes.filter((_, i) => i !== idx))} className="text-red-500 hover:bg-black/5 p-1 rounded">
                                <Trash2 size={14} />
@@ -329,9 +380,9 @@ export default function AdminCategoryManager() {
                       
                       <input type="text" value={attr.options.join(', ')} onChange={e => {
                         const newAttrs = [...newAttributes];
-                        newAttrs[idx].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                        newAttrs[idx].options = parseAttributeOptions(e.target.value);
                         setNewAttributes(newAttrs);
-                      }} placeholder="Opsi contoh: Katun, Linen" className="flex-1 bg-white border border-black/10 rounded-lg py-1 px-2 text-xs" />
+                      }} placeholder="Opsi: Katun Jepang, Linen Premium" className="flex-1 bg-white border border-black/10 rounded-lg py-1 px-2 text-xs" />
                       
                       <button type="button" onClick={() => setNewAttributes(newAttributes.filter((_, i) => i !== idx))} className="text-red-500 hover:bg-black/5 p-1 rounded">
                         <Trash2 size={14} />

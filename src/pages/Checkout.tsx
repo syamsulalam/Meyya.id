@@ -16,6 +16,8 @@ const fetcher = async (url: string) => {
   return r.json();
 };
 
+const formatPhoneDigits = (value: string) => value.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ');
+
 export default function Checkout() {
   const { cart, clearCart, addToCart, savedAddresses, addToast } = useStore();
   const { user: clerkUser } = useUser();
@@ -25,7 +27,7 @@ export default function Checkout() {
   const d1SavedAddresses = React.useMemo(() => Array.isArray(dbAddresses) ? dbAddresses.map((a, idx) => ({
     id: String(a.id),
     recipientName: a.recipient_name,
-    phone: a.recipient_phone,
+    phone: formatPhoneDigits(a.recipient_phone || ''),
     street: a.street_address,
     village_code: a.village_code,
     village_name: a.village_name,
@@ -104,15 +106,15 @@ export default function Checkout() {
        const data = await res.json();
        
        if (!res.ok) {
-          alert('Gagal menggunakan voucher: ' + (data.error || 'Voucher tidak valid'));
+          addToast('Gagal menggunakan voucher: ' + (data.error || 'Voucher tidak valid'), 'error');
           setAppliedVoucher(null);
           return;
        }
 
        setAppliedVoucher({ code: data.code, discount: data.discount });
-       alert('Voucher berhasil diaplikasikan!');
+       addToast('Voucher berhasil diaplikasikan!', 'success');
     } catch (e: any) {
-       alert('Terjadi kesalahan jaringan.');
+       addToast('Terjadi kesalahan jaringan.', 'error');
     }
   };
 
@@ -180,7 +182,7 @@ export default function Checkout() {
       if (!selectedVill) return addToast('Pilih Kelurahan tujuan dengan lengkap', 'error');
       if (address.street.length < 5) return addToast('Detail alamat terlalu pendek', 'error');
       destinationVillageCode = selectedVill.code;
-      finalAddressSnapshot = `${address.name} (${address.phone}) - ${address.street}, ${selectedVill.name}, ${selectedDist?.name}, ${selectedReg?.name}, ${selectedProv?.name}`;
+      finalAddressSnapshot = `${address.name} (${address.phone.replace(/\s/g, '')}) - ${address.street}, ${selectedVill.name}, ${selectedDist?.name}, ${selectedReg?.name}, ${selectedProv?.name}`;
     }
 
     if (!selectedCourier) return addToast('Pilih kurir ekspedisi pengiriman', 'error');
@@ -309,7 +311,7 @@ export default function Checkout() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">No WhatsApp</label>
-                    <input required={!isAddressCollapsed} type="tel" value={address.phone} onChange={e => setAddress({...address, phone: e.target.value})} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors" />
+                    <input required={!isAddressCollapsed} type="tel" value={address.phone} onChange={e => setAddress({...address, phone: formatPhoneDigits(e.target.value)})} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors" />
                   </div>
                 </div>
 
