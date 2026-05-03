@@ -1,4 +1,5 @@
 import { createClerkClient } from '@clerk/backend';
+import { debugErrorResponse, jsonResponse } from './_debug';
 import { ensureUsersSchema, markUserAsAdmin } from './_users';
 
 export async function onRequest(context: any) {
@@ -17,26 +18,64 @@ export async function onRequest(context: any) {
   if (isAdminRoute || isMutationProductRoute || isUploadRoute || isUserRoute || isOrdersRoute) {
     if (!env.CLERK_SECRET_KEY) {
       console.error('CLERK_SECRET_KEY is not configured for protected API routes');
-      return new Response(JSON.stringify({ error: 'Authentication is not configured' }), { status: 500 });
+      return jsonResponse({
+        error: 'Authentication is not configured',
+        debug: {
+          endpoint: url.pathname,
+          phase: 'missing-clerk-secret',
+          has_clerk_secret: false,
+          has_db_binding: Boolean(env.MEYYA_DB),
+          timestamp: new Date().toISOString(),
+        }
+      }, 500);
     }
 
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized: Missing or invalid Authorization header' }), { status: 401 });
+      return jsonResponse({
+        error: 'Unauthorized: Missing or invalid Authorization header',
+        debug: {
+          endpoint: url.pathname,
+          phase: 'missing-authorization-header',
+          has_authorization_header: Boolean(authHeader),
+          timestamp: new Date().toISOString(),
+        }
+      }, 401);
     }
 
-    const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
-    const requestState = await clerkClient.authenticateRequest(request, {
-      acceptsToken: 'session_token',
-      secretKey: env.CLERK_SECRET_KEY,
-    });
+    let requestState: any;
+    try {
+      const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+      requestState = await clerkClient.authenticateRequest(request, {
+        acceptsToken: 'session_token',
+        secretKey: env.CLERK_SECRET_KEY,
+      });
+    } catch (err: any) {
+      return debugErrorResponse(err, 500, {
+        endpoint: url.pathname,
+        phase: 'clerk-authenticate-request',
+        has_clerk_secret: Boolean(env.CLERK_SECRET_KEY),
+        has_db_binding: Boolean(env.MEYYA_DB),
+        authorization_header_present: true,
+      });
+    }
 
     if (!requestState.isAuthenticated) {
       console.error('Clerk authentication failed', {
         reason: requestState.reason,
         message: requestState.message,
       });
-      return new Response(JSON.stringify({ error: requestState.message || 'Token validation failed' }), { status: 401 });
+      return jsonResponse({
+        error: requestState.message || 'Token validation failed',
+        debug: {
+          endpoint: url.pathname,
+          phase: 'clerk-request-not-authenticated',
+          reason: requestState.reason,
+          message: requestState.message,
+          token_type: requestState.tokenType,
+          timestamp: new Date().toISOString(),
+        }
+      }, 401);
     }
 
     const auth = requestState.toAuth();
@@ -44,7 +83,15 @@ export async function onRequest(context: any) {
     const payload = auth.sessionClaims;
 
     if (!clerkId) {
-      return new Response(JSON.stringify({ error: 'Invalid token structure' }), { status: 401 });
+      return jsonResponse({
+        error: 'Invalid token structure',
+        debug: {
+          endpoint: url.pathname,
+          phase: 'missing-clerk-user-id',
+          has_session_claims: Boolean(payload),
+          timestamp: new Date().toISOString(),
+        }
+      }, 401);
     }
 
     context.data = { ...context.data, clerkId };
@@ -58,13 +105,25 @@ export async function onRequest(context: any) {
         }
       }
     } catch (err) {
-      console.error('Admin authorization failed', err);
-      return new Response(JSON.stringify({ error: 'Admin authorization failed' }), { status: 500 });
+      return debugErrorResponse(err, 500, {
+        endpoint: url.pathname,
+        phase: 'admin-authorization',
+        clerk_id: clerkId,
+        has_db_binding: Boolean(env.MEYYA_DB),
+      });
     }
   }
 
   // Ensure public endpoints continue processing
-  return next();
+  try {
+    return await next();
+  } catch (err: any) {
+    return debugErrorResponse(err, 500, {
+      endpoint: url.pathname,
+      phase: 'route-handler',
+      has_db_binding: Boolean(env.MEYYA_DB),
+    });
+  }
 }
 
 async function hasAdminAccess(env: any, clerkId: string, payload: any) {
