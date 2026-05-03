@@ -1,7 +1,11 @@
+import { ensureUsersSchema } from '../_users';
+
 export async function onRequestGet(context: any) {
   const { env } = context;
 
   try {
+    await ensureUsersSchema(env);
+
     const { results: users } = await env.MEYYA_DB.prepare(`
       SELECT u.clerk_id, u.first_name, u.last_name, u.email, u.role, u.phone_wa, u.last_login_at, u.joined_at,
              COUNT(o.id) as orders,

@@ -1,4 +1,5 @@
 import { createClerkClient } from '@clerk/backend';
+import { ensureUsersSchema, markUserAsAdmin } from './_users';
 
 export async function onRequest(context: any) {
   const { request, env, next } = context;
@@ -67,6 +68,8 @@ export async function onRequest(context: any) {
 }
 
 async function hasAdminAccess(env: any, clerkId: string, payload: any) {
+  await ensureUsersSchema(env);
+
   const dbUser = await env.MEYYA_DB.prepare('SELECT role FROM users WHERE clerk_id = ?').bind(clerkId).first();
 
   if (dbUser?.role === 'admin') {
@@ -74,7 +77,7 @@ async function hasAdminAccess(env: any, clerkId: string, payload: any) {
   }
 
   if (getMetadataRole(payload) === 'admin') {
-    await markD1UserAsAdmin(env, clerkId);
+    await markUserAsAdmin(env, clerkId);
     return true;
   }
 
@@ -82,7 +85,7 @@ async function hasAdminAccess(env: any, clerkId: string, payload: any) {
   const clerkUser: any = await clerkClient.users.getUser(clerkId);
 
   if (getMetadataRole(clerkUser) === 'admin') {
-    await markD1UserAsAdmin(env, clerkId, clerkUser);
+    await markUserAsAdmin(env, clerkId, clerkUser);
     return true;
   }
 
@@ -96,18 +99,4 @@ function getMetadataRole(source: any) {
     source?.private_metadata?.role ||
     source?.metadata?.role ||
     source?.role;
-}
-
-async function markD1UserAsAdmin(env: any, clerkId: string, clerkUser?: any) {
-  const email = clerkUser?.emailAddresses?.find((emailAddress: any) => emailAddress.id === clerkUser.primaryEmailAddressId)?.emailAddress ||
-    clerkUser?.emailAddresses?.[0]?.emailAddress ||
-    '';
-  const firstName = clerkUser?.firstName || '';
-  const lastName = clerkUser?.lastName || '';
-
-  await env.MEYYA_DB.prepare(`
-    INSERT INTO users (clerk_id, email, first_name, last_name, role)
-    VALUES (?, ?, ?, ?, 'admin')
-    ON CONFLICT(clerk_id) DO UPDATE SET role = 'admin'
-  `).bind(clerkId, email, firstName, lastName).run();
 }
