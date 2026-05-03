@@ -5,10 +5,10 @@ import { useState } from 'react';
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function ProfileVouchers() {
-  const { data: dbVouchers, error, isLoading } = useSWR('/api/admin/vouchers', fetcher);
+  const { data: dbVouchers, error, isLoading } = useSWR('/api/vouchers', fetcher);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const vouchers = Array.isArray(dbVouchers) ? dbVouchers.filter((v: any) => v.isActive) : [];
+  const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
 
   const handleCopy = (code: string) => {
      navigator.clipboard.writeText(code);

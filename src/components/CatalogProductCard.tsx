@@ -39,6 +39,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
         size: "Semua Ukuran",
         quantity: 1,
         price: product.base_price,
+        weight: product.weight || 250,
         image_url: product.image_url
       });
     }
@@ -72,6 +73,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
       size: selectedSize || "Semua Ukuran",
       quantity: 1,
       price: product.base_price,
+      weight: product.weight || 250,
       image_url: product.image_url
     });
     setQuickAddStep(0);
@@ -89,6 +91,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
       size: "Semua Ukuran",
       quantity: 1,
       price: product.base_price,
+      weight: product.weight || 250,
       image_url: product.image_url
     });
     navigate('/cart');
@@ -304,6 +307,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
                                 size: cv.size,
                                 quantity: 1,
                                 price: product.base_price,
+                                weight: product.weight || 250,
                                 image_url: product.image_url
                               }); 
                             }}

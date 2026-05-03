@@ -150,8 +150,8 @@ export default function Checkout() {
             })
           });
           const data = await res.json();
-          if (data.status === 'success' && data.result) {
-            setCouriers(data.result);
+          if (data.results) {
+            setCouriers(data.results);
           }
         } catch (e) {
           console.error("Failed to load shipping");
@@ -456,18 +456,19 @@ export default function Checkout() {
                </label>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                  {[
-                   { id: 'TRANSFER', name: 'Transfer Bank', desc: 'Verifikasi Otomatis' },
-                   { id: 'QRIS', name: 'QRIS', desc: 'Bayar pakai E-Wallet (+Rp 1.000)' },
-                   { id: 'VA', name: 'Virtual Account', desc: 'BCA, BNI, Mandiri' },
-                   { id: 'CC', name: 'Kartu Kredit', desc: 'Visa, Master (+Rp 4.500)' },
+                   { id: 'TRANSFER', name: 'Transfer Bank Manual', desc: 'Sesuai untuk MVP' },
+                   { id: 'QRIS', name: 'QRIS', desc: 'Belum Tersedia' },
+                   { id: 'VA', name: 'Virtual Account', desc: 'Belum Tersedia' },
+                   { id: 'CC', name: 'Kartu Kredit', desc: 'Belum Tersedia' },
                  ].map(pm => (
-                   <label key={pm.id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${paymentMethod === pm.id ? 'bg-black/5 border-black/30 text-ink' : 'bg-white hover:bg-black/5 border-black/10 text-ink'}`}>
+                   <label key={pm.id} className={`flex items-start gap-3 p-4 rounded-xl border transition-colors ${pm.id === 'TRANSFER' ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} ${paymentMethod === pm.id ? 'bg-black/5 border-black/30 text-ink' : 'bg-white hover:bg-black/5 border-black/10 text-ink'}`}>
                       <input 
                         type="radio" 
                         className="hidden" 
                         name="payment" 
                         value={pm.id} 
-                        onChange={() => setPaymentMethod(pm.id)} 
+                        disabled={pm.id !== 'TRANSFER'}
+                        onChange={() => pm.id === 'TRANSFER' && setPaymentMethod(pm.id)} 
                       />
                       <div className={`w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${paymentMethod === pm.id ? 'border-ink' : 'border-gray-300'}`}>
                         {paymentMethod === pm.id && <div className="w-2 h-2 bg-ink rounded-full" />}
@@ -548,7 +549,7 @@ export default function Checkout() {
                   return (
                     <div key={product.id} className="flex gap-3 items-center bg-white p-2 rounded-lg border border-orange-100/50 shadow-sm">
                        <div className="w-12 h-16 bg-black/5 rounded-md overflow-hidden flex-shrink-0">
-                         <img src={product.images[0]} className="w-full h-full object-cover" />
+                         <img src={product.image_url || 'https://placehold.co/100x100?text=Produk'} className="w-full h-full object-cover" />
                        </div>
                        <div className="flex-1">
                          <p className="text-xs font-semibold text-ink line-clamp-1">{product.name}</p>
@@ -565,6 +566,7 @@ export default function Checkout() {
                               size: Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes[0] : 'Default',
                               price: product.base_price || product.price || 0,
                               quantity: 1,
+                              weight: product.weight || 250,
                               image_url: product.image_url || ''
                             });
                          }}

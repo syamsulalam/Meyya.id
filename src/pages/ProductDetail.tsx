@@ -50,6 +50,7 @@ export default function ProductDetail() {
       size: selectedSize || 'All Size',
       quantity: 1,
       price: product.base_price,
+      weight: product.weight || 250,
       image_url: product.image_url
     });
     addToast('Produk ditambahkan ke keranjang!', 'success');

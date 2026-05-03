@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { Package, Users, Tags, ArrowRight, TrendingUp, Filter, AlertCircle, RefreshCw } from 'lucide-react';
 import { useStore } from '../../store';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+import { useAuthFetcher, useAuthFetch } from '../../hooks/useAuthFetch';
 
 export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing') => void }) {
   const { addToast } = useStore();
   const [timeline, setTimeline] = useState('all');
+  const fetcher = useAuthFetcher();
+  const authFetch = useAuthFetch();
   
   const { data: metrics, error: metricsError, isLoading: metricsLoading, mutate: mutateMetrics } = useSWR(`/api/admin/metrics?timeline=${timeline}`, fetcher);
   const { data: ordersData, error: ordersError, isLoading: ordersLoading, mutate: mutateOrders } = useSWR('/api/admin/orders', fetcher);
@@ -17,7 +18,7 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
 
   const confirmPayment = async (orderId: string) => {
     try {
-      await fetch(`/api/admin/orders/${orderId}/confirm`, { method: 'POST' });
+      await authFetch(`/api/admin/orders/${orderId}/confirm`, { method: 'POST' });
       addToast('Pesanan berhasil dikonfirmasi', 'success');
       mutateOrders();
     } catch (e) {
@@ -65,9 +66,8 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
           <p className="text-4xl font-light text-ink">Rp {safeMetrics.totalRevenue?.toLocaleString('id-ID') || 0}</p>
         </div>
         <div className="glass-panel p-6 rounded-3xl bg-ink/5 border border-ink/10 relative overflow-hidden">
-          <p className="text-sm uppercase tracking-widest font-semibold mb-2 text-emerald-700">Estimasi Profit</p>
+          <p className="text-sm uppercase tracking-widest font-semibold mb-2 text-emerald-700">Total Profit Bebersih</p>
           <p className="text-4xl font-light text-emerald-800">Rp {safeMetrics.totalProfit?.toLocaleString('id-ID') || 0}</p>
-          <p className="text-[10px] text-emerald-600/70 mt-2">*Berdasarkan asumsi margin 30%</p>
         </div>
       </div>
 

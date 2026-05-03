@@ -1,28 +1,7 @@
 import React, { useState } from 'react';
 import { Search, ChevronLeft, Calendar, FileText, ShoppingBag, ArrowUpRight, Copy, Award, MapPin } from 'lucide-react';
 import useSWR from 'swr';
-
-const fetcher = async (url: string) => {
-  const r = await fetch(url);
-  if (!r.ok) {
-    const text = await r.text();
-    let err;
-    try {
-      err = JSON.parse(text);
-      throw new Error(err.error || JSON.stringify(err));
-    } catch (e: any) {
-      if (e.message.includes('Unexpected token') || e instanceof SyntaxError) {
-        throw new Error(`HTTP ${r.status}: ${text}`);
-      }
-      throw e;
-    }
-  }
-  const data = await r.json();
-  if (data && !Array.isArray(data)) {
-    if (data.users && Array.isArray(data.users)) return data.users;
-  }
-  return data;
-};
+import { useAuthFetcher } from '../../hooks/useAuthFetch';
 
 const MOCK_JOURNEY = [
   { id: 1, date: '12 Juni 2026', title: 'Menggunakan voucher PAYDAY50', type: 'voucher' },
@@ -37,6 +16,7 @@ const MOCK_ORDERS = [
 
 export default function AdminCRMManager() {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const fetcher = useAuthFetcher();
 
   const { data: dbUsers, error, isLoading } = useSWR('/api/admin/users', fetcher);
   const CUSTOMERS = Array.isArray(dbUsers) ? dbUsers : [];

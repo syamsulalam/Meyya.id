@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Tag, Upload, Edit, X, Check } from 'lucide-react';
 import useSWR, { mutate } from 'swr';
+import { useAuthFetch } from '../../hooks/useAuthFetch';
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -27,6 +28,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function AdminCategoryManager() {
+  const authFetch = useAuthFetch();
   const { data: categories, error } = useSWR('/api/categories', fetcher);
   
   const [newCat, setNewCat] = useState('');
@@ -57,7 +59,7 @@ export default function AdminCategoryManager() {
       formData.append('file', file);
       
       try {
-        const res = await fetch('/api/upload', {
+        const res = await authFetch('/api/upload', {
           method: 'POST',
           body: formData
         });
@@ -84,7 +86,7 @@ export default function AdminCategoryManager() {
     if (!newCat.trim()) return;
     
     try {
-      await fetch('/api/categories', {
+      await authFetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -110,7 +112,7 @@ export default function AdminCategoryManager() {
   const handleDelete = async (id: number) => {
     try {
       if (!confirm('Hapus kategori ini?')) return;
-      await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+      await authFetch(`/api/categories/${id}`, { method: 'DELETE' });
       mutate('/api/categories');
     } catch (e) {
       console.error(e);
@@ -142,7 +144,7 @@ export default function AdminCategoryManager() {
   const saveEdit = async (cat: any) => {
     if (!editName.trim()) return;
     try {
-      await fetch(`/api/categories/${cat.id}`, {
+      await authFetch(`/api/categories/${cat.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

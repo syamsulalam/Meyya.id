@@ -3,6 +3,7 @@ import { Upload, Settings, Plus, Check, Edit2, Package, X, ChevronLeft } from 'l
 import { useStore } from '../../store';
 import useSWR from 'swr';
 import { mutate } from 'swr';
+import { useAuthFetch } from '../../hooks/useAuthFetch';
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -29,6 +30,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function AdminProductForm() {
+  const authFetch = useAuthFetch();
   const { globalColors, addGlobalColor, addToast } = useStore();
   const { data: products, error, isLoading } = useSWR('/api/products', fetcher);
   const { data: dbCategories } = useSWR('/api/categories', fetcher);
@@ -74,7 +76,7 @@ export default function AdminProductForm() {
       formData.append('file', file);
       
       try {
-        const res = await fetch('/api/upload', {
+        const res = await authFetch('/api/upload', {
           method: 'POST',
           body: formData
         });
@@ -205,7 +207,7 @@ export default function AdminProductForm() {
   const handleAddCategory = async () => {
     if (!newCatName || !newCatSlug) return addToast('Nama dan slug harus diisi', 'error');
     try {
-      const res = await fetch('/api/categories', {
+      const res = await authFetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newCatName, slug: newCatSlug, image_url: newCatImg })
@@ -252,7 +254,7 @@ export default function AdminProductForm() {
       const url = isEditing ? `/api/products/${isEditing}` : '/api/products';
       const method = isEditing ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

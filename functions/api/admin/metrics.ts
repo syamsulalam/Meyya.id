@@ -15,18 +15,23 @@ export async function onRequestGet(context: any) {
        userDateFilter = " WHERE strftime('%Y-%m', joined_at) = strftime('%Y-%m', 'now')";
     }
 
-    const { results: orders } = await env.MEYYA_DB.prepare(`SELECT status, total_paid, subtotal, shipping_cost, created_at FROM orders${dateFilter}`).all();
+    const { results: orders } = await env.MEYYA_DB.prepare(`
+      SELECT o.id, o.status, o.total_paid, o.subtotal, o.shipping_cost, o.created_at,
+      COALESCE(SUM((oi.price_at_purchase - COALESCE(oi.hpp_at_purchase, oi.price_at_purchase * 0.7)) * oi.quantity), 0) as profit
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      ${dateFilter ? dateFilter.replace('created_at', 'o.created_at') : ''}
+      GROUP BY o.id
+    `).all();
     
     const { results: usersCount } = await env.MEYYA_DB.prepare(`SELECT count(*) as total FROM users${userDateFilter}`).all();
     const { results: productsCount } = await env.MEYYA_DB.prepare(`SELECT count(*) as total FROM products`).all();
     const { results: categoriesCount } = await env.MEYYA_DB.prepare(`SELECT count(*) as total FROM categories`).all();
 
-    // In a real app we would compute COGS (HPP) to get profit. Let's assume Profit is ~30% of total_paid for mock purposes when HPP isn't available
-    const totalRevenue = orders
-      .filter((o: any) => o.status === 'PAID' || o.status === 'SHIPPED' || o.status === 'COMPLETED' || o.status === 'SELESAI' || o.status === 'PROCESSING')
-      .reduce((sum: number, o: any) => sum + (o.total_paid || 0), 0);
+    const validOrders = orders.filter((o: any) => o.status === 'PAID' || o.status === 'SHIPPED' || o.status === 'COMPLETED' || o.status === 'SELESAI' || o.status === 'PROCESSING');
 
-    const totalProfit = totalRevenue * 0.3; // 30% margin assumption
+    const totalRevenue = validOrders.reduce((sum: number, o: any) => sum + (o.total_paid || 0), 0);
+    const totalProfit = validOrders.reduce((sum: number, o: any) => sum + (o.profit || 0), 0);
 
     const totalOrders = orders.length;
     const pendingOrders = orders.filter((o: any) => o.status === 'PENDING').length;

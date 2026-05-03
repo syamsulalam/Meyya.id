@@ -22,25 +22,48 @@ export async function onRequestPost(context: any) {
       return new Response(JSON.stringify({ error: 'Missing requirements' }), { status: 400 });
     }
 
+    const productIds = items.map((i: any) => i.product_id);
+    const placeholders = productIds.map(() => '?').join(',');
+    const productsRes = await env.MEYYA_DB.prepare(`SELECT id, base_price, production_cost, status, stock FROM products WHERE id IN (${placeholders})`).bind(...productIds).all();
+    const dbProducts = productsRes.results;
+
+    let calculatedSubtotal = 0;
+    
+    for (const item of items) {
+      const dbProd = dbProducts.find((p: any) => p.id === item.product_id);
+      if (!dbProd) {
+        return new Response(JSON.stringify({ error: `Product ${item.product_name} not found` }), { status: 400 });
+      }
+      if (dbProd.status === 'inactive') {
+        return new Response(JSON.stringify({ error: `Product ${item.product_name} is no longer available` }), { status: 400 });
+      }
+      // Note: for deep stock validation per size, we'd check product_sizes. For MVP, we check overall product stock if it exists.
+      
+      // Override price and calculate subtotal
+      item.price = dbProd.base_price;
+      item.production_cost = dbProd.production_cost || 0;
+      calculatedSubtotal += (item.price * item.quantity);
+    }
+
     const orderId = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    const total_paid = subtotal + shipping_cost + admin_fee + order_bump + unique_code - discount_amount;
+    const total_paid = calculatedSubtotal + shipping_cost + admin_fee + order_bump + unique_code - discount_amount;
 
     await env.MEYYA_DB.prepare(`
       INSERT INTO orders (id, clerk_id, address_snapshot, status, payment_method, subtotal, shipping_cost, admin_fee, order_bump, unique_code, discount_amount, total_paid, voucher_code, note)
       VALUES (?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       orderId, clerk_id, address_snapshot, payment_method, 
-      subtotal, shipping_cost, admin_fee, order_bump, unique_code, discount_amount, total_paid, voucher_code || null, note || null
+      calculatedSubtotal, shipping_cost, admin_fee, order_bump, unique_code, discount_amount, total_paid, voucher_code || null, note || null
     ).run();
 
     // Insert order items
     // Since Cloudflare D1 supports batching
     const statements = items.map((item: any) => {
-      const { product_id, product_name, color, size, quantity, price } = item;
+      const { product_id, product_name, color, size, quantity, price, production_cost } = item;
       return env.MEYYA_DB.prepare(`
-        INSERT INTO order_items (order_id, product_id, product_name, color_name, size_name, quantity, price_at_purchase)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).bind(orderId, product_id, product_name, color, size, quantity, price);
+        INSERT INTO order_items (order_id, product_id, product_name, color_name, size_name, quantity, price_at_purchase, hpp_at_purchase)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(orderId, product_id, product_name, color, size, quantity, price, production_cost);
     });
 
     await env.MEYYA_DB.batch(statements);

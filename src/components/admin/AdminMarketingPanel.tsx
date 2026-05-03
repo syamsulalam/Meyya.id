@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { MessageSquare, ExternalLink, RefreshCw, Send, Users, AlertCircle, Bug } from 'lucide-react';
 import useSWR from 'swr';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+import { useAuthFetcher } from '../../hooks/useAuthFetch';
 
 export default function AdminMarketingPanel() {
+  const fetcher = useAuthFetcher();
   const { data: dbUsers, isLoading, mutate } = useSWR('/api/admin/users', fetcher);
   
   const [selectedTarget, setSelectedTarget] = useState<any | null>(null);
@@ -24,7 +24,7 @@ export default function AdminMarketingPanel() {
         { context: `Client Aktif terdaftar sejak ${new Date(u.joinDate).toLocaleDateString('id-ID')}`, tag: 'engaged', tagColor: 'bg-blue-100 text-blue-800' }
       ];
       
-      const phoneRaw = u.phone_wa || `628123456789${i}`;
+      const phoneRaw = u.phone_wa || '';
       // Clean phone number for whatsapp
       let cleanPhone = phoneRaw.replace(/\D/g, '');
       if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
@@ -151,19 +151,29 @@ export default function AdminMarketingPanel() {
                   onChange={e => setCustomMessage(e.target.value)}
                   className="flex-1 bg-white rounded-xl py-3 px-4 resize-none h-[60px] text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   placeholder="Ketik pesan..."
+                  disabled={!selectedTarget.phone}
                 />
                 <button 
                   onClick={handleSendWA}
-                  className="w-12 h-12 bg-[#00a884] text-white rounded-full flex items-center justify-center hover:bg-[#008f6f] transition-colors shrink-0 flex-col gap-0.5 shadow-sm mt-auto"
+                  disabled={!selectedTarget.phone}
+                  className={`w-12 h-12 text-white rounded-full flex items-center justify-center transition-colors shrink-0 flex-col gap-0.5 shadow-sm mt-auto ${selectedTarget.phone ? 'bg-[#00a884] hover:bg-[#008f6f]' : 'bg-gray-400 cursor-not-allowed'}`}
                 >
                   <Send size={18} className="-ml-1" />
                 </button>
               </div>
 
+              {!selectedTarget.phone && (
+                <div className="absolute top-16 right-4 bg-red-50 text-red-700 p-3 rounded-xl border border-red-200 text-xs shadow-lg max-w-[200px] z-10">
+                  <p className="font-semibold mb-1 flex items-center gap-1"><AlertCircle size={14}/> Tidak Bisa Chat</p>
+                  <p>Pelanggan ini belum mendaftarkan nomor WhatsApp.</p>
+                </div>
+              )}
+{selectedTarget.phone && (
               <div className="absolute top-16 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-black/10 text-xs shadow-lg max-w-[200px] text-gray-600 z-10">
                  <p className="font-semibold mb-1 text-ink flex items-center gap-1"><ExternalLink size={14}/> Info Penting</p>
                  <p>Tombol kirim akan membuka tab baru ke <b>web.whatsapp.com</b> atau aplikasi <b>WhatsApp Desktop</b> karena batasan iFrame browser.</p>
               </div>
+)}
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8">

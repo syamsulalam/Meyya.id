@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Tag, Trash2, Edit2, Clock, Percent, DollarSign, CheckCircle2 } from 'lucide-react';
 import useSWR, { mutate } from 'swr';
 import { useStore } from '../../store';
+import { useAuthFetcher, useAuthFetch } from '../../hooks/useAuthFetch';
 
 type VoucherType = 'PERCENTAGE' | 'FIXED' | 'FREE_SHIPPING';
 
@@ -21,29 +22,9 @@ interface Voucher {
   targetUserRole: 'ALL' | 'NEW_USER' | 'VIP'; // Simple targeting
 }
 
-const fetcher = async (url: string) => {
-  const r = await fetch(url);
-  if (!r.ok) {
-    const text = await r.text();
-    let err;
-    try {
-      err = JSON.parse(text);
-      throw new Error(err.error || JSON.stringify(err));
-    } catch (e: any) {
-      if (e.message.includes('Unexpected token') || e instanceof SyntaxError) {
-        throw new Error(`HTTP ${r.status}: ${text}`);
-      }
-      throw e;
-    }
-  }
-  const data = await r.json();
-  if (data && !Array.isArray(data)) {
-    if (data.vouchers && Array.isArray(data.vouchers)) return data.vouchers;
-  }
-  return data;
-};
-
 export default function AdminVoucherManager() {
+  const fetcher = useAuthFetcher();
+  const authFetch = useAuthFetch();
   const { data: dbVouchers, error, isLoading } = useSWR('/api/admin/vouchers', fetcher);
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
   const { addToast } = useStore();
@@ -107,7 +88,7 @@ export default function AdminVoucherManager() {
         target_user_role: formVoucher.targetUserRole || 'ALL'
       };
 
-      const res = await fetch('/api/admin/vouchers', {
+      const res = await authFetch('/api/admin/vouchers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -139,7 +120,7 @@ export default function AdminVoucherManager() {
   const handleDelete = async (code: string) => {
     if (!confirm('Hapus voucher ' + code + '?')) return;
     try {
-      const res = await fetch(`/api/admin/vouchers/${encodeURIComponent(code)}`, {
+      const res = await authFetch(`/api/admin/vouchers/${encodeURIComponent(code)}`, {
         method: 'DELETE'
       });
       if (!res.ok) throw new Error('Gagal menghapus');
