@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 import { createPortal } from 'react-dom';
-import { User, MapPin, Phone, Mail, CheckCircle2, Home, Briefcase, Building, Plus, Trash2 } from 'lucide-react';
+import { User, MapPin, Phone, Mail, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import AutoSuggest from './AutoSuggest';
 import { useBlocker } from 'react-router-dom';
 import { useStore } from '../../store';
 import { useUser } from '@clerk/react';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 
 const COUNTRY_CODES = [
   { code: '+62', flag: '🇮🇩', label: 'ID' },
@@ -18,6 +17,8 @@ const COUNTRY_CODES = [
 
 export default function ProfileAccount({ user, setBlockerOpen }: { user: any, setBlockerOpen?: (open: boolean) => void }) {
   const { user: clerkUser } = useUser();
+  const authFetch = useAuthFetch();
+  const fetcher = useAuthFetcher();
   const { data: dbAddresses, mutate: mutateAddresses } = useSWR(user?.id ? `/api/user/addresses/${user.id}` : null, fetcher);
   const savedAddresses = Array.isArray(dbAddresses) ? dbAddresses : [];
   const { addToast } = useStore();
@@ -46,15 +47,18 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
   const [isSaved, setIsSaved] = useState(true);
   const [profileName, setProfileName] = useState(user?.name || user?.fullName || '');
   const [profilePhone, setProfilePhone] = useState('');
+  const [canSyncNameToClerk, setCanSyncNameToClerk] = useState(false);
 
   // Fetch Profile Data
   useEffect(() => {
     if (user?.id) {
-      fetch(`/api/user/profile/${user.id}`)
+      authFetch(`/api/user/profile/${user.id}`)
         .then(res => res.json())
         .then(data => {
           if (data.user) {
-            setProfileName(data.user.name || user.name || user.fullName || '');
+            const d1Name = data.user.name || user.name || user.fullName || '';
+            setProfileName(d1Name);
+            setCanSyncNameToClerk(Boolean(d1Name && clerkUser && !clerkUser.firstName && !clerkUser.lastName));
             const phone = data.user.phone_wa || '';
             const cc = COUNTRY_CODES.find(c => phone.startsWith(c.code))?.code || '+62';
             setCountryCode(cc);
@@ -63,7 +67,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
           }
         });
     }
-  }, [user?.id]);
+  }, [authFetch, clerkUser, user?.id]);
 
   // Dynamic Loading from API
   useEffect(() => {
@@ -131,23 +135,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
 
   const handleSave = async () => {
     try {
-      const payload = {
-        name: profileName,
-        phone_wa: countryCode + profilePhone,
-        address: {
-          province_code: selectedProvinsi?.id,
-          province_name: selectedProvinsi?.name,
-          regency_code: selectedKota?.id,
-          regency_name: selectedKota?.name,
-          district_code: selectedKecamatan?.id,
-          district_name: selectedKecamatan?.name,
-          village_code: selectedKelurahan?.id,
-          village_name: selectedKelurahan?.name,
-          street_address: alamatDetail,
-        }
-      };
-
-      const res = await fetch(`/api/user/profile/${user.id}`, {
+      const res = await authFetch(`/api/user/profile/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: profileName, phone_wa: countryCode + profilePhone.replace(/\s/g, '') })
@@ -161,8 +149,11 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
         const lastName = nameParts.slice(1).join(' ') || '';
         try {
           await clerkUser.update({ firstName, lastName });
+          await clerkUser.reload();
+          setCanSyncNameToClerk(false);
         } catch (clerkErr) {
           console.error("Clerk sync error:", clerkErr);
+          addToast('Profil D1 tersimpan, tetapi akun login gagal disinkronkan.', 'error');
         }
       }
       
@@ -175,6 +166,24 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       addToast(e.message, 'error');
     }
   }
+
+  const handleSyncNameToClerk = async () => {
+    if (!clerkUser || !profileName.trim()) return;
+
+    try {
+      const res = await authFetch('/api/user/profile/sync-clerk', { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Gagal menyinkronkan nama');
+      }
+      await clerkUser.reload();
+      setCanSyncNameToClerk(false);
+      addToast('Nama berhasil disinkronkan ke akun login.', 'success');
+    } catch (err) {
+      console.error("Clerk name repair failed:", err);
+      addToast('Gagal menyinkronkan nama ke akun login.', 'error');
+    }
+  };
 
   const handleSaveAddress = async () => {
     if (activeStep < 5 || alamatDetail.length < 5 || !addressRecipient || !addressPhone) {
@@ -199,7 +208,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
     };
     
     try {
-      const res = await fetch(`/api/user/addresses/${user.id}`, {
+      const res = await authFetch(`/api/user/addresses/${user.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newAddr)
@@ -228,7 +237,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
   const removeSavedAddress = async (id: string) => {
     if (!confirm('Hapus alamat ini?')) return;
     try {
-      const res = await fetch(`/api/user/addresses/${user.id}/${id}`, { method: 'DELETE' });
+      const res = await authFetch(`/api/user/addresses/${user.id}/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Gagal menghapus');
       mutateAddresses();
       addToast('Alamat berhasil dihapus!', 'success');
@@ -332,6 +341,11 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
             <button type="button" onClick={handleSave} className="px-6 py-2.5 bg-ink text-white rounded-full uppercase tracking-widest text-xs hover:bg-black/80 transition-colors">
               Simpan Data Pribadi
             </button>
+            {canSyncNameToClerk && (
+              <button type="button" onClick={handleSyncNameToClerk} className="ml-3 px-6 py-2.5 bg-black/5 text-ink rounded-full uppercase tracking-widest text-xs hover:bg-black/10 transition-colors">
+                Sinkronkan Nama Login
+              </button>
+            )}
           </div>
         </div>
 

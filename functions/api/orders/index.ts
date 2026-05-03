@@ -10,12 +10,14 @@ export async function onRequestPost(context: any) {
     const body = await request.json();
     const { 
       address_snapshot, 
-      payment_method, 
-      subtotal, 
-      shipping_cost, 
-      admin_fee = 0, 
+      payment_method = 'TRANSFER',
+      destination_village_code,
+      weight,
+      courier_code,
+      courier_name,
+      courier_service,
+      shipping_price,
       order_bump = 0, 
-      discount_amount = 0, 
       voucher_code, 
       note, 
       items 
@@ -27,6 +29,13 @@ export async function onRequestPost(context: any) {
     if (!items || !items.length) {
       return new Response(JSON.stringify({ error: 'Missing requirements' }), { status: 400 });
     }
+
+    if (payment_method !== 'TRANSFER') {
+      return new Response(JSON.stringify({ error: 'Payment method is not available' }), { status: 400 });
+    }
+
+    const paymentSettings = await env.MEYYA_DB.prepare('SELECT transfer_admin_fee FROM payment_settings WHERE id = 1').first();
+    const finalAdminFee = Number(paymentSettings?.transfer_admin_fee || 0);
 
     const productIds = items.map((i: any) => i.product_id);
     const placeholders = productIds.map(() => '?').join(',');
@@ -57,6 +66,15 @@ export async function onRequestPost(context: any) {
       calculatedSubtotal += (item.price * item.quantity);
     }
 
+    const finalShippingCost = await resolveShippingCost(env, {
+      destination_village_code,
+      weight,
+      courier_code,
+      courier_name,
+      courier_service,
+      shipping_price
+    });
+
     let finalDiscountAmount = 0;
     
     if (voucher_code) {
@@ -78,7 +96,7 @@ export async function onRequestPost(context: any) {
                          finalDiscountAmount = voucher.max_discount;
                      }
                  } else if (voucher.discount_type === 'FREE_SHIPPING') {
-                     finalDiscountAmount = Math.min(shipping_cost, voucher.discount_value || shipping_cost);
+                     finalDiscountAmount = Math.min(finalShippingCost, voucher.discount_value || finalShippingCost);
                  }
             } else {
                  return new Response(JSON.stringify({ error: `Voucher ${voucher_code} is invalid or expired` }), { status: 400 });
@@ -88,10 +106,7 @@ export async function onRequestPost(context: any) {
         }
     }
 
-    // Safety checks for other costs
     const finalOrderBump = order_bump ? 29000 : 0;
-    const finalAdminFee = admin_fee || 0;
-    const finalShippingCost = shipping_cost || 0;
 
     const orderId = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const total_paid = calculatedSubtotal + finalShippingCost + finalAdminFee + finalOrderBump + unique_code - finalDiscountAmount;
@@ -135,6 +150,53 @@ export async function onRequestPost(context: any) {
       status: 500,
     });
   }
+}
+
+async function resolveShippingCost(env: any, quote: any) {
+  const weight = Number(quote.weight || 0);
+  if (!quote.destination_village_code || !weight || weight <= 0) {
+    throw new Error('Missing shipping destination or weight');
+  }
+
+  const settings = await env.MEYYA_DB.prepare('SELECT origin_village_code, active_couriers FROM shipping_settings WHERE id = 1').first();
+  if (!settings || !settings.origin_village_code) {
+    throw new Error('Shipping origin not configured');
+  }
+
+  const apiResponse = await fetch(`https://use.api.co.id/expedition/shipping-cost?origin_village_code=${settings.origin_village_code}&destination_village_code=${quote.destination_village_code}&weight=${weight}`, {
+    method: 'GET',
+    headers: { 'x-api-co-id': env.API_CO_ID_KEY || '' }
+  });
+
+  if (!apiResponse.ok) {
+    throw new Error('Failed to validate shipping cost');
+  }
+
+  const apiData = await apiResponse.json();
+  const activeCouriers = JSON.parse(settings.active_couriers || '["JNE", "SICEPAT", "JNT"]');
+  const selectedPrice = Number(quote.shipping_price || 0);
+  const selectedCode = String(quote.courier_code || '').toUpperCase();
+  const selectedName = String(quote.courier_name || '').toUpperCase();
+  const selectedService = String(quote.courier_service || '').toUpperCase();
+
+  const candidates = (apiData.results || []).filter((option: any) => {
+    const optionName = String(option.courier_name || '').toUpperCase();
+    const optionCode = String(option.courier_code || '').toUpperCase();
+    const optionService = String(option.service || option.service_name || option.courier_service || '').toUpperCase();
+    const isActive = activeCouriers.some((active: string) => optionName.includes(active.toUpperCase()));
+    if (!isActive || !option.price || option.price <= 0) return false;
+    if (selectedCode && optionCode && selectedCode !== optionCode) return false;
+    if (selectedName && optionName && selectedName !== optionName) return false;
+    if (selectedService && optionService && selectedService !== optionService) return false;
+    if (selectedPrice && Number(option.price) !== selectedPrice) return false;
+    return true;
+  });
+
+  if (candidates.length !== 1) {
+    throw new Error('Selected shipping option is no longer valid');
+  }
+
+  return Number(candidates[0].price);
 }
 
 export async function onRequestGet(context: any) {

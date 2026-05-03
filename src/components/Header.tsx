@@ -2,12 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Search, Heart, ShoppingBag, User, LayoutGrid, LogIn, LogOut, Menu, X, ChevronDown, Package, Ticket, History } from 'lucide-react';
 import { useStore } from '../store';
-import { Show, SignOutButton, useUser, UserButton } from '@clerk/react';
+import { Show, SignOutButton, useUser } from '@clerk/react';
 import CartPreviewDropdown from './CartPreviewDropdown';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 export default function Header() {
   const { cart, user: localUser } = useStore();
-  const { user: clerkUser, isLoaded } = useUser();
+  const { user: clerkUser } = useUser();
+  const authFetch = useAuthFetch();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const location = useLocation();
 
@@ -33,20 +35,18 @@ export default function Header() {
   // Sync clerkUser to D1 database silently
   useEffect(() => {
     if (clerkUser) {
-      fetch('/api/user/sync', {
+      authFetch('/api/user/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clerk_id: clerkUser.id,
           email: clerkUser.primaryEmailAddress?.emailAddress,
           first_name: clerkUser.firstName,
           last_name: clerkUser.lastName,
-          phone_wa: '', // or clerkUser.primaryPhoneNumber?.phoneNumber if configured
-          role: clerkUser.publicMetadata?.role || 'customer'
+          phone_wa: clerkUser.primaryPhoneNumber?.phoneNumber || ''
         })
       }).catch(err => console.error('Failed to sync user to D1:', err));
     }
-  }, [clerkUser]);
+  }, [authFetch, clerkUser]);
 
   return (
     <header className="sticky top-0 z-50 px-4 py-4 border-b border-white/20 bg-white/40 backdrop-blur-md">

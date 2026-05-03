@@ -14,6 +14,11 @@ export async function onRequest(context: any) {
   if (url.pathname.startsWith('/api/webhooks/')) return next();
 
   if (isAdminRoute || isMutationProductRoute || isUploadRoute || isUserRoute || isOrdersRoute) {
+    if (!env.CLERK_SECRET_KEY) {
+      console.error('CLERK_SECRET_KEY is not configured for protected API routes');
+      return new Response(JSON.stringify({ error: 'Authentication is not configured' }), { status: 500 });
+    }
+
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized: Missing or invalid Authorization header' }), { status: 401 });

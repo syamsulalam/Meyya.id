@@ -1,9 +1,9 @@
 import { Package } from 'lucide-react';
 import useSWR from 'swr';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+import { useAuthFetcher } from '../../hooks/useAuthFetch';
 
 export default function ProfileStatus({ user }: { user: any }) {
+  const fetcher = useAuthFetcher();
   const { data: dbOrders, isLoading } = useSWR(user?.id ? `/api/user/orders/${user.id}` : null, fetcher);
   const orders = Array.isArray(dbOrders) ? dbOrders : [];
 

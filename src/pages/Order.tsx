@@ -3,14 +3,16 @@ import { useParams, Link } from 'react-router-dom';
 import useSWR from 'swr';
 import { CheckCircle2, Package, Copy, ArrowRight, Truck } from 'lucide-react';
 import { useStore } from '../store';
+import { useAuthFetcher } from '../hooks/useAuthFetch';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function Order() {
   const { id } = useParams();
   const { addToast } = useStore();
+  const authFetcher = useAuthFetcher();
   
-  const { data: order, error, isLoading } = useSWR(id ? `/api/orders/${id}` : null, fetcher);
+  const { data: order, error, isLoading } = useSWR(id ? `/api/orders/${id}` : null, authFetcher);
   const { data: paymentOptions } = useSWR('/api/payment/options', fetcher);
 
   if (isLoading) {
@@ -24,7 +26,7 @@ export default function Order() {
   const isTransfer = order.payment_method === 'TRANSFER' && (order.status === 'PENDING' || order.status === 'pending');
   const isPaid = order.status === 'PAID' || order.status === 'PROCESSING' || order.status === 'SHIPPED' || order.status === 'COMPLETED';
 
-  const defaultBank = paymentOptions?.banks?.[0] || { bank_name: 'BCA', account_number: '8273 1928 321', account_holder: 'PT Alam Pintar Nusantara' };
+  const defaultBank = paymentOptions?.banks?.[0];
   const instruction = paymentOptions?.settings?.transfer_instruction || 'Verifikasi manual dilakukan dalam 1x24 jam kerja.';
 
   return (
@@ -53,6 +55,7 @@ export default function Order() {
                Selesaikan Pembayaran Anda
             </h2>
             
+            {defaultBank ? (
             <div className="space-y-6">
               <div>
                 <p className="text-[10px] uppercase font-semibold text-gray-500 mb-1 tracking-widest">Bank Tujuan ({defaultBank.bank_name})</p>
@@ -82,6 +85,11 @@ export default function Order() {
                 {instruction}
               </div>
             </div>
+            ) : (
+              <div className="bg-white/70 text-sm p-5 rounded-xl text-orange-800 border border-orange-100 leading-relaxed">
+                Rekening pembayaran belum dikonfigurasi. Hubungi admin atau customer service sebelum melakukan transfer.
+              </div>
+            )}
           </div>
         ) : isPaid ? (
           <div className="text-left bg-emerald-50/50 border border-emerald-100 p-6 md:p-8 rounded-3xl mb-8 flex flex-col items-center justify-center text-center">

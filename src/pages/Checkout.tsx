@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import { useStore } from '../store';
 import { Loader2 } from 'lucide-react';
 import { useUser } from '@clerk/react';
+import { useAuthFetch, useAuthFetcher } from '../hooks/useAuthFetch';
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -16,9 +17,11 @@ const fetcher = async (url: string) => {
 };
 
 export default function Checkout() {
-  const { cart, user, clearCart, addToCart, savedAddresses, addToast } = useStore();
+  const { cart, clearCart, addToCart, savedAddresses, addToast } = useStore();
   const { user: clerkUser } = useUser();
-  const { data: dbAddresses } = useSWR(clerkUser?.id ? `/api/user/addresses/${clerkUser.id}` : null, fetcher);
+  const authFetch = useAuthFetch();
+  const authFetcher = useAuthFetcher();
+  const { data: dbAddresses } = useSWR(clerkUser?.id ? `/api/user/addresses/${clerkUser.id}` : null, authFetcher);
   const d1SavedAddresses = React.useMemo(() => Array.isArray(dbAddresses) ? dbAddresses.map((a, idx) => ({
     id: String(a.id),
     recipientName: a.recipient_name,
@@ -72,19 +75,17 @@ export default function Checkout() {
   const [orderComplete, setOrderComplete] = useState<any>(null);
 
   const { data: recommendationsData } = useSWR('/api/products?limit=3', fetcher);
+  const { data: paymentOptions } = useSWR('/api/payment/options', fetcher);
   const recommendedProducts = Array.isArray(recommendationsData) ? recommendationsData : (recommendationsData?.products || []);
 
   // Derive cart specs
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const totalWeightKilos = Math.ceil(cart.reduce((acc, item) => acc + ((item.weight || 250) * item.quantity), 0) / 1000);
 
-  const adminFee = paymentMethod === 'CC' ? 4500 : paymentMethod === 'QRIS' ? 1000 : 0;
+  const adminFee = paymentMethod === 'TRANSFER' ? Number(paymentOptions?.settings?.transfer_admin_fee || 0) : paymentMethod === 'QRIS' ? Number(paymentOptions?.settings?.qris_admin_fee || 0) : 0;
   const shippingCost = selectedCourier ? selectedCourier.price : 0;
-  
-  // Calculate unique code if manual transfer
-  const uniqueCode = paymentMethod === 'TRANSFER' ? Math.floor(Math.random() * 900) + 100 : 0;
-  
-  const totalAkhir = subtotal + shippingCost + adminFee - (appliedVoucher ? appliedVoucher.discount : 0) + uniqueCode;
+
+  const totalAkhir = subtotal + shippingCost + adminFee - (appliedVoucher ? appliedVoucher.discount : 0);
 
   const handleApplyVoucher = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,14 +169,17 @@ export default function Checkout() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let finalAddressSnapshot = '';
+    let destinationVillageCode = '';
 
     if (isAddressCollapsed && selectedAddressId) {
       const selected = d1SavedAddresses.find(a => a.id === selectedAddressId);
       if (!selected) return addToast('Pilih alamat pengiriman yang valid', 'error');
+      destinationVillageCode = selected.village_code;
       finalAddressSnapshot = `${selected.recipientName} (${selected.phone}) - ${selected.street}, ${selected.village_name}, ${selected.district_name}, ${selected.regency_name}, ${selected.province_name}`;
     } else {
       if (!selectedVill) return addToast('Pilih Kelurahan tujuan dengan lengkap', 'error');
       if (address.street.length < 5) return addToast('Detail alamat terlalu pendek', 'error');
+      destinationVillageCode = selectedVill.code;
       finalAddressSnapshot = `${address.name} (${address.phone}) - ${address.street}, ${selectedVill.name}, ${selectedDist?.name}, ${selectedReg?.name}, ${selectedProv?.name}`;
     }
 
@@ -187,22 +191,23 @@ export default function Checkout() {
       if (!clerkUser?.id) return addToast("Sesi tidak valid. Harap login kembali.", "error");
       
       const payload = {
-        clerk_id: clerkUser.id,
         address_snapshot: finalAddressSnapshot,
+        destination_village_code: destinationVillageCode,
+        weight: totalWeightKilos > 0 ? totalWeightKilos : 1,
+        courier_code: selectedCourier.courier_code,
+        courier_name: selectedCourier.courier_name,
+        courier_service: selectedCourier.service || selectedCourier.service_name || selectedCourier.courier_service || '',
+        shipping_price: selectedCourier.price,
         items: cart,
         subtotal: subtotal,
-        shipping_cost: shippingCost,
-        admin_fee: adminFee,
         order_bump: orderBump ? 29000 : 0,
         discount_amount: appliedVoucher ? appliedVoucher.discount : 0,
         voucher_code: appliedVoucher ? appliedVoucher.code : undefined,
         payment_method: paymentMethod,
-        total_paid: totalAkhir,
-        unique_code: uniqueCode,
         note: orderNote
       };
 
-      const res = await fetch('/api/orders', {
+      const res = await authFetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -602,10 +607,10 @@ export default function Checkout() {
                   <span className="font-medium">- Rp {appliedVoucher.discount.toLocaleString('id-ID')}</span>
                 </div>
               )}
-              {uniqueCode > 0 && (
+              {paymentMethod === 'TRANSFER' && (
                 <div className="flex justify-between text-red-500">
                   <span className="font-medium text-[10px] tracking-wide uppercase">Kode Unik Transfer</span>
-                  <span className="font-medium">+ Rp {uniqueCode}</span>
+                  <span className="font-medium">Ditambahkan saat order dibuat</span>
                 </div>
               )}
               <div className="flex justify-between items-end pt-4 border-t border-black/5">

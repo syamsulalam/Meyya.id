@@ -1,10 +1,10 @@
 import useSWR from 'swr';
 import { Eye, Package } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+import { useAuthFetcher } from '../../hooks/useAuthFetch';
 
 export default function ProfileHistory({ user }: { user: any }) {
+  const fetcher = useAuthFetcher();
   const { data: dbOrders, error, isLoading } = useSWR(user?.id ? `/api/user/orders/${user.id}` : null, fetcher);
   const orders = Array.isArray(dbOrders) ? dbOrders : [];
   return (

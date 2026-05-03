@@ -42,7 +42,24 @@ export async function onRequestPost(context: any) {
     });
 
     if (updates.length > 0) {
-      await env.MEYYA_DB.batch(updates);
+      const stockResults = await env.MEYYA_DB.batch(updates);
+      const failedStockIndex = stockResults.findIndex((result: any) => result.meta?.changes === 0);
+
+      if (failedStockIndex !== -1) {
+        const restoreStatements = items
+          .filter((_: any, index: number) => stockResults[index]?.meta?.changes > 0)
+          .map((item: any) => {
+            return env.MEYYA_DB.prepare("UPDATE products SET stock = stock + ?, last_stock_update = CURRENT_TIMESTAMP WHERE id = ?").bind(item.quantity, item.product_id);
+          });
+
+        if (restoreStatements.length > 0) {
+          await env.MEYYA_DB.batch(restoreStatements);
+        }
+
+        await env.MEYYA_DB.prepare("UPDATE orders SET status = 'PENDING' WHERE id = ? AND status = 'PROCESSING'").bind(id).run();
+
+        return new Response(JSON.stringify({ error: `Not enough stock for product ID ${items[failedStockIndex].product_id}` }), { status: 409 });
+      }
     }
 
     return new Response(JSON.stringify({ success: true, message: 'Order marked as paid' }), {
