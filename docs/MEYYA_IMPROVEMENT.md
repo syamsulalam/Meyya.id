@@ -4,6 +4,22 @@ Audit terakhir: 2026-05-04.
 
 Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, checkout, payment, CRM, dan debug produksi terakhir. Item yang sudah fixed tidak lagi dimasukkan sebagai prioritas aktif.
 
+## Batch Improvement 2026-05-04
+
+Checklist permintaan terbaru:
+
+- [x] Filter kategori homepage, menu navbar, dan footer mengikuti kategori yang punya produk.
+- [x] Produk out of stock ditampilkan greyed out.
+- [x] Laman `/search` memakai data produk nyata, bukan mockup.
+- [x] Voucher bisa dibuat tanpa tanggal mulai dan/atau tanggal kadaluarsa untuk promo first-order yang selalu berlaku.
+- [x] Tombol tambah produk dikembalikan dekat posisi semula; tombol export dipindah ke kanan atas tabel produk.
+- [x] Border persegi hitam bawaan pada filter "Semua Waktu" dashboard Helicopter View dihapus.
+
+Verifikasi:
+
+- `npm run lint` berhasil.
+- `npm run build` berhasil, masih dengan warning chunk size Vite.
+
 ## Ringkasan Status Terbaru
 
 Perbaikan yang sudah diterapkan:

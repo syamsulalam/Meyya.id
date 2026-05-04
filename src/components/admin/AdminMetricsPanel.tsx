@@ -46,7 +46,7 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
            <select 
              value={timeline} 
              onChange={(e) => setTimeline(e.target.value)}
-             className="bg-transparent text-sm py-2 pl-2 pr-4 outline-none font-medium text-ink focus:border-transparent focus:ring-0 cursor-pointer"
+             className="appearance-none border-0 bg-transparent text-sm py-2 pl-2 pr-4 outline-none font-medium text-ink focus:border-transparent focus:outline-none focus:ring-0 cursor-pointer"
            >
               <option value="today">Hari Ini</option>
               <option value="month">Bulan Ini</option>

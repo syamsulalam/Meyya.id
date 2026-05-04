@@ -459,7 +459,7 @@ export default function AdminProductForm() {
       {/* Product List */}
       {subTab === 'list' && (
       <div>
-      <div className="flex justify-between items-center mb-8 border-b border-black/10 pb-4">
+      <div className="flex justify-between items-center gap-4 mb-8 border-b border-black/10 pb-4">
         <div>
           <h2 className="text-2xl font-light font-heading text-ink">Manajemen Produk</h2>
           <p className="text-sm opacity-60">Kelola katalog produk e-commerce Anda.</p>
@@ -470,19 +470,21 @@ export default function AdminProductForm() {
         >
           <Plus size={16} /> Tambah Produk
         </button>
-        <button
-          onClick={exportProducts}
-          className="bg-white border border-black/10 text-ink px-5 py-3 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/5 transition-colors shadow-m flex items-center gap-2"
-        >
-          <Download size={16} /> Export
-        </button>
       </div>
 
       <div className="bg-white/40 border border-black/5 rounded-2xl p-4 mb-12 overflow-x-auto">
-        <div className="mb-4">
-           {isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database (D1)...</span>}
-           {error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database: {error.message}</span>}
-           {products && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({products?.length || 0} produk ditemukan)</span>}
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+           <div>
+             {isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database (D1)...</span>}
+             {error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database: {error.message}</span>}
+             {products && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({products?.length || 0} produk ditemukan)</span>}
+           </div>
+           <button
+             onClick={exportProducts}
+             className="self-start sm:self-auto bg-white border border-black/10 text-ink px-4 py-2 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/5 transition-colors shadow-m flex items-center gap-2"
+           >
+             <Download size={16} /> Export
+           </button>
         </div>
         <table className="w-full text-sm text-left">
           <thead>

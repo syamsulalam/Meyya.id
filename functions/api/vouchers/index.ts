@@ -15,6 +15,7 @@ export async function onRequestGet(context: any) {
         valid_until AS endDate 
       FROM vouchers 
       WHERE (usage_limit = 0 OR used_count < usage_limit) 
+        AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
         AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
     `).all();
     

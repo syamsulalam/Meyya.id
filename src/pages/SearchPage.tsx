@@ -1,16 +1,70 @@
-import { useState } from 'react';
-import { Search as SearchIcon, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Search as SearchIcon, AlertCircle } from 'lucide-react';
+import CatalogProductCard from '../components/CatalogProductCard';
+import { useStore } from '../store';
 
 export default function SearchPage() {
+  const { cart } = useStore();
   const [query, setQuery] = useState('');
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const trendingSearches = [
-    'Pashmina Silk', 'Abaya Hitam', 'Khimar Syari', 'Inner Rajut'
-  ];
+  useEffect(() => {
+    fetch('/api/products')
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      })
+      .then((data) => {
+        setProducts(Array.isArray(data) ? data : Array.isArray(data?.products) ? data.products : []);
+        setError('');
+      })
+      .catch((err) => {
+        console.error('Failed to load search products:', err);
+        setProducts([]);
+        setError('Gagal memuat produk. Coba muat ulang halaman.');
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const searchResults = useMemo(() => {
+    if (!normalizedQuery) return [];
+
+    return products.filter((product: any) => {
+      const searchable = [
+        product.name,
+        product.description,
+        product.category_name,
+        product.category_slug,
+        ...(product.colors || []).map((color: any) => color.color_name),
+        ...(product.sizes || []).map((size: any) => size.size_name),
+        ...(product.attributes || []).flatMap((attr: any) => [attr.attribute_name, attr.attribute_value]),
+        ...(product.variants || []).flatMap((variant: any) => [variant.option_label, variant.color_name, variant.size_name]),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchable.includes(normalizedQuery);
+    });
+  }, [normalizedQuery, products]);
+
+  const popularSearches = useMemo(() => {
+    const terms = new Map<string, number>();
+    products.forEach((product: any) => {
+      if (product.category_name) terms.set(product.category_name, (terms.get(product.category_name) || 0) + 1);
+      if (product.name) terms.set(product.name, (terms.get(product.name) || 0) + 1);
+    });
+    return Array.from(terms.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([term]) => term);
+  }, [products]);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-16 w-full flex-1">
+    <div className="max-w-7xl mx-auto px-4 py-16 w-full flex-1">
       <div className="mb-12">
         <h1 className="text-3xl font-light mb-6 font-heading text-center">Pencarian</h1>
         
@@ -27,11 +81,25 @@ export default function SearchPage() {
         </div>
       </div>
 
-      {!query ? (
+      {loading && (
+        <div className="py-24 flex flex-col items-center justify-center opacity-60">
+          <div className="w-8 h-8 border-2 border-ink border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="font-light tracking-widest uppercase text-xs">Memuat Produk...</p>
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="max-w-2xl mx-auto bg-red-50 border border-red-100 rounded-2xl p-6 text-red-700 flex items-center gap-3">
+          <AlertCircle size={18} />
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && !query ? (
         <div className="max-w-2xl mx-auto">
           <h3 className="text-xs uppercase tracking-widest opacity-60 mb-4">Pencarian Populer</h3>
           <div className="flex flex-wrap gap-3">
-            {trendingSearches.map(term => (
+            {popularSearches.map(term => (
               <button 
                 key={term} 
                 onClick={() => setQuery(term)}
@@ -42,17 +110,40 @@ export default function SearchPage() {
             ))}
           </div>
         </div>
-      ) : (
-        <div className="glass-panel p-12 rounded-[40px] text-center">
-          <div className="w-16 h-16 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6">
-            <SearchIcon size={28} className="opacity-40" />
+      ) : null}
+
+      {!loading && !error && query && (
+        <>
+          <div className="mb-8 flex items-center justify-between border-b border-black/10 pb-4">
+            <h2 className="text-sm uppercase tracking-widest opacity-60">Hasil untuk "{query}"</h2>
+            <span className="text-sm opacity-60">{searchResults.length} produk</span>
           </div>
-          <h3 className="text-2xl font-light mb-2">Simulasi Hasil Pencarian</h3>
-          <p className="opacity-60 font-light mb-8">Anda mencari "{query}". Dalam mode nyata, ini akan menampilkan daftar produk yang relevan.</p>
-          <Link to="/" className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-widest border-b border-ink pb-1 hover:opacity-70 transition-opacity">
-            Kembali ke Katalog <ArrowRight size={16} />
-          </Link>
-        </div>
+
+          {searchResults.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-12">
+              {searchResults.map((product: any) => {
+                const cartItemsForProduct = cart.filter(item => item.product_id === product.id);
+                const totalQuantityInCart = cartItemsForProduct.reduce((acc, item) => acc + item.quantity, 0);
+                return (
+                  <CatalogProductCard
+                    key={product.id}
+                    product={product}
+                    totalQuantityInCart={totalQuantityInCart}
+                    cartItemsForProduct={cartItemsForProduct}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="glass-panel p-12 rounded-[32px] text-center">
+              <div className="w-16 h-16 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                <SearchIcon size={28} className="opacity-40" />
+              </div>
+              <h3 className="text-2xl font-light mb-2">Produk Tidak Ditemukan</h3>
+              <p className="opacity-60 font-light">Coba kata kunci lain seperti nama kategori, warna, ukuran, atau nama produk.</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

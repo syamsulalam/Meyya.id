@@ -94,7 +94,7 @@ export default function Checkout() {
     if (!voucherCode) return;
     
     try {
-       const res = await fetch('/api/vouchers/validate', {
+       const res = await authFetch('/api/vouchers/validate', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({

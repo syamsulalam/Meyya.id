@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Instagram, Twitter, Facebook, ArrowRight, HelpCircle, MapPin, FileText, Lock, Mail, Tag, User } from 'lucide-react';
+import { useProductCategories } from '../hooks/useProductCategories';
 
 export default function Footer() {
+  const { categories } = useProductCategories();
+
   return (
     <footer className="mt-16 pb-8 px-4 sm:px-6 lg:px-8 bg-transparent text-ink">
       <div className="max-w-7xl mx-auto border-t border-black/10 pt-16">
@@ -35,11 +38,13 @@ export default function Footer() {
           <div>
             <h4 className="font-heading uppercase tracking-widest text-xs font-semibold mb-6">Koleksi (<i>Explore</i>)</h4>
             <ul className="space-y-4 text-sm font-light opacity-80">
-              <li><Link to="/?kategori=pashmina" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><Tag size={12} /> Pashmina</Link></li>
-              <li><Link to="/?kategori=abaya" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><Tag size={12} /> Abaya</Link></li>
-              <li><Link to="/?kategori=khimar" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><Tag size={12} /> Khimar</Link></li>
-              <li><Link to="/?kategori=inner" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><Tag size={12} /> Inner</Link></li>
-              <li><Link to="/?kategori=aksesoris" className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2"><Tag size={12} /> Aksesoris</Link></li>
+              {categories.map((category) => (
+                <li key={category.id}>
+                  <Link to={`/?kategori=${encodeURIComponent(category.slug || String(category.id))}`} className="hover:opacity-100 hover:underline underline-offset-4 flex items-center gap-2">
+                    <Tag size={12} /> {category.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 

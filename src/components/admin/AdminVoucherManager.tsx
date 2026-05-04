@@ -23,6 +23,8 @@ interface Voucher {
   targetUserRole: 'ALL' | 'NEW_USER' | 'VIP'; // Simple targeting
   targetClerkId?: string;
   targetSegment?: string;
+  disableStartDate?: boolean;
+  disableEndDate?: boolean;
 }
 
 export default function AdminVoucherManager() {
@@ -51,8 +53,10 @@ export default function AdminVoucherManager() {
   const handleEdit = (v: any) => {
     setFormVoucher({
       ...v,
-      startDate: v.startDate.split('T')[0],
-      endDate: v.endDate.split('T')[0],
+      startDate: v.startDate ? v.startDate.split('T')[0] : '',
+      endDate: v.endDate ? v.endDate.split('T')[0] : '',
+      disableStartDate: !v.startDate,
+      disableEndDate: !v.endDate,
     });
     setIsEditing(true);
     setShowForm(true);
@@ -87,8 +91,8 @@ export default function AdminVoucherManager() {
         discount_value: formVoucher.value || 0,
         min_purchase: formVoucher.minPurchase || 0,
         max_discount: formVoucher.maxDiscount || null,
-        valid_from: formVoucher.startDate,
-        valid_until: formVoucher.endDate,
+        valid_from: formVoucher.disableStartDate || !formVoucher.startDate ? null : formVoucher.startDate,
+        valid_until: formVoucher.disableEndDate || !formVoucher.endDate ? null : formVoucher.endDate,
         usage_limit: formVoucher.usageLimit || 0,
         target_user_role: formVoucher.targetUserRole || 'ALL',
         target_clerk_id: formVoucher.targetClerkId || null,
@@ -257,11 +261,19 @@ export default function AdminVoucherManager() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium"><Clock size={12} className="inline mr-1" />Tanggal Mulai</label>
-                <input type="date" value={formVoucher.startDate || ''} onChange={e => setFormVoucher({...formVoucher, startDate: e.target.value})} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
+                <input type="date" disabled={formVoucher.disableStartDate} value={formVoucher.disableStartDate ? '' : formVoucher.startDate || ''} onChange={e => setFormVoucher({...formVoucher, startDate: e.target.value})} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink disabled:bg-black/5 disabled:text-black/30" />
+                <label className="mt-2 flex items-center gap-2 text-[11px] text-black/60">
+                  <input type="checkbox" checked={!!formVoucher.disableStartDate} onChange={e => setFormVoucher({...formVoucher, disableStartDate: e.target.checked})} className="accent-ink" />
+                  Tanpa tanggal mulai
+                </label>
               </div>
               <div>
                 <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium"><Clock size={12} className="inline mr-1" />Tgl Kadaluarsa</label>
-                <input type="date" value={formVoucher.endDate || ''} onChange={e => setFormVoucher({...formVoucher, endDate: e.target.value})} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
+                <input type="date" disabled={formVoucher.disableEndDate} value={formVoucher.disableEndDate ? '' : formVoucher.endDate || ''} onChange={e => setFormVoucher({...formVoucher, endDate: e.target.value})} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink disabled:bg-black/5 disabled:text-black/30" />
+                <label className="mt-2 flex items-center gap-2 text-[11px] text-black/60">
+                  <input type="checkbox" checked={!!formVoucher.disableEndDate} onChange={e => setFormVoucher({...formVoucher, disableEndDate: e.target.checked})} className="accent-ink" />
+                  Tanpa kadaluarsa
+                </label>
               </div>
             </div>
             
@@ -354,9 +366,9 @@ export default function AdminVoucherManager() {
                     {v.minPurchase > 0 ? `Rp ${(v.minPurchase / 1000).toFixed(0)}k` : 'Rp 0'}
                   </td>
                   <td className="py-4 px-4">
-                     <div className="text-xs text-gray-600">{v.startDate ? new Date(v.startDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'}) : '-'}</div>
+                     <div className="text-xs text-gray-600">{v.startDate ? new Date(v.startDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'}) : 'Kapan pun'}</div>
                      <div className="text-[10px] text-gray-400">s/d</div>
-                     <div className="text-xs text-ink font-medium">{v.endDate ? new Date(v.endDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'}) : '-'}</div>
+                     <div className="text-xs text-ink font-medium">{v.endDate ? new Date(v.endDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'}) : 'Tanpa batas'}</div>
                   </td>
                   <td className="py-4 px-4 text-sm">
                     <span className={`font-semibold ${v.usageLimit > 0 && v.usedCount >= v.usageLimit ? 'text-red-500' : 'text-emerald-600'}`}>{v.usedCount}</span>

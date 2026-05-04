@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useStore } from '../store';
 import CatalogProductCard from '../components/CatalogProductCard';
 import CategorySlider from '../components/CategorySlider';
+import { useProductCategories } from '../hooks/useProductCategories';
 
 export default function Home() {
   const [searchParams] = useSearchParams();
@@ -12,7 +13,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
-  const navigate = useNavigate();
+  const { categories } = useProductCategories();
 
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
@@ -71,6 +72,10 @@ export default function Home() {
 
   const totalPages = Math.ceil(products.length / itemsPerPage);
   const displayedProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const selectedCategory = categories.find((item) =>
+    item.slug?.toLowerCase() === category?.toLowerCase() || item.name?.toLowerCase() === category?.toLowerCase()
+  );
+  const selectedCategoryName = selectedCategory?.name || (category ? category.charAt(0).toUpperCase() + category.slice(1) : '');
 
   return (
     <div className="w-full">
@@ -83,17 +88,25 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 py-8 mb-20 w-full" id="katalog">
         <div className="flex flex-col items-center justify-center mb-8">
           <h2 className="text-3xl md:text-4xl font-light mb-8 text-center text-ink">
-            {category ? `Kategori: ${category.charAt(0).toUpperCase() + category.slice(1)}` : 'Katalog Terbaru'}
+            {category ? `Kategori: ${selectedCategoryName}` : 'Katalog Terbaru'}
           </h2>
           
           {/* Category Filter */}
           <div className="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
             <Link to="/#katalog" className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${!category ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}>Semua</Link>
-            <Link to="/?kategori=pashmina#katalog" className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${category === 'pashmina' ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}>Pashmina</Link>
-            <Link to="/?kategori=abaya#katalog" className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${category === 'abaya' ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}>Abaya</Link>
-            <Link to="/?kategori=khimar#katalog" className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${category === 'khimar' ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}>Khimar</Link>
-            <Link to="/?kategori=inner#katalog" className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${category === 'inner' ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}>Inner</Link>
-            <Link to="/?kategori=aksesoris#katalog" className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${category === 'aksesoris' ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}>Aksesoris</Link>
+            {categories.map((item) => {
+              const slug = item.slug || String(item.id);
+              const active = category?.toLowerCase() === slug.toLowerCase() || category?.toLowerCase() === item.name.toLowerCase();
+              return (
+                <Link
+                  key={item.id}
+                  to={`/?kategori=${encodeURIComponent(slug)}#katalog`}
+                  className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${active ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
           </div>
 
           <span className="text-sm font-light opacity-60 uppercase tracking-widest text-center block">

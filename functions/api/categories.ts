@@ -44,7 +44,7 @@ export async function onRequestGet(context: any) {
     const { results: categories } = await env.MEYYA_DB.prepare(`
       SELECT c.*, COUNT(p.id) as count 
       FROM categories c 
-      LEFT JOIN products p ON c.id = p.category_id AND p.deleted_at IS NULL
+      LEFT JOIN products p ON c.id = p.category_id AND p.deleted_at IS NULL AND p.is_active = 1
       WHERE c.deleted_at IS NULL
       GROUP BY c.id
     `).all();

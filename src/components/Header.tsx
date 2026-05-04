@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { Show, SignOutButton, useUser } from '@clerk/react';
 import CartPreviewDropdown from './CartPreviewDropdown';
 import { useAuthFetch } from '../hooks/useAuthFetch';
+import { useProductCategories } from '../hooks/useProductCategories';
 
 export default function Header() {
   const { cart, user: localUser, wishlist, setWishlist } = useStore();
@@ -12,6 +13,7 @@ export default function Header() {
   const authFetch = useAuthFetch();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const location = useLocation();
+  const { categories } = useProductCategories();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -258,11 +260,11 @@ export default function Header() {
 
         {/* Bottom Row: Centered Navigation */}
         <nav className="flex flex-wrap justify-center gap-4 sm:gap-6 md:gap-8 text-[10px] sm:text-xs uppercase tracking-[0.1em] font-medium opacity-70">
-          <Link to="/?kategori=pashmina" className="hover:opacity-100 transition-opacity">Pashmina</Link>
-          <Link to="/?kategori=abaya" className="hover:opacity-100 transition-opacity">Abaya</Link>
-          <Link to="/?kategori=khimar" className="hover:opacity-100 transition-opacity">Khimar</Link>
-          <Link to="/?kategori=inner" className="hover:opacity-100 transition-opacity">Inner</Link>
-          <Link to="/?kategori=aksesoris" className="hover:opacity-100 transition-opacity">Aksesoris</Link>
+          {categories.map((category) => (
+            <Link key={category.id} to={`/?kategori=${encodeURIComponent(category.slug || String(category.id))}`} className="hover:opacity-100 transition-opacity">
+              {category.name}
+            </Link>
+          ))}
         </nav>
 
       </div>

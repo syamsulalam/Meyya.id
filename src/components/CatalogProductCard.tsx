@@ -43,6 +43,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
   const hasCustomVariantAxes = Array.isArray(product.variants) && product.variants.some((variant: any) =>
     Object.keys(variant.option_values || {}).some((key) => key !== 'Warna' && key !== 'Ukuran')
   );
+  const isSoldOut = Number(product.stock || 0) <= 0 && product.is_preorder !== 1;
   const toggleWishlistSynced = async () => {
     toggleWishlist(product.id);
     if (!isSignedIn) return;
@@ -158,8 +159,8 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
   };
 
   return (
-    <Link to={`/produk/${product.slug}`} className="group flex flex-col cursor-pointer relative">
-      <div className="aspect-[3/4] rounded-2xl glass-panel relative mb-4 overflow-hidden bg-white/40">
+    <Link to={`/produk/${product.slug}`} className={clsx("group flex flex-col cursor-pointer relative transition-opacity", isSoldOut && "opacity-60")}>
+      <div className={clsx("aspect-[3/4] rounded-2xl glass-panel relative mb-4 overflow-hidden bg-white/40", isSoldOut && "grayscale")}>
         {product.image_url ? (
           <img 
             src={product.image_url} 
@@ -180,7 +181,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
             Pre-Order
           </div>
         ) : product.stock === 0 ? (
-          <div className="absolute top-4 left-4 z-20 bg-red-500/90 text-white text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm border border-white/10">
+          <div className="absolute top-4 left-4 z-20 bg-neutral-800/80 text-white text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm border border-white/10">
             Habis
           </div>
         ) : null}
@@ -319,8 +320,8 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
         )}
       </div>
 
-      {/* Product Meta View */}
-      <div className="text-center flex flex-col flex-1">
+        {/* Product Meta View */}
+      <div className={clsx("text-center flex flex-col flex-1", isSoldOut && "grayscale")}>
         <h3 className="font-light text-lg text-ink mb-1 group-hover:opacity-70 transition-opacity line-clamp-1">{product.name}</h3>
         <p className="text-sm opacity-60 tracking-wider mb-3">Rp {product.base_price.toLocaleString('id-ID')}</p>
         

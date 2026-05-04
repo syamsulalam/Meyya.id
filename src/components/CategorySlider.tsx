@@ -1,9 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
-import useSWR from 'swr';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+import { useProductCategories } from '../hooks/useProductCategories';
 
 const CategoryCard: React.FC<{category: any}> = ({ category }) => {
   const [hasError, setHasError] = useState(false);
@@ -42,9 +40,7 @@ const CategoryCard: React.FC<{category: any}> = ({ category }) => {
 
 export default function CategorySlider() {
   const scrollRef = useRef<HTMLDivElement>(null);
-  
-  const { data: dbCategories, error } = useSWR('/api/categories', fetcher);
-  const categories = Array.isArray(dbCategories) ? dbCategories : [];
+  const { categories } = useProductCategories();
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {

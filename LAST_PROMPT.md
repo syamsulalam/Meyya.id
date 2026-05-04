@@ -1,2 +1,0 @@
-oke ternyata ada bug:
-logic sync kita kan men sync data dari clerk ke d1. jadi waktu kita men save data dari /profil (misal nama lengkap) dan tersimpan ke d1, waktu refresh d1 kembali terhapus karena data dari clerk untuk first name dan last name kosong, data kosong tsb ke sync ke d1. harus ada solusi untuk data user yang di save di /profil yang relevan juga tersimpan di clerk agar tidak ada beda data antara d1 dan clerk. karena kalau beda data yang diambil / di sync adalah data dari clerk.

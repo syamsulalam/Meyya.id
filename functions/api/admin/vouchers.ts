@@ -6,8 +6,9 @@ export async function onRequestGet(context: any) {
   try {
     await ensureCommerceSchema(env);
     const { results: vouchers } = await env.MEYYA_DB.prepare(`
-      SELECT * FROM vouchers ORDER BY valid_until DESC
+      SELECT * FROM vouchers ORDER BY valid_until IS NULL DESC, valid_until DESC
     `).all();
+    const now = new Date();
 
     const formatted = vouchers.map((v: any) => ({
       id: v.code,
@@ -21,7 +22,7 @@ export async function onRequestGet(context: any) {
       endDate: v.valid_until,
       usageLimit: v.usage_limit,
       usedCount: v.used_count,
-      isActive: new Date(v.valid_until) >= new Date(),
+      isActive: (!v.valid_from || new Date(v.valid_from) <= now) && (!v.valid_until || new Date(v.valid_until) >= now),
       targetUserRole: v.target_user_role || 'ALL',
       targetClerkId: v.target_clerk_id || '',
       targetSegment: v.target_segment || ''
