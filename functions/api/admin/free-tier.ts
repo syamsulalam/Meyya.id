@@ -18,7 +18,7 @@ export async function onRequestGet({ env }: any) {
     const d1Storage = await getD1Storage(env);
     const tableStats = await getTableStats(env);
     const r2Storage = await getR2Storage(env);
-    const userCount = Number(tableStats.find((row) => row.table === 'users')?.rows || 0);
+    const userCount = await readTableCount(env, 'users');
 
     return json({
       limits: LIMITS,
@@ -97,14 +97,12 @@ export async function onRequestPost({ env, request }: any) {
 }
 
 async function getD1Storage(env: any) {
-  const pageCountRow = await env.MEYYA_DB.prepare('PRAGMA page_count').first();
-  const pageSizeRow = await env.MEYYA_DB.prepare('PRAGMA page_size').first();
-  const pageCount = Number(pageCountRow?.page_count || Object.values(pageCountRow || {})[0] || 0);
-  const pageSize = Number(pageSizeRow?.page_size || Object.values(pageSizeRow || {})[0] || 0);
+  const pageCount = await readPragmaNumber(env, 'page_count');
+  const pageSize = await readPragmaNumber(env, 'page_size');
   return {
     pageCount,
     pageSize,
-    bytes: pageCount * pageSize,
+    bytes: pageCount > 0 && pageSize > 0 ? pageCount * pageSize : null,
   };
 }
 
@@ -130,15 +128,41 @@ async function getTableStats(env: any) {
 
   const rows = [];
   for (const table of tables) {
-    try {
-      const result = await env.MEYYA_DB.prepare(`SELECT COUNT(*) AS total FROM ${table}`).first();
-      rows.push({ table, rows: Number(result?.total || 0) });
-    } catch {
-      rows.push({ table, rows: 0 });
-    }
+    rows.push({ table, rows: await readTableCount(env, table) });
   }
 
   return rows.sort((a, b) => b.rows - a.rows);
+}
+
+async function readTableCount(env: any, table: string) {
+  try {
+    const result = await env.MEYYA_DB.prepare(`SELECT COUNT(*) AS total FROM ${table}`).first();
+    return readNumberFromRow(result, ['total', 'COUNT(*)', 'count']);
+  } catch {
+    return 0;
+  }
+}
+
+async function readPragmaNumber(env: any, pragmaName: 'page_count' | 'page_size') {
+  try {
+    const row = await env.MEYYA_DB.prepare(`PRAGMA ${pragmaName}`).first();
+    return readNumberFromRow(row, [pragmaName]);
+  } catch {
+    return 0;
+  }
+}
+
+function readNumberFromRow(row: any, preferredKeys: string[]) {
+  if (!row || typeof row !== 'object') return 0;
+  for (const key of preferredKeys) {
+    const value = Number(row[key]);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  for (const value of Object.values(row)) {
+    const numberValue = Number(value);
+    if (Number.isFinite(numberValue) && numberValue > 0) return numberValue;
+  }
+  return 0;
 }
 
 async function getR2Storage(env: any) {
@@ -208,4 +232,3 @@ function json(data: any, status = 200) {
     headers: { 'Content-Type': 'application/json' },
   });
 }
-

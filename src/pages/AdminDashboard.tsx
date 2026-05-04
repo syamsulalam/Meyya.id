@@ -56,8 +56,8 @@ export default function AdminDashboard() {
       <div className="glass-panel p-2 md:p-4 rounded-[32px] md:rounded-[48px] flex flex-col lg:flex-row gap-2 md:gap-4 shadow-xl border border-white/40 flex-1 min-h-0">
         
         {/* Sidebar Tabs */}
-        <div className="w-full lg:w-28 bg-white/40 rounded-[24px] md:rounded-[36px] p-4 md:p-6 flex flex-col items-center flex-shrink-0 border border-black/5 z-20 relative">
-             <nav className="flex flex-row lg:flex-col gap-4 overflow-x-auto lg:overflow-visible scrollbar-hide justify-start md:justify-center items-center w-full sticky lg:top-28">
+        <div className="w-full lg:w-28 bg-white/40 rounded-[24px] md:rounded-[36px] p-4 md:p-6 flex flex-col items-center flex-shrink-0 border border-black/5 z-20 relative lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-8rem)]">
+             <nav className="flex flex-row lg:flex-col gap-4 overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto lg:overscroll-contain scrollbar-hide justify-start md:justify-center lg:justify-start items-center w-full lg:max-h-[calc(100vh-11rem)] lg:py-2">
                 <Tooltip content="Dashboard" position="right">
                   <button
                     onClick={() => setActiveTab('dashboard')}

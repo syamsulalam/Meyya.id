@@ -18,6 +18,22 @@ Catatan fungsi next action nomor 2:
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
 
+## Batch Free Tier Accuracy dan Admin Nav Scroll 2026-05-05 04:16:43 +07:00
+
+Checklist:
+
+- [x] Panel `Limit Free Tier` sekarang menunggu sesi Clerk/admin siap sebelum memanggil `/api/admin/free-tier`.
+- [x] UI free-tier tidak lagi jatuh ke angka 0 palsu saat API belum mengembalikan data atau saat request gagal.
+- [x] Error dari endpoint free-tier sekarang ditampilkan di UI agar mudah terlihat di production.
+- [x] Backend free-tier dibuat lebih defensif saat membaca `COUNT(*)` dan `PRAGMA page_count/page_size` dari D1.
+- [x] Jika ukuran D1 tidak tersedia dari runtime, UI menampilkan `Belum tersedia`, bukan `0 B`.
+- [x] Sidebar tab `/admin` menjadi scroll container sendiri di desktop, dengan `overscroll-contain`, sehingga wheel di atas ikon tab menggulir daftar tab, bukan konten utama.
+
+Catatan:
+
+- Angka users di free-tier tetap memakai proxy dari tabel D1 `users`, bukan angka billing resmi Clerk.
+- Angka D1 database size bergantung pada kemampuan runtime D1 membaca `PRAGMA page_count/page_size`. Jika Cloudflare runtime tidak mengembalikan ukuran, nilai akan ditandai belum tersedia.
+
 ## Batch Finance Tahap 2 dan Biaya Per Order 2026-05-05
 
 Checklist:

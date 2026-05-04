@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import { Archive, Database, HardDrive, RefreshCw, Scissors, Users } from 'lucide-react';
+import { useAuth } from '@clerk/react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
 
@@ -12,8 +13,10 @@ type FreeTierPanelProps = {
 export default function AdminFreeTierPanel({ compact = false, onNavigate }: FreeTierPanelProps) {
   const fetcher = useAuthFetcher();
   const authFetch = useAuthFetch();
+  const { isLoaded, isSignedIn } = useAuth();
+  const authReady = isLoaded && isSignedIn;
   const { addToast } = useStore();
-  const { data, isLoading, mutate } = useSWR('/api/admin/free-tier', fetcher);
+  const { data, error, isLoading, mutate } = useSWR(authReady ? '/api/admin/free-tier' : null, fetcher);
   const [isPruning, setIsPruning] = useState(false);
   const [includeAuditLogs, setIncludeAuditLogs] = useState(false);
 
@@ -37,10 +40,27 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
     }
   };
 
-  if (isLoading) {
+  if (!authReady || isLoading) {
     return (
       <div className="bg-white/40 border border-black/5 rounded-2xl p-4 text-sm text-black/50 flex items-center gap-2">
-        <RefreshCw size={16} className="animate-spin" /> Memuat limit free tier...
+        <RefreshCw size={16} className="animate-spin" /> {!authReady ? 'Menunggu sesi admin...' : 'Memuat limit free tier...'}
+      </div>
+    );
+  }
+
+  if (error || data?.error) {
+    const message = data?.error || error?.message || 'Gagal membaca limit free tier';
+    return (
+      <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-700">
+        Limit free tier gagal dimuat: {message}
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-4 text-sm text-yellow-700">
+        Limit free tier belum menerima data dari API. Klik refresh setelah sesi admin siap.
       </div>
     );
   }
@@ -145,10 +165,10 @@ function buildUsageCards(data: any) {
     {
       icon: Database,
       label: 'D1 Database',
-      value: Number(data?.d1?.databaseBytes || 0),
+      value: data?.d1?.databaseBytes ?? null,
       limit: Number(data?.d1?.databaseLimitBytes || 500 * 1024 * 1024),
       formatter: formatBytes,
-      note: 'Limit database Free: 500 MB.',
+      note: data?.d1?.databaseBytes === null ? 'Ukuran database tidak tersedia dari runtime D1.' : 'Limit database Free: 500 MB.',
     },
     {
       icon: Archive,
@@ -161,10 +181,10 @@ function buildUsageCards(data: any) {
     {
       icon: HardDrive,
       label: 'D1 Account',
-      value: Number(data?.d1?.databaseBytes || 0),
+      value: data?.d1?.databaseBytes ?? null,
       limit: Number(data?.d1?.accountStorageLimitBytes || 5 * 1024 * 1024 * 1024),
       formatter: formatBytes,
-      note: 'Aplikasi menampilkan DB aktif sebagai bagian dari limit akun.',
+      note: data?.d1?.databaseBytes === null ? 'Ukuran database tidak tersedia dari runtime D1.' : 'Aplikasi menampilkan DB aktif sebagai bagian dari limit akun.',
     },
   ];
 }
@@ -203,4 +223,3 @@ function formatBytes(value: number) {
   if (bytes >= 1024) return `${(bytes / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} KB`;
   return `${bytes.toLocaleString('id-ID')} B`;
 }
-
