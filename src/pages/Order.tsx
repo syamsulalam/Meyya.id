@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { useAuthFetcher } from '../hooks/useAuthFetch';
 import { useAuthFetch } from '../hooks/useAuthFetch';
 import { ExplainedLabel, ReturnExchangeTooltip, TrackingNumberTooltip, UniqueCodeTooltip } from '../components/term-tooltips';
+import { buildImageUploadFormData } from '../lib/imageCompression';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -47,8 +48,8 @@ export default function Order() {
     if (!file) return;
     setUploadingProof(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const formData = file.type.startsWith('image/') ? await buildImageUploadFormData(file) : new FormData();
+      if (!file.type.startsWith('image/')) formData.append('file', file);
       const res = await authFetch(`/api/orders/${id}/payment-proof`, { method: 'POST', body: formData });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Gagal upload bukti transfer');
@@ -85,8 +86,7 @@ export default function Order() {
     try {
       const uploaded: string[] = [];
       for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
+        const formData = await buildImageUploadFormData(file);
         const res = await authFetch('/api/upload', { method: 'POST', body: formData });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.url) throw new Error(data.error || 'Gagal upload bukti foto');

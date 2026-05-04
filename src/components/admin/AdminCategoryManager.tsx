@@ -4,6 +4,7 @@ import useSWR, { mutate } from 'swr';
 import { useAuthFetch } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
 import { AttributeTooltip, ExplainedLabel, TaxonomyTooltip, VariantTooltip } from '../term-tooltips';
+import { buildImageUploadFormData } from '../../lib/imageCompression';
 
 type CategoryAttribute = { name: string; options: string[] | string };
 
@@ -94,10 +95,8 @@ export default function AdminCategoryManager() {
         setPreviewUrl(loadingPlaceholder);
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      
       try {
+        const formData = await buildImageUploadFormData(file);
         const res = await authFetch('/api/upload', {
           method: 'POST',
           body: formData

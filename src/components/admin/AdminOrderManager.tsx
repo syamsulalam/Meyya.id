@@ -4,6 +4,7 @@ import useSWR, { mutate } from 'swr';
 import { AlertCircle, CheckCircle2, ClipboardList, Download, Gift, MessageSquare, PackageCheck, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
+import { buildImageUploadFormData } from '../../lib/imageCompression';
 import {
   AuditLogTooltip,
   BundleTooltip,
@@ -98,8 +99,7 @@ export default function AdminOrderManager() {
     try {
       const uploaded: string[] = [];
       for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
+        const formData = await buildImageUploadFormData(file);
         const res = await authFetch('/api/upload', { method: 'POST', body: formData });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.url) throw new Error(data.error || 'Gagal upload bukti gudang');

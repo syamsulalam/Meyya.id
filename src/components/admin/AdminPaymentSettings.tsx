@@ -3,6 +3,7 @@ import useSWR, { mutate } from 'swr';
 import { CreditCard, Plus, Save, Trash2, Upload } from 'lucide-react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
+import { buildImageUploadFormData } from '../../lib/imageCompression';
 import {
   AdminFeeTooltip,
   ExplainedLabel,
@@ -72,10 +73,8 @@ export default function AdminPaymentSettings() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
+      const formData = await buildImageUploadFormData(file, { quality: 0.92, minSavingsRatio: 0.98 });
       const res = await authFetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || 'Gagal upload QRIS');

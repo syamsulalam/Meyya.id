@@ -4,6 +4,10 @@ Tanggal brainstorm: 2026-05-05 03:05:40 +07:00
 
 Tujuan fitur finansial adalah memberi gambaran sederhana tapi disiplin tentang kesehatan usaha: uang masuk, uang keluar, profit, arus kas, dan kewajiban operasional. Fitur ini sebaiknya dibuat bertahap agar tidak berubah menjadi software akuntansi berat terlalu cepat.
 
+Status 2026-05-05 03:28:56 +07:00: tahap 1 sudah diimplementasikan sebagai tab admin `Keuangan` dengan laporan laba rugi sederhana, transaksi manual, dan export CSV.
+
+Status 2026-05-05: tahap 2 sudah menambahkan preset kategori, upload bukti transaksi manual, tutup buku bulanan, lock periode tertutup, serta laporan total/rata-rata biaya Packaging dan Ads per order.
+
 ## Tahap 1: Statement Sederhana
 
 Fitur awal:
@@ -83,11 +87,10 @@ Tabel yang disarankan:
 - `finance_attachments`: bukti nota/transfer.
 - `finance_period_closings`: penutupan periode bulanan.
 
-Prioritas implementasi pertama:
+Prioritas lanjutan:
 
-1. Buat tab admin "Keuangan".
-2. Buat input transaksi uang masuk/keluar manual.
-3. Buat laporan laba rugi sederhana dari order + transaksi manual.
-4. Tambah export CSV.
+1. Upload bukti transaksi ke folder finance khusus dan tampilkan preview file.
+2. Export closing period sebagai PDF/CSV.
+3. Tambah dashboard arus kas sederhana.
+4. Tambah pemetaan biaya per order yang lebih presisi, bukan hanya rata-rata periode.
 5. Baru setelah itu pikirkan jurnal debit/kredit yang lebih formal.
-

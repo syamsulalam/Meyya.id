@@ -4,6 +4,7 @@ import { useStore } from '../../store';
 import useSWR from 'swr';
 import { mutate } from 'swr';
 import { useAuthFetch } from '../../hooks/useAuthFetch';
+import { buildImageUploadFormData } from '../../lib/imageCompression';
 import {
   CanonicalSlugTooltip,
   D1Tooltip,
@@ -153,10 +154,8 @@ export default function AdminProductForm() {
       const localUrl = URL.createObjectURL(file);
       setImageUrl(localUrl); // immediate preview
       
-      const formData = new FormData();
-      formData.append('file', file);
-      
       try {
+        const formData = await buildImageUploadFormData(file);
         const res = await authFetch('/api/upload', {
           method: 'POST',
           body: formData
@@ -423,9 +422,8 @@ export default function AdminProductForm() {
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []) as File[];
     for (const file of files) {
-      const formData = new FormData();
-      formData.append('file', file);
       try {
+        const formData = await buildImageUploadFormData(file);
         const res = await authFetch('/api/upload', { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok || !data.url) throw new Error(data.error || 'Gagal upload gallery');

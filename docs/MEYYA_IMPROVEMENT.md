@@ -8,16 +8,68 @@ Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, c
 
 Yang paling masuk akal dikerjakan berikutnya:
 
-1. Pisahkan `schema.sql` menjadi schema-only dan seed demo agar migration production berikutnya lebih aman.
-2. Buat tab admin "Keuangan" tahap 1: laporan laba rugi sederhana dari order, HPP, voucher, biaya transaksi, dan transaksi manual.
-3. Tambah kompresi gambar sebelum upload ke R2 agar storage free tier lebih hemat.
-4. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih. Status: ditunda karena perlu keputusan third-party provider.
+1. Tambah kompresi PDF untuk bukti transaksi/bukti transfer jika ukuran PDF mulai membesar.
+2. Tambah finance tahap 3: upload bukti transaksi manual ke folder finance khusus, closing period yang bisa diexport, dan dashboard arus kas.
+3. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih. Status: ditunda karena perlu keputusan third-party provider.
 
 Catatan fungsi next action nomor 2:
 
 - Template pesan sekarang sudah rapi dan tervalidasi, tetapi masih dipakai manual untuk disalin/dibuka ke WhatsApp Web.
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
+
+## Batch Finance Tahap 2 dan Biaya Per Order 2026-05-05
+
+Checklist:
+
+- [x] Finance transaksi manual punya preset kategori: Packaging, Ads, Bahan Baku, Ongkir Subsidi, Refund, Operasional, Gaji, Penjualan Manual, Modal Masuk, dan lain-lain.
+- [x] Finance transaksi manual bisa upload bukti transaksi gambar/PDF.
+- [x] Bukti transaksi gambar tetap lewat kompresi WebP sebelum upload; PDF sementara diupload apa adanya.
+- [x] `/api/upload` menerima PDF untuk bukti transaksi manual.
+- [x] Tutup buku bulanan tersedia dari tab Keuangan dan menyimpan snapshot ke `finance_period_closings`.
+- [x] Periode yang sudah ditutup buku dikunci dari penambahan/penghapusan transaksi manual.
+- [x] Laporan Keuangan menampilkan total Packaging, total Ads, Packaging per order, dan Ads per order.
+
+Catatan kompresi PDF:
+
+- Ada library/alat untuk optimasi PDF, tetapi pendekatannya berbeda dari kompresi gambar.
+- `pdf-lib` bisa dipakai di browser/JavaScript untuk membuat dan memodifikasi PDF, tetapi bukan solusi kompresi agresif out-of-the-box.
+- `qpdf` punya opsi optimasi ukuran seperti compress streams, recompress flate, dan optimize images, tetapi itu tool native CLI.
+- Ghostscript `pdfwrite` bisa menghasilkan ulang PDF dan sering dipakai untuk mengecilkan PDF, tetapi juga tool native.
+- Karena Cloudflare Pages Functions tidak bisa menjalankan binary native seperti Ghostscript/qpdf, opsi paling realistis nanti:
+  1. Browser-side ringan memakai `pdf-lib` untuk rewrite/cleanup PDF jika cukup.
+  2. Service terpisah/worker container untuk Ghostscript/qpdf jika butuh kompresi PDF serius.
+  3. Untuk saat ini batasi ukuran PDF dan dorong upload bukti berupa gambar agar kompresi WebP bekerja.
+
+Referensi:
+
+- `pdf-lib`: https://pdf-lib.js.org/
+- `qpdf` optimizing file size: https://qpdf.readthedocs.io/en/12.0/cli.html#optimizing-file-size
+- Ghostscript pdfwrite: https://ghostscript.readthedocs.io/en/gs10.02.1/VectorDevices.html
+
+## Batch Schema Split, Finance Tahap 1, dan Kompresi Upload 2026-05-05 03:28:56 +07:00
+
+Checklist:
+
+- [x] `schema.sql` dipisahkan menjadi schema-only; data contoh tidak lagi bercampur dengan definisi tabel.
+- [x] Demo seed dipindahkan ke `seed.demo.sql` untuk local/staging saja.
+- [x] Tabel `finance_transactions` dan `finance_period_closings` ditambahkan ke schema dan self-heal backend.
+- [x] Migration production disiapkan di `migrations/2026-05-05_finance_transactions.sql`.
+- [x] Endpoint admin `/api/admin/finance` dibuat untuk laporan laba rugi sederhana dan transaksi manual.
+- [x] Tab admin baru `Keuangan` dibuat.
+- [x] Laporan Keuangan tahap 1 menampilkan omset produk bersih, HPP, voucher, fee transaksi, ongkir ditagihkan, uang masuk/keluar manual, margin, dan profit bersih sederhana.
+- [x] Admin bisa menambah, menghapus, dan export CSV transaksi manual.
+- [x] Util kompresi gambar frontend ditambahkan di `src/lib/imageCompression.ts`.
+- [x] Upload gambar ke R2 dikompresi menjadi WebP jika hasilnya lebih hemat: produk, galeri, kategori, QRIS, bukti retur, bukti gudang, dan bukti transfer image.
+- [x] PDF bukti transfer tetap diupload apa adanya.
+
+Catatan apply D1:
+
+```powershell
+npx wrangler d1 execute meyya-id --remote --file migrations/2026-05-05_finance_transactions.sql
+```
+
+Jika kode sudah deploy duluan, endpoint finance punya self-heal `CREATE TABLE IF NOT EXISTS`, jadi migration ini aman dijalankan karena tidak memakai `ALTER TABLE ADD COLUMN`.
 
 ## Batch Free Tier, Profil Alamat, Checkout Stepper, dan Finance Brainstorm 2026-05-05 03:05:40 +07:00
 
@@ -146,7 +198,7 @@ Pemetaan tooltip yang dipasang:
 
 Audit edge case lanjutan:
 
-- `schema.sql` masih bercampur schema dan seed demo; migration berikutnya sebaiknya berasal dari file schema-only.
+- `schema.sql` sudah schema-only; data demo dipisah ke `seed.demo.sql`.
 - Voucher birthday sudah otomatis tampil untuk pelanggan yang eligible dan dibatasi 1x klaim per pelanggan per tahun.
 - Abandoned cart sudah punya snapshot agregat aktif berisi jumlah item, subtotal, product ids, dan item summary.
 - WhatsApp marketing masih membuka WhatsApp Web/manual; provider resmi belum terhubung untuk pengiriman otomatis dan audit delivery.
@@ -333,7 +385,7 @@ Saran:
 Catatan:
 
 - Token yang diperlukan untuk perintah `wrangler d1 export/execute` adalah `CLOUDFLARE_API_TOKEN` dari Cloudflare API Tokens. Gunakan user API token custom dengan permission minimal `Account: D1: Edit` pada account yang berisi database `meyya-id`. Untuk `wrangler whoami`/account discovery, permission `User: Memberships: Read` membantu menghindari error `/memberships`; `User: User Details: Read` hanya untuk menampilkan email dan tidak wajib untuk D1.
-- Jangan apply full `schema.sql` ke production karena file itu masih berisi seed demo.
+- `schema.sql` sekarang schema-only; jangan apply `seed.demo.sql` ke production kecuali memang ingin data contoh.
 - `ALTER TABLE ... ADD COLUMN` di D1/SQLite tidak menerima default non-konstan seperti `CURRENT_TIMESTAMP`; karena itu `wishlists.created_at` ditambah nullable dan insert aplikasi mengisi timestamp secara eksplisit.
 - File migration ini one-time dan sudah applied. Jangan jalankan ulang kecuali schema remote sudah dicek dan memang perlu.
 - Jangan commit full dump karena bisa berisi PII customer/order.
@@ -343,15 +395,15 @@ Catatan:
 
 ### 2. Pisahkan migration production dari seed demo
 
-Kondisi saat ini:
+Status:
 
-- `schema.sql` masih bercampur definisi tabel dan seed/demo data.
-- Applying full `schema.sql` ke production berisiko membawa data contoh atau menimpa asumsi seed.
+- Selesai pada batch 2026-05-05 03:28:56 +07:00.
+- `schema.sql` berisi definisi tabel saja.
+- Data contoh dipindahkan ke `seed.demo.sql` untuk local/staging.
 
-Saran:
+Catatan:
 
-- Buat file migration schema-only untuk D1 production.
-- Simpan seed demo sebagai file terpisah untuk local/dev.
+- Production tetap sebaiknya memakai file migration kecil per batch, bukan full seed demo.
 
 ## Prioritas Menengah
 
@@ -406,7 +458,6 @@ Temuan yang sudah dibereskan:
 
 Temuan lanjutan yang masih layak dikerjakan:
 
-- `schema.sql` masih bercampur schema dan seed demo; patch production kecil sudah dibuat, tetapi pemisahan permanen schema/seed masih sebaiknya dilakukan.
 - `shipping_settings.active_couriers` seed lama masih memakai variasi nama kurir campuran (`JNE`, `JT`, `paxel`); normalisasi kode kurir perlu disamakan dengan response api.co.id.
 - Event analytics masih sederhana; metadata cart terakhir belum dipecah menjadi tabel agregat khusus.
 
@@ -441,5 +492,5 @@ Catatan lanjutan:
 
 ## Urutan Fix Disarankan Berikutnya
 
-1. Pisahkan `schema.sql` menjadi schema-only dan seed demo agar migration production berikutnya lebih aman.
+1. Tambah finance tahap 2: kategori preset, upload bukti transaksi manual, dan tutup buku bulanan.
 2. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.

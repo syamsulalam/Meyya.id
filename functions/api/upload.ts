@@ -13,9 +13,9 @@ export async function onRequestPost(context: any) {
       return new Response(JSON.stringify({ error: 'File size exceeds 5MB limit' }), { status: 400 });
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'application/pdf'];
     if (!allowedTypes.includes(file.type)) {
-      return new Response(JSON.stringify({ error: 'Invalid file type. Only JPEG, PNG, WEBP, and AVIF are allowed.' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'Invalid file type. Only JPEG, PNG, WEBP, AVIF, and PDF are allowed.' }), { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();
