@@ -9,8 +9,9 @@ export async function onRequestPost(context: any) {
       return new Response(JSON.stringify({ error: 'No file uploaded' }), { status: 400 });
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      return new Response(JSON.stringify({ error: 'File size exceeds 5MB limit' }), { status: 400 });
+    const maxSize = file.type === 'application/pdf' ? 8 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return new Response(JSON.stringify({ error: `File size exceeds ${maxSize / 1024 / 1024}MB limit` }), { status: 400 });
     }
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'application/pdf'];
@@ -22,7 +23,8 @@ export async function onRequestPost(context: any) {
     
     // Generate a unique file name
     const ext = file.name.split('.').pop();
-    const fileName = `uploads/${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${ext}`;
+    const folder = formData.get('folder') === 'finance' ? 'finance' : 'uploads';
+    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${ext}`;
 
     // Upload to Cloudflare R2
     if (env.MEYYA_R2) {

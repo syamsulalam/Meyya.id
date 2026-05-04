@@ -5,6 +5,7 @@ import { Banknote, Download, Lock, Plus, Save, Trash2, Upload } from 'lucide-rea
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
 import { buildImageUploadFormData } from '../../lib/imageCompression';
+import { buildPdfAwareUploadFormData } from '../../lib/pdfCompression';
 
 const emptyForm = {
   transaction_date: new Date().toISOString().slice(0, 10),
@@ -32,6 +33,7 @@ export default function AdminFinancePanel() {
   const transactions = Array.isArray(data?.transactions) ? data.transactions : [];
   const closings = Array.isArray(data?.closings) ? data.closings : [];
   const currentPeriodKey = new Date().toISOString().slice(0, 7);
+  const cashFlowRows = buildCashFlowRows(statement);
 
   const saveTransaction = async () => {
     try {
@@ -75,8 +77,10 @@ export default function AdminFinancePanel() {
     if (!file) return;
     setUploadingProof(true);
     try {
-      const formData = file.type.startsWith('image/') ? await buildImageUploadFormData(file) : new FormData();
-      if (!file.type.startsWith('image/')) formData.append('file', file);
+      const formData = file.type.startsWith('image/')
+        ? await buildImageUploadFormData(file)
+        : await buildPdfAwareUploadFormData(file);
+      formData.append('folder', 'finance');
       const res = await authFetch('/api/upload', { method: 'POST', body: formData });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || !payload.url) throw new Error(payload.error || 'Gagal upload bukti transaksi');
@@ -134,6 +138,31 @@ export default function AdminFinancePanel() {
     const link = document.createElement('a');
     link.href = url;
     link.download = `meyya-finance-${range}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportClosingCsv = (closing: any) => {
+    const snapshot = closing.snapshot || {};
+    const statementSnapshot = snapshot.statement || {};
+    const rows = [
+      ['Periode', closing.period_key],
+      ['Ditutup Pada', closing.closed_at],
+      ['Order Paid', statementSnapshot.orderCount || 0],
+      ['Omset Produk Bersih', statementSnapshot.netProductRevenue || 0],
+      ['HPP', statementSnapshot.hpp || 0],
+      ['Manual Income', statementSnapshot.manualIncome || 0],
+      ['Manual Expense', statementSnapshot.manualExpense || 0],
+      ['Packaging Expense', statementSnapshot.packagingExpense || 0],
+      ['Ads Expense', statementSnapshot.adsExpense || 0],
+      ['Profit Bersih', statementSnapshot.netProfit || 0],
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `meyya-closing-${closing.period_key}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -223,6 +252,7 @@ export default function AdminFinancePanel() {
           </Field>
           <Field label="URL Bukti Opsional">
             <input value={form.attachment_url} onChange={(event) => setForm({ ...form, attachment_url: event.target.value })} placeholder="https://..." className={fieldClass} />
+            <p className="mt-2 text-xs text-black/45">PDF dikompresi di browser dengan batas 8 MB dan 10 halaman sebelum upload.</p>
             <div className="flex flex-col sm:flex-row gap-2 mt-2">
               <label className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white border border-black/10 text-xs font-semibold uppercase tracking-widest cursor-pointer hover:bg-black/5">
                 <Upload size={14} /> {uploadingProof ? 'Mengunggah...' : 'Upload Bukti'}
@@ -287,6 +317,23 @@ export default function AdminFinancePanel() {
       </div>
 
       <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
+        <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Arus Kas Sederhana</h3>
+        <div className="space-y-3">
+          {cashFlowRows.map((row) => (
+            <div key={row.label} className="flex items-center justify-between gap-4 rounded-2xl bg-white/60 border border-black/5 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-ink">{row.label}</p>
+                <p className="text-xs text-black/45">{row.note}</p>
+              </div>
+              <p className={`font-mono font-semibold ${row.type === 'out' ? 'text-red-700' : 'text-emerald-700'}`}>
+                {row.type === 'out' ? '-' : '+'}{formatCurrency(row.amount)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
         <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Riwayat Tutup Buku</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {closings.map((closing: any) => (
@@ -298,6 +345,9 @@ export default function AdminFinancePanel() {
               <p className="text-xs text-black/50">Ditutup: {new Date(closing.closed_at).toLocaleString('id-ID')}</p>
               <p className="text-sm font-semibold mt-3">{formatCurrency(closing.snapshot?.statement?.netProfit || 0)}</p>
               <p className="text-xs text-black/45">Profit bersih snapshot</p>
+              <button type="button" onClick={() => exportClosingCsv(closing)} className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-black/5 text-[10px] uppercase tracking-widest hover:bg-black/10">
+                <Download size={12} /> Export CSV
+              </button>
             </div>
           ))}
           {closings.length === 0 && <p className="text-sm text-black/45">Belum ada periode yang ditutup buku.</p>}
@@ -335,6 +385,41 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+function buildCashFlowRows(statement: any) {
+  return [
+    {
+      label: 'Kas Masuk dari Order',
+      note: 'Total paid dari order paid/processing/shipped/completed',
+      amount: Number(statement.totalPaidCollected || 0),
+      type: 'in',
+    },
+    {
+      label: 'Uang Masuk Manual',
+      note: 'Modal/refund supplier/penjualan manual',
+      amount: Number(statement.manualIncome || 0),
+      type: 'in',
+    },
+    {
+      label: 'Estimasi HPP',
+      note: 'HPP item dari order pada periode ini',
+      amount: Number(statement.hpp || 0),
+      type: 'out',
+    },
+    {
+      label: 'Uang Keluar Manual',
+      note: 'Packaging, ads, operasional, refund, dan biaya lain',
+      amount: Number(statement.manualExpense || 0),
+      type: 'out',
+    },
+    {
+      label: 'Net Cash Sederhana',
+      note: 'Kas masuk order + manual income - HPP - manual expense',
+      amount: Number(statement.totalPaidCollected || 0) + Number(statement.manualIncome || 0) - Number(statement.hpp || 0) - Number(statement.manualExpense || 0),
+      type: Number(statement.totalPaidCollected || 0) + Number(statement.manualIncome || 0) - Number(statement.hpp || 0) - Number(statement.manualExpense || 0) >= 0 ? 'in' : 'out',
+    },
+  ];
+}
+
 function formatCurrency(value: any) {
-  return `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+  return `Rp ${Math.abs(Number(value || 0)).toLocaleString('id-ID')}`;
 }

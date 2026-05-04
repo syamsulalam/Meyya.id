@@ -8,6 +8,8 @@ Status 2026-05-05 03:28:56 +07:00: tahap 1 sudah diimplementasikan sebagai tab a
 
 Status 2026-05-05: tahap 2 sudah menambahkan preset kategori, upload bukti transaksi manual, tutup buku bulanan, lock periode tertutup, serta laporan total/rata-rata biaya Packaging dan Ads per order.
 
+Status 2026-05-05 lanjutan: tahap 3 sudah menambahkan upload bukti finance ke folder R2 khusus `finance/`, export CSV untuk closing period, dashboard arus kas sederhana, dan kompresi PDF browser-side untuk bukti transaksi.
+
 ## Tahap 1: Statement Sederhana
 
 Fitur awal:
@@ -89,8 +91,8 @@ Tabel yang disarankan:
 
 Prioritas lanjutan:
 
-1. Upload bukti transaksi ke folder finance khusus dan tampilkan preview file.
-2. Export closing period sebagai PDF/CSV.
-3. Tambah dashboard arus kas sederhana.
-4. Tambah pemetaan biaya per order yang lebih presisi, bukan hanya rata-rata periode.
+1. Tampilkan preview file bukti transaksi langsung di drawer/modal.
+2. Export closing period sebagai PDF, bukan hanya CSV.
+3. Tambah pemetaan biaya per order yang lebih presisi, bukan hanya rata-rata periode.
+4. Tambah integrasi PDF compression API agresif jika bukti PDF mulai banyak.
 5. Baru setelah itu pikirkan jurnal debit/kredit yang lebih formal.

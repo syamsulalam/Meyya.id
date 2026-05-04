@@ -7,6 +7,7 @@ import { useAuthFetcher } from '../hooks/useAuthFetch';
 import { useAuthFetch } from '../hooks/useAuthFetch';
 import { ExplainedLabel, ReturnExchangeTooltip, TrackingNumberTooltip, UniqueCodeTooltip } from '../components/term-tooltips';
 import { buildImageUploadFormData } from '../lib/imageCompression';
+import { buildPdfAwareUploadFormData } from '../lib/pdfCompression';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -48,8 +49,7 @@ export default function Order() {
     if (!file) return;
     setUploadingProof(true);
     try {
-      const formData = file.type.startsWith('image/') ? await buildImageUploadFormData(file) : new FormData();
-      if (!file.type.startsWith('image/')) formData.append('file', file);
+      const formData = file.type.startsWith('image/') ? await buildImageUploadFormData(file) : await buildPdfAwareUploadFormData(file);
       const res = await authFetch(`/api/orders/${id}/payment-proof`, { method: 'POST', body: formData });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Gagal upload bukti transfer');

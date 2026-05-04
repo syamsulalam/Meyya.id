@@ -29,23 +29,39 @@ Checklist:
 - [x] Tutup buku bulanan tersedia dari tab Keuangan dan menyimpan snapshot ke `finance_period_closings`.
 - [x] Periode yang sudah ditutup buku dikunci dari penambahan/penghapusan transaksi manual.
 - [x] Laporan Keuangan menampilkan total Packaging, total Ads, Packaging per order, dan Ads per order.
+- [x] Kompresi PDF browser-side diimplementasikan dengan rasterisasi halaman PDF menjadi PDF baru yang lebih kecil jika hasilnya hemat.
+- [x] PDF upload dibatasi 8 MB dan 10 halaman sebelum kompresi agar browser tidak berat.
+- [x] Kompresi PDF browser-side dipakai untuk bukti transaksi finance dan bukti transfer customer.
+- [x] Finance tahap 3: bukti transaksi diupload ke folder R2 `finance/`, closing period bisa export CSV, dan dashboard arus kas sederhana ditambahkan.
 
 Catatan kompresi PDF:
 
 - Ada library/alat untuk optimasi PDF, tetapi pendekatannya berbeda dari kompresi gambar.
-- `pdf-lib` bisa dipakai di browser/JavaScript untuk membuat dan memodifikasi PDF, tetapi bukan solusi kompresi agresif out-of-the-box.
+- `pdf-lib` bisa dipakai di browser/JavaScript untuk membuat dan memodifikasi PDF; di Meyya dipakai untuk membuat ulang PDF dari halaman hasil render.
+- `pdfjs-dist` dipakai untuk render halaman PDF di browser.
 - `qpdf` punya opsi optimasi ukuran seperti compress streams, recompress flate, dan optimize images, tetapi itu tool native CLI.
 - Ghostscript `pdfwrite` bisa menghasilkan ulang PDF dan sering dipakai untuk mengecilkan PDF, tetapi juga tool native.
 - Karena Cloudflare Pages Functions tidak bisa menjalankan binary native seperti Ghostscript/qpdf, opsi paling realistis nanti:
-  1. Browser-side ringan memakai `pdf-lib` untuk rewrite/cleanup PDF jika cukup.
-  2. Service terpisah/worker container untuk Ghostscript/qpdf jika butuh kompresi PDF serius.
-  3. Untuk saat ini batasi ukuran PDF dan dorong upload bukti berupa gambar agar kompresi WebP bekerja.
+  1. Browser-side raster compression seperti yang sekarang sudah dibuat.
+  2. API provider pihak ketiga jika butuh kompresi PDF agresif tanpa server sendiri.
+  3. Service terpisah/worker container untuk Ghostscript/qpdf jika butuh kontrol penuh.
+
+Provider API PDF compression yang layak dievaluasi nanti:
+
+- CloudConvert Compress PDF API: punya optimization profiles dan storage integration.
+- iLoveAPI Compress PDF: punya level kompresi termasuk `extreme`.
+- PDF.co PDF Compress API: endpoint `/v2/pdf/compress` dengan konfigurasi kompresi.
+- Whipdoc PDF Compression API: REST API khusus kompresi PDF dengan klaim 50 free compressions/bulan.
 
 Referensi:
 
 - `pdf-lib`: https://pdf-lib.js.org/
+- `pdfjs-dist`: https://mozilla.github.io/pdf.js/
 - `qpdf` optimizing file size: https://qpdf.readthedocs.io/en/12.0/cli.html#optimizing-file-size
 - Ghostscript pdfwrite: https://ghostscript.readthedocs.io/en/gs10.02.1/VectorDevices.html
+- CloudConvert Compress PDF API: https://cloudconvert.com/apis/compress-pdf
+- iLoveAPI Compress PDF: https://www.iloveapi.com/docs/pdf-guides/compress-pdf-api
+- PDF.co Compress PDF: https://developer.pdf.co/api-reference/pdf-compress
 
 ## Batch Schema Split, Finance Tahap 1, dan Kompresi Upload 2026-05-05 03:28:56 +07:00
 

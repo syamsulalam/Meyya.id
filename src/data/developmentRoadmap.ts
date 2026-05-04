@@ -47,7 +47,9 @@ export const developmentRoadmap: RoadmapItem[] = [
   { title: 'Kompresi gambar sebelum R2', status: 'done', area: 'Data', note: 'Upload gambar dikompresi ke WebP jika lebih hemat sebelum dikirim ke R2.' },
   { title: 'Finance tutup buku bulanan', status: 'done', area: 'Admin', note: 'Preset kategori, upload bukti manual, closing period, dan lock periode sudah tersedia.' },
   { title: 'Biaya packaging/ads per order', status: 'done', area: 'Admin', note: 'Laporan Keuangan menampilkan total dan rata-rata Packaging/Ads per order.' },
-  { title: 'Kompresi PDF bukti transaksi', status: 'planned', area: 'Data', note: 'PDF saat ini diterima apa adanya; kompresi serius butuh pdf-lib ringan atau service Ghostscript/qpdf terpisah.' },
+  { title: 'Kompresi PDF browser-side', status: 'done', area: 'Data', note: 'PDF bukti transaksi dan bukti transfer dirasterisasi di browser lalu dibuat ulang sebagai PDF lebih kecil jika hasilnya hemat.' },
+  { title: 'Finance tahap 3', status: 'done', area: 'Admin', note: 'Bukti finance masuk folder R2 khusus, closing period bisa export CSV, dan arus kas sederhana tersedia.' },
+  { title: 'Kompresi PDF API agresif', status: 'planned', area: 'Data', note: 'Evaluasi CloudConvert, iLoveAPI, PDF.co, atau provider khusus jika volume PDF mulai besar.' },
   { title: 'Provider WhatsApp/email', status: 'planned', area: 'Marketing', note: 'Template pesan belum terkirim otomatis dari provider resmi.' },
   { title: 'Analytics event lebih detail', status: 'planned', area: 'Marketing', note: 'Metadata event belum memuat device/source campaign secara rapi.' },
 ];

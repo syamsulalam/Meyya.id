@@ -19,7 +19,8 @@ export async function onRequestPost(context: any) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     if (!file || !(file instanceof File)) return new Response(JSON.stringify({ error: 'No file uploaded' }), { status: 400 });
-    if (file.size > 5 * 1024 * 1024) return new Response(JSON.stringify({ error: 'File size exceeds 5MB limit' }), { status: 400 });
+    const maxSize = file.type === 'application/pdf' ? 8 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxSize) return new Response(JSON.stringify({ error: `File size exceeds ${maxSize / 1024 / 1024}MB limit` }), { status: 400 });
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'application/pdf'];
     if (!allowedTypes.includes(file.type)) {
