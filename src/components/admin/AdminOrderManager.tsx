@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import useSWR, { mutate } from 'swr';
-import { ClipboardList, Download, Gift, MessageSquare, PackageCheck, RotateCcw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ClipboardList, Download, Gift, MessageSquare, PackageCheck, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
 import {
@@ -86,7 +86,8 @@ export default function AdminOrderManager() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(template),
       });
-      if (!res.ok) throw new Error('Gagal menyimpan template');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan template');
       mutate('/api/admin/message-templates');
       addToast('Template pesan disimpan', 'success');
     } catch (error: any) {
@@ -301,11 +302,81 @@ function StatusPill({ status }: { status: string }) {
 
 function TemplateEditor({ template, onSave }: { template: any; onSave: (template: any) => void }) {
   const [draft, setDraft] = useState(template);
+  const allowedVariables = draft.allowed_variables || template.allowed_variables || {};
+  const invalidVariables = findInvalidVariables(`${draft.title || ''}\n${draft.body || ''}`, Object.keys(allowedVariables));
+  const previewTitle = renderPreview(draft.title || '', getPreviewValues(template.key));
+  const previewBody = renderPreview(draft.body || '', getPreviewValues(template.key));
+  const canSave = invalidVariables.length === 0;
+
   return (
-    <div className="bg-white/60 border border-black/5 rounded-2xl p-4 space-y-2">
+    <div className="bg-white/60 border border-black/5 rounded-2xl p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-ink">{draft.key}</p>
+          <p className="text-[10px] text-black/40 uppercase tracking-widest">{draft.channel || 'WHATSAPP'}</p>
+        </div>
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] uppercase tracking-widest ${canSave ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+          {canSave ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+          {canSave ? 'Valid' : 'Cek Placeholder'}
+        </span>
+      </div>
       <input value={draft.title || ''} onChange={e => setDraft({ ...draft, title: e.target.value })} className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 text-sm font-medium" />
-      <textarea value={draft.body || ''} onChange={e => setDraft({ ...draft, body: e.target.value })} rows={3} className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 text-xs resize-none" />
-      <button onClick={() => onSave(draft)} className="px-4 py-2 bg-ink text-white rounded-full text-[10px] uppercase tracking-widest font-semibold">Simpan Template</button>
+      <textarea value={draft.body || ''} onChange={e => setDraft({ ...draft, body: e.target.value })} rows={4} className={`w-full bg-white border rounded-xl px-3 py-2 text-xs resize-none ${canSave ? 'border-black/10' : 'border-red-200 focus:outline-red-300'}`} />
+
+      <div className="rounded-xl bg-black/5 border border-black/5 p-3">
+        <p className="text-[10px] uppercase tracking-widest text-black/40 mb-2">Variabel yang boleh dipakai</p>
+        <div className="flex flex-wrap gap-1.5">
+          {Object.keys(allowedVariables).map((variable) => (
+            <button
+              key={variable}
+              type="button"
+              onClick={() => setDraft({ ...draft, body: `${draft.body || ''} {{${variable}}}`.trim() })}
+              className="rounded-full bg-white border border-black/10 px-2 py-1 text-[10px] font-mono hover:border-ink"
+              title={allowedVariables[variable]}
+            >
+              {`{{${variable}}}`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {invalidVariables.length > 0 && (
+        <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-xs text-red-700">
+          Placeholder tidak dikenal: {invalidVariables.map((variable) => `{{${variable}}}`).join(', ')}
+        </div>
+      )}
+
+      <div className="rounded-xl bg-white border border-black/10 p-3">
+        <p className="text-[10px] uppercase tracking-widest text-black/40 mb-2">Preview</p>
+        <p className="text-xs font-semibold">{previewTitle}</p>
+        <p className="text-xs text-black/60 whitespace-pre-wrap mt-1">{previewBody}</p>
+      </div>
+
+      <button disabled={!canSave} onClick={() => onSave(draft)} className="px-4 py-2 bg-ink text-white rounded-full text-[10px] uppercase tracking-widest font-semibold disabled:opacity-50 disabled:cursor-not-allowed">Simpan Template</button>
     </div>
   );
+}
+
+function findInvalidVariables(text: string, allowedVariables: string[]) {
+  const variables = Array.from(String(text || '').matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g), (match) => match[1]);
+  return Array.from(new Set(variables.filter((variable) => !allowedVariables.includes(variable))));
+}
+
+function renderPreview(text: string, values: Record<string, string>) {
+  return String(text || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => values[key] || `{{${key}}}`);
+}
+
+function getPreviewValues(key: string) {
+  return {
+    store_name: 'MEYYA.ID',
+    support_whatsapp: '6281234567890',
+    name: 'Aisyah',
+    order_id: 'ORD-20260504-123',
+    total_paid: 'Rp 349.123',
+    payment_expires_at: '4 Mei 2026 21.00',
+    courier: 'JNE',
+    tracking_number: 'JNE123456789',
+    tracking_url: 'https://meyya.id/order/ORD-20260504-123',
+    template_key: key,
+  };
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import useSWR from 'swr';
-import { CheckCircle2, Package, Copy, ArrowRight, Truck } from 'lucide-react';
+import { CheckCircle2, Package, Copy, ArrowRight, Truck, RefreshCw } from 'lucide-react';
 import { useStore } from '../store';
 import { useAuthFetcher } from '../hooks/useAuthFetch';
 import { useAuthFetch } from '../hooks/useAuthFetch';
@@ -19,6 +19,11 @@ export default function Order() {
   
   const { data: order, error, isLoading } = useSWR(id ? `/api/orders/${id}` : null, authFetcher);
   const { data: paymentOptions } = useSWR('/api/payment/options', fetcher);
+  const { data: trackingData, isLoading: trackingLoading, mutate: refreshTracking } = useSWR(
+    id && order?.tracking_number ? `/api/orders/${id}/tracking` : null,
+    authFetcher,
+    { refreshInterval: order?.status === 'SHIPPED' ? 10 * 60 * 1000 : 0 }
+  );
 
   if (isLoading) {
     return <div className="max-w-3xl mx-auto px-4 py-16 text-center">Memuat detail pesanan...</div>;
@@ -156,8 +161,44 @@ export default function Order() {
             <h2 className="text-lg font-medium text-emerald-800 mb-2">Pesanan Diproses</h2>
             <p className="text-sm text-emerald-700/80 mb-6 max-w-sm mx-auto">Kami sedang mengemas pesanan Anda dengan penuh cinta. Anda akan menerima notifikasi saat paket dikirim.</p>
             {order.tracking_number && (
-              <div className="bg-white/70 border border-emerald-100 rounded-xl p-4 text-sm text-emerald-800">
-                <ExplainedLabel tooltip={<TrackingNumberTooltip />}>Resi {order.tracking_courier || ''}</ExplainedLabel>: <span className="font-mono font-semibold">{order.tracking_number}</span>
+              <div className="bg-white/70 border border-emerald-100 rounded-2xl p-4 text-sm text-emerald-800 w-full max-w-lg">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-left">
+                    <p>
+                      <ExplainedLabel tooltip={<TrackingNumberTooltip />}>Resi {order.tracking_courier || ''}</ExplainedLabel>: <span className="font-mono font-semibold">{order.tracking_number}</span>
+                    </p>
+                    {trackingData?.available && (
+                      <p className="mt-1 text-xs text-emerald-700/80">
+                        Status live: <span className="font-semibold">{trackingData.status || 'Dalam proses'}</span>
+                      </p>
+                    )}
+                    {!trackingData?.available && trackingData?.error && (
+                      <p className="mt-1 text-xs text-emerald-700/70">{trackingData.error}</p>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => refreshTracking()} className="rounded-full bg-emerald-50 p-2 text-emerald-700 hover:bg-emerald-100" title="Refresh tracking resi">
+                    <RefreshCw size={14} className={trackingLoading ? 'animate-spin' : ''} />
+                  </button>
+                </div>
+
+                {trackingData?.available && (
+                  <div className="mt-4 text-left border-t border-emerald-100 pt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-emerald-800/80 mb-3">
+                      {trackingData.origin && <p><span className="font-semibold">Asal:</span> {trackingData.origin}</p>}
+                      {trackingData.destination && <p><span className="font-semibold">Tujuan:</span> {trackingData.destination}</p>}
+                      {trackingData.receiver && <p><span className="font-semibold">Penerima:</span> {trackingData.receiver}</p>}
+                      {trackingData.service && <p><span className="font-semibold">Layanan:</span> {trackingData.service}</p>}
+                    </div>
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {(trackingData.events || []).slice(0, 8).map((event: any, index: number) => (
+                        <div key={`${event.timestamp}-${index}`} className="rounded-xl bg-emerald-50/60 border border-emerald-100 px-3 py-2">
+                          <p className="text-xs font-medium text-emerald-900">{event.description || event.code || 'Update pengiriman'}</p>
+                          <p className="text-[10px] text-emerald-800/60 mt-0.5">{[event.timestamp, event.city].filter(Boolean).join(' - ')}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

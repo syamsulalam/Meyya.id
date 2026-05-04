@@ -32,9 +32,10 @@ export const developmentRoadmap: RoadmapItem[] = [
   { title: 'Voucher birthday 1x per tahun', status: 'done', area: 'Marketing', note: 'Klaim birthday dikunci per pelanggan per tahun lewat voucher usage dan claim year.' },
   { title: 'Snapshot abandoned cart', status: 'done', area: 'Marketing', note: 'Keranjang terakhir disimpan sebagai snapshot agregat untuk CRM dan WhatsApp Marketing.' },
   { title: 'Normalisasi stok global dari varian', status: 'done', area: 'Operations', note: 'Stok produk utama dihitung dari total stok varian aktif saat produk dibuat atau diubah.' },
+  { title: 'Validasi variable template pesan', status: 'done', area: 'Operations', note: 'Template pesan punya daftar variable, preview, dan guard agar placeholder salah tidak tersimpan.' },
+  { title: 'Tracking resi live', status: 'done', area: 'Customer', note: 'Halaman order mengambil status live resi dari endpoint tracking kurir server-side.' },
   { title: 'Pisahkan schema dan seed demo', status: 'planned', area: 'Data', note: 'schema.sql masih bercampur definisi tabel dan data contoh.' },
   { title: 'Provider WhatsApp/email', status: 'planned', area: 'Marketing', note: 'Template pesan belum terkirim otomatis dari provider resmi.' },
   { title: 'Drag-and-drop gallery produk', status: 'planned', area: 'Admin', note: 'Urutan gambar produk sekarang belum bisa disusun lewat drag-and-drop.' },
   { title: 'Analytics event lebih detail', status: 'planned', area: 'Marketing', note: 'Metadata event belum memuat device/source campaign secara rapi.' },
-  { title: 'Tracking resi live', status: 'planned', area: 'Customer', note: 'Nomor resi sudah disimpan, tetapi belum ada tracking live dari kurir.' },
 ];

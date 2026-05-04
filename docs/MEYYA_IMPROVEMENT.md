@@ -68,8 +68,8 @@ Audit edge case lanjutan:
 - Voucher birthday sudah otomatis tampil untuk pelanggan yang eligible dan dibatasi 1x klaim per pelanggan per tahun.
 - Abandoned cart sudah punya snapshot agregat aktif berisi jumlah item, subtotal, product ids, dan item summary.
 - WhatsApp marketing masih membuka WhatsApp Web/manual; provider resmi belum terhubung untuk pengiriman otomatis dan audit delivery.
-- Template pesan belum memakai variable preview/validation, sehingga placeholder yang salah bisa lolos.
-- Tracking resi live belum terhubung ke API kurir; saat ini resi hanya disimpan dan ditampilkan.
+- Template pesan sudah memakai variable preview/validation dan endpoint admin menolak placeholder tidak dikenal.
+- Tracking resi live sudah tersedia di halaman order melalui endpoint server-side yang memanggil provider tracking kurir.
 - Return/exchange belum punya SLA, bukti foto, dan stok penerimaan barang kembali.
 - Region cache sudah bisa di-refresh, tetapi belum ada indikator umur cache per endpoint di UI.
 - Admin roadmap sekarang statis dari file frontend; jika ingin jadi sumber kebenaran tim, pindahkan ke D1 agar bisa diedit dari admin.
@@ -149,6 +149,25 @@ npx wrangler d1 execute meyya-id --remote --file migrations/2026-05-04_birthday_
 ```
 
 Jika kode sudah ter-deploy duluan, endpoint voucher/order/events punya self-heal untuk schema baru. Jangan jalankan migration ini setelah self-heal menambahkan kolom `voucher_usages.usage_type` atau `voucher_usages.claim_year`, karena `ALTER TABLE ADD COLUMN` akan gagal jika kolom sudah ada. Dalam kondisi itu cukup export schema dan cek kolomnya.
+
+## Batch Template Pesan dan Tracking Resi 2026-05-04 21:22:00 +07:00
+
+Checklist:
+
+- [x] Template pesan admin punya daftar variable yang boleh dipakai per template.
+- [x] Template editor menampilkan preview title/body dengan data contoh sebelum disimpan.
+- [x] Placeholder template divalidasi di UI agar typo seperti `{{tracking_numer}}` langsung terlihat.
+- [x] Endpoint `PUT /api/admin/message-templates` menolak placeholder tidak dikenal, sehingga guard tetap aman walau request tidak lewat UI.
+- [x] Endpoint tracking customer ditambahkan di `/api/orders/:id/tracking` dan hanya bisa dibaca pemilik order.
+- [x] Halaman order menampilkan status live, asal/tujuan, penerima, layanan, dan timeline tracking jika provider mengembalikan data.
+- [x] Tracking resi punya fallback pesan aman jika API key belum dikonfigurasi, resi belum tersedia, atau kurir belum punya update.
+- [x] Data roadmap admin diperbarui: validasi variable template pesan dan tracking resi live ditandai selesai.
+
+Catatan konfigurasi tracking:
+
+- Endpoint tracking server-side membaca API key dari `RAJAONGKIR_API_KEY`, lalu fallback ke `KOMERCE_API_KEY`, lalu `API_CO_ID_KEY`.
+- Endpoint provider yang dipakai: `POST https://rajaongkir.komerce.id/api/v1/track/waybill?awb=...&courier=...` dengan header `key`.
+- Jika provider yang dipakai production berbeda dari RajaOngkir/Komerce, cukup sesuaikan fungsi `functions/api/orders/[id]/tracking.ts` tanpa mengubah UI customer.
 
 ## Ringkasan Status Terbaru
 
@@ -342,6 +361,5 @@ Catatan lanjutan:
 
 1. Pisahkan `schema.sql` menjadi schema-only dan seed demo agar migration production berikutnya lebih aman.
 2. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
-3. Tambah tracking resi live dari API kurir.
-4. Tambah drag-and-drop reorder untuk galeri produk.
-5. Tambah template abandoned cart yang mengambil nama produk utama dari snapshot cart.
+3. Tambah drag-and-drop reorder untuk galeri produk.
+4. Tambah template abandoned cart yang mengambil nama produk utama dari snapshot cart.
