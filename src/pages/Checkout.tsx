@@ -108,7 +108,13 @@ export default function Checkout() {
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({
            code: voucherCode.toUpperCase(),
-           cart_subtotal: subtotal
+           cart_subtotal: subtotal,
+           shipping_cost: shippingCost,
+           cart_items: cart.map((item) => ({
+             product_id: item.product_id,
+             quantity: item.quantity,
+             price: item.price,
+           }))
          })
        });
 

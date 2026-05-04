@@ -51,6 +51,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
   const [profileName, setProfileName] = useState(user?.name || user?.fullName || '');
   const [profilePhone, setProfilePhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [savedBirthDate, setSavedBirthDate] = useState('');
   const [canSyncNameToClerk, setCanSyncNameToClerk] = useState(false);
 
   // Fetch Profile Data
@@ -68,6 +69,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
             setCountryCode(cc);
             setProfilePhone(formatPhoneDigits(phone.replace(cc, '')));
             setBirthDate(data.user.birth_date || '');
+            setSavedBirthDate(data.user.birth_date || '');
             setTimeout(() => setIsSaved(true), 10);
           }
         });
@@ -138,7 +140,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
     }
   }, [blocker.state, setBlockerOpen]);
 
-  const handleSave = async () => {
+  const persistProfile = async () => {
     try {
       const res = await authFetch(`/api/user/profile/${user.id}`, {
         method: 'PUT',
@@ -163,6 +165,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       }
       
       setIsSaved(true);
+      setSavedBirthDate(birthDate || savedBirthDate);
       addToast('Perubahan data profil berhasil disimpan!', 'success');
       if (blocker.state === 'blocked') {
         blocker.proceed?.();
@@ -170,7 +173,22 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
     } catch (e: any) {
       addToast(e.message, 'error');
     }
-  }
+  };
+
+  const handleSave = async () => {
+    if (!savedBirthDate && birthDate) {
+      showConfirm({
+        title: 'Konfirmasi Tanggal Lahir',
+        message: `Pastikan tanggal lahir ${new Date(birthDate).toLocaleDateString('id-ID')} sudah benar. Setelah disimpan, tanggal lahir tidak bisa diganti lagi karena dipakai untuk aturan voucher birthday.`,
+        confirmLabel: 'Sudah Benar',
+        tone: 'default',
+        onConfirm: persistProfile,
+      });
+      return;
+    }
+
+    await persistProfile();
+  };
 
   const handleSyncNameToClerk = async () => {
     if (!clerkUser || !profileName.trim()) return;
@@ -358,12 +376,13 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
               <input
                 type="date"
                 value={birthDate}
+                disabled={!!savedBirthDate}
                 onChange={(e) => setBirthDate(e.target.value)}
-                className="w-full bg-white/50 border border-black/10 rounded-full py-3 pl-12 pr-4 focus:outline-none focus:border-black/50 transition-colors text-sm"
+                className="w-full bg-white/50 border border-black/10 rounded-full py-3 pl-12 pr-4 focus:outline-none focus:border-black/50 transition-colors text-sm disabled:bg-black/5 disabled:text-black/40 disabled:cursor-not-allowed"
               />
             </div>
             <p className="mt-2 text-xs text-black/50">
-              Masukkan tanggal lahir Anda untuk peluang mendapatkan voucher diskon birthday.
+              {savedBirthDate ? 'Tanggal lahir sudah tersimpan dan tidak bisa diganti lagi.' : 'Masukkan tanggal lahir Anda untuk peluang mendapatkan voucher diskon birthday.'}
             </p>
           </div>
           </div>

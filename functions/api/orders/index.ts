@@ -1,4 +1,5 @@
 import { auditLog, cancelOrderAndReleaseReservations, ensureCommerceSchema, expirePendingOrders } from '../_commerce';
+import { ensureVoucherSchema, validateVoucherForCart } from '../_vouchers';
 
 export async function onRequestPost(context: any) {
   const { env, request, data } = context;
@@ -10,6 +11,7 @@ export async function onRequestPost(context: any) {
 
   try {
     await ensureCommerceSchema(env);
+    await ensureVoucherSchema(env);
     await expirePendingOrders(env);
     const body = await request.json();
     const { 
@@ -100,40 +102,16 @@ export async function onRequestPost(context: any) {
     if (voucher_code) {
         const voucher = await env.MEYYA_DB.prepare('SELECT * FROM vouchers WHERE code = ?').bind(voucher_code).first();
         if (voucher) {
-            const now = new Date();
-            const valid = (!voucher.valid_from || new Date(voucher.valid_from) <= now) &&
-                          (!voucher.valid_until || new Date(voucher.valid_until) >= now) &&
-                          (!voucher.usage_limit || voucher.used_count < voucher.usage_limit) &&
-                          (!voucher.min_purchase || calculatedSubtotal >= voucher.min_purchase);
-                          
-            if (valid) {
-                 if (voucher.target_clerk_id && voucher.target_clerk_id !== clerk_id) {
-                     return new Response(JSON.stringify({ error: `Voucher ${voucher_code} is not available for this account` }), { status: 400 });
-                 }
-                 const targetRole = String(voucher.target_user_role || 'ALL').toUpperCase();
-                 if (targetRole === 'NEW_USER') {
-                     const existingOrder = await env.MEYYA_DB.prepare(`
-                       SELECT COUNT(*) AS total
-                       FROM orders
-                       WHERE clerk_id = ? AND status != 'CANCELLED'
-                     `).bind(clerk_id).first();
-                     if (Number(existingOrder?.total || 0) > 0) {
-                         return new Response(JSON.stringify({ error: `Voucher ${voucher_code} hanya berlaku untuk belanja pertama` }), { status: 400 });
-                     }
-                 }
-                 if (voucher.discount_type === 'FIXED') {
-                     finalDiscountAmount = voucher.discount_value;
-                 } else if (voucher.discount_type === 'PERCENTAGE') {
-                     finalDiscountAmount = (voucher.discount_value / 100) * calculatedSubtotal;
-                     if (voucher.max_discount && finalDiscountAmount > voucher.max_discount) {
-                         finalDiscountAmount = voucher.max_discount;
-                     }
-                 } else if (voucher.discount_type === 'FREE_SHIPPING') {
-                     finalDiscountAmount = Math.min(finalShippingCost, voucher.discount_value || finalShippingCost);
-                 }
-            } else {
-                 return new Response(JSON.stringify({ error: `Voucher ${voucher_code} is invalid or expired` }), { status: 400 });
+            const validation = await validateVoucherForCart(env, voucher, {
+              clerkId: clerk_id,
+              cartSubtotal: calculatedSubtotal,
+              cartItems: items,
+              shippingCost: finalShippingCost,
+            });
+            if (!validation.valid) {
+                 return new Response(JSON.stringify({ error: validation.error || `Voucher ${voucher_code} is invalid or expired` }), { status: 400 });
             }
+            finalDiscountAmount = validation.discountAmount;
         } else {
             return new Response(JSON.stringify({ error: `Voucher ${voucher_code} not found` }), { status: 400 });
         }

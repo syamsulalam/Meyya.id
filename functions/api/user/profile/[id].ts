@@ -52,9 +52,14 @@ export async function onRequestPut(context: any) {
 
     // Update user info
     if (body.name !== undefined || body.phone_wa !== undefined || body.birth_date !== undefined) {
+      const existing = await env.MEYYA_DB.prepare('SELECT birth_date FROM users WHERE clerk_id = ?').bind(id).first();
+      const nextBirthDate = cleanBirthDate(body.birth_date);
+      if (existing?.birth_date && nextBirthDate && existing.birth_date !== nextBirthDate) {
+        return new Response(JSON.stringify({ error: 'Tanggal lahir sudah tersimpan dan tidak bisa diubah.' }), { status: 400 });
+      }
       await env.MEYYA_DB.prepare(`
          UPDATE users SET first_name = ?, last_name = ?, phone_wa = ?, birth_date = ? WHERE clerk_id = ?
-      `).bind(firstName, lastName, body.phone_wa || '', cleanBirthDate(body.birth_date), id).run();
+      `).bind(firstName, lastName, body.phone_wa || '', existing?.birth_date || nextBirthDate, id).run();
     }
 
     return new Response(JSON.stringify({ success: true, message: 'Profile updated' }), {

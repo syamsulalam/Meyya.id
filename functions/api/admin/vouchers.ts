@@ -1,10 +1,12 @@
 import { auditLog, ensureCommerceSchema } from '../_commerce';
+import { ensureVoucherSchema, parseApplicableProductIds, stringifyApplicableProductIds } from '../_vouchers';
 
 export async function onRequestGet(context: any) {
   const { env } = context;
 
   try {
     await ensureCommerceSchema(env);
+    await ensureVoucherSchema(env);
     const { results: vouchers } = await env.MEYYA_DB.prepare(`
       SELECT * FROM vouchers ORDER BY valid_until IS NULL DESC, valid_until DESC
     `).all();
@@ -25,7 +27,9 @@ export async function onRequestGet(context: any) {
       isActive: (!v.valid_from || new Date(v.valid_from) <= now) && (!v.valid_until || new Date(v.valid_until) >= now),
       targetUserRole: v.target_user_role || 'ALL',
       targetClerkId: v.target_clerk_id || '',
-      targetSegment: v.target_segment || ''
+      targetSegment: v.target_segment || '',
+      birthdayClaimWindowDays: Number(v.birthday_claim_window_days || 0),
+      applicableProductIds: parseApplicableProductIds(v.applicable_product_ids)
     }));
 
     return new Response(JSON.stringify(formatted), {
@@ -42,12 +46,20 @@ export async function onRequestPost(context: any) {
 
   try {
     await ensureCommerceSchema(env);
+    await ensureVoucherSchema(env);
     const body = await request.json();
     const { code, discount_type, discount_value, min_purchase, max_discount, valid_from, valid_until, usage_limit, target_user_role, target_clerk_id, target_segment } = body;
+    const birthdayWindow = Number(body.birthday_claim_window_days || 0);
+    const targetRole = String(target_user_role || 'ALL').toUpperCase();
+    const segment = String(target_segment || '').toUpperCase();
+    if ((targetRole === 'BIRTHDAY' || segment === 'BIRTHDAY') && birthdayWindow < 1) {
+      return new Response(JSON.stringify({ error: 'Voucher birthday wajib punya window klaim minimal 1 hari.' }), { status: 400 });
+    }
+    const applicableProductIds = stringifyApplicableProductIds(body.applicable_product_ids);
     
     await env.MEYYA_DB.prepare(`
-      INSERT INTO vouchers (code, discount_type, discount_value, min_purchase, max_discount, valid_from, valid_until, usage_limit, used_count, target_user_role, target_clerk_id, target_segment)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+      INSERT INTO vouchers (code, discount_type, discount_value, min_purchase, max_discount, valid_from, valid_until, usage_limit, used_count, target_user_role, target_clerk_id, target_segment, birthday_claim_window_days, applicable_product_ids)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
       ON CONFLICT(code) DO UPDATE SET
         discount_type = excluded.discount_type,
         discount_value = excluded.discount_value,
@@ -58,10 +70,12 @@ export async function onRequestPost(context: any) {
         usage_limit = excluded.usage_limit,
         target_user_role = excluded.target_user_role,
         target_clerk_id = excluded.target_clerk_id,
-        target_segment = excluded.target_segment
-    `).bind(code, discount_type, discount_value, min_purchase || 0, max_discount, valid_from, valid_until, usage_limit || 0, target_user_role || 'ALL', target_clerk_id || null, target_segment || null).run();
+        target_segment = excluded.target_segment,
+        birthday_claim_window_days = excluded.birthday_claim_window_days,
+        applicable_product_ids = excluded.applicable_product_ids
+    `).bind(code, discount_type, discount_value, min_purchase || 0, max_discount, valid_from, valid_until, usage_limit || 0, target_user_role || 'ALL', target_clerk_id || null, target_segment || null, birthdayWindow || null, applicableProductIds).run();
 
-    await auditLog(env, data?.clerkId || null, 'UPSERT_VOUCHER', 'voucher', code, { target_user_role, target_clerk_id, target_segment });
+    await auditLog(env, data?.clerkId || null, 'UPSERT_VOUCHER', 'voucher', code, { target_user_role, target_clerk_id, target_segment, birthday_claim_window_days: birthdayWindow, applicable_product_ids: body.applicable_product_ids });
 
     return new Response(JSON.stringify({ success: true, code }), {
       headers: { 'Content-Type': 'application/json' },

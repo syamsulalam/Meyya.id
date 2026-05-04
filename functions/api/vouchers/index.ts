@@ -1,7 +1,10 @@
+import { ensureVoucherSchema } from '../_vouchers';
+
 export async function onRequestGet(context: any) {
   const { env } = context;
 
   try {
+    await ensureVoucherSchema(env);
     const vouchersRes = await env.MEYYA_DB.prepare(`
       SELECT 
         code, 
@@ -11,6 +14,9 @@ export async function onRequestGet(context: any) {
         min_purchase AS minPurchase, 
         max_discount AS maxDiscount, 
         target_user_role AS targetUserRole, 
+        target_segment AS targetSegment,
+        birthday_claim_window_days AS birthdayClaimWindowDays,
+        applicable_product_ids AS applicableProductIds,
         valid_from AS startDate, 
         valid_until AS endDate 
       FROM vouchers 

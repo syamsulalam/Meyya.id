@@ -26,11 +26,13 @@ interface Voucher {
   usageLimit: number; // 0 = unlimited
   usedCount: number;
   isActive: boolean;
-  targetUserRole: 'ALL' | 'NEW_USER' | 'VIP'; // Simple targeting
+  targetUserRole: 'ALL' | 'NEW_USER' | 'VIP' | 'BIRTHDAY'; // Simple targeting
   targetClerkId?: string;
   targetSegment?: string;
   disableStartDate?: boolean;
   disableEndDate?: boolean;
+  birthdayClaimWindowDays?: number;
+  applicableProductIds?: number[];
 }
 
 export default function AdminVoucherManager() {
@@ -39,7 +41,9 @@ export default function AdminVoucherManager() {
   const { isLoaded, isSignedIn } = useAuth();
   const authReady = isLoaded && isSignedIn;
   const { data: dbVouchers, error, isLoading } = useSWR(authReady ? '/api/admin/vouchers' : null, fetcher);
+  const { data: productsData } = useSWR('/api/products', (url: string) => fetch(url).then((res) => res.json()));
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
+  const products = Array.isArray(productsData) ? productsData : (productsData?.products || []);
   const { addToast, showConfirm } = useStore();
 
   const [showForm, setShowForm] = useState(false);
@@ -54,6 +58,8 @@ export default function AdminVoucherManager() {
     usageLimit: 0,
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
+    birthdayClaimWindowDays: 7,
+    applicableProductIds: [],
   });
 
   const handleEdit = (v: any) => {
@@ -63,6 +69,8 @@ export default function AdminVoucherManager() {
       endDate: v.endDate ? v.endDate.split('T')[0] : '',
       disableStartDate: !v.startDate,
       disableEndDate: !v.endDate,
+      birthdayClaimWindowDays: Number(v.birthdayClaimWindowDays || 0),
+      applicableProductIds: Array.isArray(v.applicableProductIds) ? v.applicableProductIds.map(Number) : [],
     });
     setIsEditing(true);
     setShowForm(true);
@@ -89,6 +97,9 @@ export default function AdminVoucherManager() {
 
   const handleSubmit = async () => {
     if (!formVoucher.code) return addToast("Kode voucher harus diisi", "error");
+    if (formVoucher.targetUserRole === 'BIRTHDAY' && !Number(formVoucher.birthdayClaimWindowDays || 0)) {
+      return addToast('Voucher birthday wajib punya batas hari klaim.', 'error');
+    }
     setLoading(true);
     try {
       const payload = {
@@ -102,7 +113,9 @@ export default function AdminVoucherManager() {
         usage_limit: formVoucher.usageLimit || 0,
         target_user_role: formVoucher.targetUserRole || 'ALL',
         target_clerk_id: formVoucher.targetClerkId || null,
-        target_segment: formVoucher.targetSegment || null,
+        target_segment: formVoucher.targetUserRole === 'BIRTHDAY' ? 'BIRTHDAY' : formVoucher.targetSegment || null,
+        birthday_claim_window_days: formVoucher.targetUserRole === 'BIRTHDAY' ? Number(formVoucher.birthdayClaimWindowDays || 0) : null,
+        applicable_product_ids: formVoucher.applicableProductIds || [],
       };
 
       const res = await authFetch('/api/admin/vouchers', {
@@ -125,6 +138,8 @@ export default function AdminVoucherManager() {
         usageLimit: 0,
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
+        birthdayClaimWindowDays: 7,
+        applicableProductIds: [],
       });
       addToast('Voucher berhasil ditambahkan!', 'success');
     } catch (e: any) {
@@ -174,6 +189,8 @@ export default function AdminVoucherManager() {
                 minPurchase: 0, usageLimit: 0,
                 startDate: new Date().toISOString().split('T')[0],
                 endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
+                birthdayClaimWindowDays: 7,
+                applicableProductIds: [],
               });
             }
           }}
@@ -304,8 +321,21 @@ export default function AdminVoucherManager() {
                 <option value="ALL">Semua Pengguna</option>
                 <option value="NEW_USER">Pengguna Baru / Belum Pernah Belanja</option>
                 <option value="VIP">Pengguna VIP / Pelanggan Setia</option>
+                <option value="BIRTHDAY">Birthday / Ulang Tahun</option>
               </select>
             </div>
+
+            {formVoucher.targetUserRole === 'BIRTHDAY' && (
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Window Klaim Birthday</label>
+                <NumberInput
+                  value={formVoucher.birthdayClaimWindowDays}
+                  onChange={(val: number) => setFormVoucher({ ...formVoucher, birthdayClaimWindowDays: val })}
+                  placeholder="Misal: 7 hari setelah ulang tahun"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">Contoh: isi 7 berarti voucher bisa diklaim dari hari ulang tahun sampai 7 hari setelahnya.</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">
@@ -318,7 +348,35 @@ export default function AdminVoucherManager() {
               <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">
                 <ExplainedLabel tooltip={<SegmentTooltip />}>Segment Label (Opsional)</ExplainedLabel>
               </label>
-              <input type="text" value={formVoucher.targetSegment || ''} onChange={e => setFormVoucher({...formVoucher, targetSegment: e.target.value})} placeholder="VIP, NEW_USER, RETENTION" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
+              <input type="text" disabled={formVoucher.targetUserRole === 'BIRTHDAY'} value={formVoucher.targetUserRole === 'BIRTHDAY' ? 'BIRTHDAY' : formVoucher.targetSegment || ''} onChange={e => setFormVoucher({...formVoucher, targetSegment: e.target.value})} placeholder="VIP, NEW_USER, RETENTION" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink disabled:bg-black/5 disabled:text-black/40" />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Produk yang Berlaku (Opsional)</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto rounded-2xl border border-black/5 bg-white/40 p-3">
+                {products.map((product: any) => {
+                  const selected = (formVoucher.applicableProductIds || []).map(Number).includes(Number(product.id));
+                  return (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => {
+                        const current = (formVoucher.applicableProductIds || []).map(Number);
+                        setFormVoucher({
+                          ...formVoucher,
+                          applicableProductIds: selected ? current.filter((id) => id !== Number(product.id)) : [...current, Number(product.id)]
+                        });
+                      }}
+                      className={`text-left rounded-xl border px-3 py-2 text-xs transition-colors ${selected ? 'border-ink bg-ink text-white' : 'border-black/10 bg-white hover:bg-black/5 text-ink'}`}
+                    >
+                      <span className="line-clamp-1 font-medium">{product.name}</span>
+                      <span className={`block font-mono text-[10px] ${selected ? 'text-white/70' : 'text-black/40'}`}>Rp {Number(product.base_price || 0).toLocaleString('id-ID')}</span>
+                    </button>
+                  );
+                })}
+                {products.length === 0 && <p className="text-xs text-black/50 p-3">Belum ada produk untuk dipilih.</p>}
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">Kosongkan jika voucher berlaku untuk semua produk. Pilih produk khusus jika ingin promo birthday hanya berlaku untuk gift tertentu.</p>
             </div>
 
           </div>
@@ -377,6 +435,8 @@ export default function AdminVoucherManager() {
                     {v.maxDiscount > 0 && v.type === 'PERCENTAGE' && (
                       <div className="text-[10px] text-gray-400 mt-1">Maks Rp {(v.maxDiscount/1000)}k</div>
                     )}
+                    {v.birthdayClaimWindowDays > 0 && <div className="text-[10px] text-pink-600 mt-1">Birthday {v.birthdayClaimWindowDays} hari</div>}
+                    {Array.isArray(v.applicableProductIds) && v.applicableProductIds.length > 0 && <div className="text-[10px] text-gray-400 mt-1">{v.applicableProductIds.length} produk khusus</div>}
                   </td>
                   <td className="py-4 px-4 text-sm">
                     {v.minPurchase > 0 ? `Rp ${(v.minPurchase / 1000).toFixed(0)}k` : 'Rp 0'}

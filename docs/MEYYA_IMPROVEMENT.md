@@ -75,6 +75,36 @@ Audit edge case lanjutan:
 - Region cache sudah bisa di-refresh, tetapi belum ada indikator umur cache per endpoint di UI.
 - Admin roadmap sekarang statis dari file frontend; jika ingin jadi sumber kebenaran tim, pindahkan ke D1 agar bisa diedit dari admin.
 
+## Batch Birthday Voucher dan Voucher Rules 2026-05-04
+
+Brainstorm promo birthday:
+
+- Pilihan paling sehat untuk margin: produk/gift dengan perceived value tinggi tetapi HPP rendah, misalnya gift box premium, pouch satin, kartu ucapan eksklusif, mini inner, scrunchie, pin hijab, atau sample care kit.
+- Mekanisme ideal: buat produk khusus seperti "Birthday Gift Box" dengan harga publik rendah/khusus, lalu voucher birthday hanya berlaku untuk produk itu dan membutuhkan minimal belanja tertentu.
+- Skema Rp 1.000 bisa dipakai sebagai psychological gift, tetapi tetap lebih aman diberi syarat minimal belanja dan dibatasi 1x per pelanggan per tahun agar tidak menjadi celah abuse.
+- Alternatif lebih fleksibel: voucher birthday diskon nominal kecil untuk produk terpilih yang margin-nya kuat, misalnya aksesori/produk add-on.
+- Hindari diskon persen besar untuk semua produk, karena produk best seller bermargin rendah bisa ikut terdiskon dan menekan profit.
+
+Aturan implementasi yang dikerjakan:
+
+- [x] Tanggal lahir pelanggan hanya bisa diisi sekali, dengan konfirmasi dialog sebelum disimpan.
+- [x] API profil menolak perubahan `birth_date` jika tanggal lahir sudah pernah tersimpan.
+- [x] Voucher birthday punya `birthday_claim_window_days`, yaitu jumlah hari setelah tanggal ulang tahun pelanggan saat voucher masih bisa diklaim.
+- [x] Voucher birthday ditolak jika pelanggan belum mengisi tanggal lahir atau hari ini di luar window klaim.
+- [x] Voucher bisa dibatasi hanya untuk produk tertentu lewat `applicable_product_ids`.
+- [x] Validasi voucher product-specific dilakukan di `/api/vouchers/validate` dan dikonfirmasi ulang di `POST /api/orders`.
+- [x] Form voucher admin bisa memilih produk yang menjadi target voucher.
+- [x] Input opsi atribut kategori diperbaiki agar opsi dengan spasi dan koma bisa tetap dimasukkan secara jelas.
+- [x] Migration production disiapkan di `migrations/2026-05-04_birthday_voucher_rules.sql`.
+
+Catatan apply D1:
+
+```powershell
+npx wrangler d1 execute meyya-id --remote --file migrations/2026-05-04_birthday_voucher_rules.sql
+```
+
+Endpoint admin voucher/order/validate juga punya self-heal untuk kolom baru, tetapi migration tetap disimpan agar histori schema production jelas.
+
 ## Ringkasan Status Terbaru
 
 Perbaikan yang sudah diterapkan:

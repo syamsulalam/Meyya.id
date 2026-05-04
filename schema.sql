@@ -141,7 +141,9 @@ CREATE TABLE IF NOT EXISTS vouchers (
   used_count INTEGER DEFAULT 0,
   target_user_role TEXT DEFAULT 'all',
   target_clerk_id TEXT,
-  target_segment TEXT
+  target_segment TEXT,
+  birthday_claim_window_days INTEGER,
+  applicable_product_ids TEXT
 );
 
 CREATE TABLE IF NOT EXISTS voucher_usages (

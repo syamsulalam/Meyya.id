@@ -5,7 +5,7 @@ import { useAuthFetch } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
 import { AttributeTooltip, ExplainedLabel, TaxonomyTooltip, VariantTooltip } from '../term-tooltips';
 
-type CategoryAttribute = { name: string; options: string[] };
+type CategoryAttribute = { name: string; options: string[] | string };
 
 const parseAttributeOptions = (value: unknown): string[] => {
   if (Array.isArray(value)) {
@@ -274,9 +274,9 @@ export default function AdminCategoryManager() {
                                setEditAttributes(newAttrs);
                              }} placeholder="Nama (Mis: Bahan)" className="w-1/3 bg-white border border-black/10 rounded-lg py-1 px-2 text-xs" />
                              
-                             <input type="text" value={attr.options.join(', ')} onChange={e => {
+                             <input type="text" value={Array.isArray(attr.options) ? attr.options.join(', ') : attr.options} onChange={e => {
                                const newAttrs = [...editAttributes];
-                               newAttrs[idx].options = parseAttributeOptions(e.target.value);
+                               newAttrs[idx].options = e.target.value;
                                setEditAttributes(newAttrs);
                              }} placeholder="Opsi: Katun Jepang, Linen Premium" className="flex-1 bg-white border border-black/10 rounded-lg py-1 px-2 text-xs" />
                              
@@ -285,7 +285,7 @@ export default function AdminCategoryManager() {
                              </button>
                            </div>
                          ))}
-                         <button type="button" onClick={() => setEditAttributes([...editAttributes, {name: '', options: []}])} className="text-xs font-medium text-ink hover:underline flex items-center gap-1 mt-2">
+                         <button type="button" onClick={() => setEditAttributes([...editAttributes, {name: '', options: ''}])} className="text-xs font-medium text-ink hover:underline flex items-center gap-1 mt-2">
                            <Plus size={12} /> Tambah Spesifikasi
                          </button>
                        </div>
@@ -389,9 +389,9 @@ export default function AdminCategoryManager() {
                         setNewAttributes(newAttrs);
                       }} placeholder="Nama (Mis: Bahan)" className="w-1/3 bg-white border border-black/10 rounded-lg py-1 px-2 text-xs" />
                       
-                      <input type="text" value={attr.options.join(', ')} onChange={e => {
+                      <input type="text" value={Array.isArray(attr.options) ? attr.options.join(', ') : attr.options} onChange={e => {
                         const newAttrs = [...newAttributes];
-                        newAttrs[idx].options = parseAttributeOptions(e.target.value);
+                        newAttrs[idx].options = e.target.value;
                         setNewAttributes(newAttrs);
                       }} placeholder="Opsi: Katun Jepang, Linen Premium" className="flex-1 bg-white border border-black/10 rounded-lg py-1 px-2 text-xs" />
                       
@@ -400,7 +400,7 @@ export default function AdminCategoryManager() {
                       </button>
                     </div>
                   ))}
-                  <button type="button" onClick={() => setNewAttributes([...newAttributes, {name: '', options: []}])} className="text-xs font-medium text-ink hover:underline flex items-center gap-1 mt-2">
+                  <button type="button" onClick={() => setNewAttributes([...newAttributes, {name: '', options: ''}])} className="text-xs font-medium text-ink hover:underline flex items-center gap-1 mt-2">
                     <Plus size={12} /> Tambah Spesifikasi
                   </button>
                 </div>
