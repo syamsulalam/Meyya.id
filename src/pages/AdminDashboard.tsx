@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { Settings, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck, ClipboardList, ListChecks } from 'lucide-react';
+import { Settings, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck, ClipboardList, ListChecks, HardDrive } from 'lucide-react';
 import AdminMetricsPanel from '../components/admin/AdminMetricsPanel';
 import AdminProductForm from '../components/admin/AdminProductForm';
 import AdminCategoryManager from '../components/admin/AdminCategoryManager';
@@ -12,6 +12,7 @@ import AdminPaymentSettings from '../components/admin/AdminPaymentSettings';
 import AdminShippingSettings from '../components/admin/AdminShippingSettings';
 import AdminOrderManager from '../components/admin/AdminOrderManager';
 import AdminDevelopmentRoadmap from '../components/admin/AdminDevelopmentRoadmap';
+import AdminFreeTierPanel from '../components/admin/AdminFreeTierPanel';
 import Tooltip from '../components/Tooltip';
 import { useUser } from '@clerk/react';
 
@@ -20,7 +21,7 @@ export default function AdminDashboard() {
   const { user: clerkUser, isLoaded } = useUser();
   const navigate = useNavigate();
   
-  type AdminTab = 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'payment' | 'shipping' | 'orders' | 'roadmap';
+  type AdminTab = 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'payment' | 'shipping' | 'orders' | 'roadmap' | 'free-tier';
 
   const [activeTab, setActiveTabState] = useState<AdminTab>(() => {
     return (localStorage.getItem('adminActiveTab') as any) || 'marketing';
@@ -176,6 +177,18 @@ export default function AdminDashboard() {
                     <ListChecks size={20} />
                   </button>
                 </Tooltip>
+                <Tooltip content="Limit Free Tier" position="right">
+                  <button
+                    onClick={() => setActiveTab('free-tier')}
+                    className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
+                      activeTab === 'free-tier'
+                        ? 'bg-ink text-white shadow-md scale-110'
+                        : 'text-gray-600 hover:bg-black/5 hover:scale-110'
+                    }`}
+                  >
+                    <HardDrive size={20} />
+                  </button>
+                </Tooltip>
              </nav>
         </div>
 
@@ -191,6 +204,7 @@ export default function AdminDashboard() {
           {activeTab === 'orders' && <AdminOrderManager />}
           {activeTab === 'shipping' && <AdminShippingSettings />}
           {activeTab === 'roadmap' && <AdminDevelopmentRoadmap />}
+          {activeTab === 'free-tier' && <AdminFreeTierPanel />}
         </div>
       </div>
     </div>

@@ -9,13 +9,37 @@ Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, c
 Yang paling masuk akal dikerjakan berikutnya:
 
 1. Pisahkan `schema.sql` menjadi schema-only dan seed demo agar migration production berikutnya lebih aman.
-2. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
+2. Buat tab admin "Keuangan" tahap 1: laporan laba rugi sederhana dari order, HPP, voucher, biaya transaksi, dan transaksi manual.
+3. Tambah kompresi gambar sebelum upload ke R2 agar storage free tier lebih hemat.
+4. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih. Status: ditunda karena perlu keputusan third-party provider.
 
 Catatan fungsi next action nomor 2:
 
 - Template pesan sekarang sudah rapi dan tervalidasi, tetapi masih dipakai manual untuk disalin/dibuka ke WhatsApp Web.
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
+
+## Batch Free Tier, Profil Alamat, Checkout Stepper, dan Finance Brainstorm 2026-05-05 03:05:40 +07:00
+
+Checklist:
+
+- [x] Research free tier Cloudflare D1, R2, dan Clerk dibuat di `docs/CLOUDFLARE_CLERK_FREE_TIER_RESEARCH.md`.
+- [x] Brainstorm fitur finansial usaha sederhana dibuat di `docs/MEYYA_FINANCE_FEATURES.md`.
+- [x] Endpoint admin `/api/admin/free-tier` dibuat untuk membaca pemakaian D1, R2, dan proxy user Clerk dari D1.
+- [x] Dashboard admin menampilkan kartu ringkas Free Tier Guard: Clerk users, D1 database, dan R2 storage.
+- [x] Tab admin baru `Limit Free Tier` dibuat untuk melihat detail limit, tabel terbesar, dan menjalankan pruning aman.
+- [x] Pruning aman hanya menghapus event lama, snapshot cart lama yang sudah converted, snapshot cart kosong stale, cache wilayah lama, dan audit log lama hanya jika dicentang.
+- [x] Alamat dipisahkan dari tab akun `/profil` ke tab baru `Alamat`.
+- [x] Tab alamat punya CTA jelas ketika user belum punya alamat agar tahu alamat dibutuhkan untuk belanja.
+- [x] Checkout alamat baru dibuat multi-step: provinsi dulu, lalu kota/kabupaten, kecamatan, kelurahan/desa, lalu penerima dan detail alamat.
+- [x] User tetap bisa balik merevisi field sebelumnya karena step yang sudah terbuka tetap terlihat.
+
+Catatan akurasi free tier:
+
+- Clerk di dashboard memakai jumlah user yang tersinkron ke D1 sebagai proxy, bukan angka billing resmi dari Clerk.
+- D1 database size memakai `PRAGMA page_count * page_size`.
+- R2 storage dihitung dari object listing binding `MEYYA_R2`; jika binding tidak ada, UI menampilkan status belum tersedia.
+- Row read/write harian Cloudflare D1 paling akurat tetap dicek dari Cloudflare dashboard atau Analytics API.
 
 ## Batch Gallery Reorder, Abandoned Template, dan Return QC 2026-05-05 02:12:01 +07:00
 

@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import useSWR from 'swr';
 import { createPortal } from 'react-dom';
-import { User, MapPin, Phone, Mail, CheckCircle2, Plus, Trash2, Gift } from 'lucide-react';
-import AutoSuggest from './AutoSuggest';
+import { User, Phone, Mail, Gift } from 'lucide-react';
 import { useBlocker } from 'react-router-dom';
 import { useStore } from '../../store';
 import { useUser } from '@clerk/react';
-import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
+import { useAuthFetch } from '../../hooks/useAuthFetch';
 import { BirthdayTooltip, ExplainedLabel } from '../term-tooltips';
 
 const COUNTRY_CODES = [
@@ -21,31 +19,9 @@ const formatPhoneDigits = (value: string) => value.replace(/\D/g, '').replace(/(
 export default function ProfileAccount({ user, setBlockerOpen }: { user: any, setBlockerOpen?: (open: boolean) => void }) {
   const { user: clerkUser } = useUser();
   const authFetch = useAuthFetch();
-  const fetcher = useAuthFetcher();
-  const { data: dbAddresses, mutate: mutateAddresses } = useSWR(user?.id ? `/api/user/addresses/${user.id}` : null, fetcher);
-  const savedAddresses = Array.isArray(dbAddresses) ? dbAddresses : [];
   const { addToast, showConfirm } = useStore();
   
   const [countryCode, setCountryCode] = useState('+62');
-  
-  const [isAddingAddress, setIsAddingAddress] = useState(false);
-  const [addressLabel, setAddressLabel] = useState('Rumah');
-  const [addressIcon, setAddressIcon] = useState('🏠');
-  const [addressRecipient, setAddressRecipient] = useState('');
-  const [addressPhone, setAddressPhone] = useState('');
-
-  const [activeStep, setActiveStep] = useState(1);
-  
-  const [provinsiList, setProvinsiList] = useState<{id: string, name: string}[]>([]);
-  const [kotaList, setKotaList] = useState<{id: string, name: string}[]>([]);
-  const [kecamatanList, setKecamatanList] = useState<{id: string, name: string}[]>([]);
-  const [kelurahanList, setKelurahanList] = useState<{id: string, name: string}[]>([]);
-
-  const [selectedProvinsi, setSelectedProvinsi] = useState<{id: string, name: string} | null>(null);
-  const [selectedKota, setSelectedKota] = useState<{id: string, name: string} | null>(null);
-  const [selectedKecamatan, setSelectedKecamatan] = useState<{id: string, name: string} | null>(null);
-  const [selectedKelurahan, setSelectedKelurahan] = useState<{id: string, name: string} | null>(null);
-  const [alamatDetail, setAlamatDetail] = useState('');
 
   const [isSaved, setIsSaved] = useState(true);
   const [profileName, setProfileName] = useState(user?.name || user?.fullName || '');
@@ -75,52 +51,6 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
         });
     }
   }, [authFetch, clerkUser, user?.id]);
-
-  // Dynamic Loading from API
-  useEffect(() => {
-    fetch('/api/regions/provinces?size=100')
-      .then(res => res.json())
-      .then(data => {
-        if (data.data) setProvinsiList(data.data.map((d: any) => ({ id: d.code, name: d.name })));
-      })
-      .catch(e => console.error("Could not load provinces", e));
-  }, []);
-
-  useEffect(() => {
-    if (selectedProvinsi && selectedProvinsi.id) {
-      fetch(`/api/regions/provinces/${selectedProvinsi.id}/regencies?size=100`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.data) setKotaList(data.data.map((d: any) => ({ id: d.code, name: d.name })));
-        });
-    } else {
-      setKotaList([]);
-    }
-  }, [selectedProvinsi]);
-
-  useEffect(() => {
-    if (selectedKota && selectedKota.id) {
-      fetch(`/api/regions/regencies/${selectedKota.id}/districts?size=100`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.data) setKecamatanList(data.data.map((d: any) => ({ id: d.code, name: d.name })));
-        });
-    } else {
-      setKecamatanList([]);
-    }
-  }, [selectedKota]);
-
-  useEffect(() => {
-    if (selectedKecamatan && selectedKecamatan.id) {
-      fetch(`/api/regions/districts/${selectedKecamatan.id}/villages?size=100`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.data) setKelurahanList(data.data.map((d: any) => ({ id: d.code, name: d.name })));
-        });
-    } else {
-      setKelurahanList([]);
-    }
-  }, [selectedKecamatan]);
 
   // Handle Unsaved Changes
   useEffect(() => {
@@ -206,74 +136,6 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       console.error("Clerk name repair failed:", err);
       addToast('Gagal menyinkronkan nama ke akun login.', 'error');
     }
-  };
-
-  const handleSaveAddress = async () => {
-    if (activeStep < 5 || alamatDetail.length < 5 || !addressRecipient || !addressPhone) {
-      addToast('Mohon lengkapi semua form alamat pengiriman', 'error');
-      return;
-    }
-    const newAddr = {
-      label: addressLabel,
-      icon: addressIcon,
-      recipient_name: addressRecipient,
-      recipient_phone: addressPhone.replace(/\s/g, ''),
-      street_address: alamatDetail,
-      province_code: selectedProvinsi?.id || '',
-      province_name: selectedProvinsi?.name || '',
-      regency_code: selectedKota?.id || '',
-      regency_name: selectedKota?.name || '',
-      district_code: selectedKecamatan?.id || '',
-      district_name: selectedKecamatan?.name || '',
-      village_code: selectedKelurahan?.id || '',
-      village_name: selectedKelurahan?.name || '',
-      is_default: savedAddresses.length === 0 ? true : false,
-    };
-    
-    try {
-      const res = await authFetch(`/api/user/addresses/${user.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newAddr)
-      });
-      if (!res.ok) throw new Error('Gagal menyimpan alamat');
-      
-      mutateAddresses();
-      setIsAddingAddress(false);
-      
-      // reset
-      setAddressRecipient('');
-      setAddressPhone('');
-      setSelectedProvinsi(null);
-      setSelectedKota(null);
-      setSelectedKecamatan(null);
-      setSelectedKelurahan(null);
-      setAlamatDetail('');
-      setActiveStep(1);
-      setIsSaved(true);
-      addToast('Alamat berhasil ditambahkan!', 'success');
-    } catch (e: any) {
-      addToast(e.message, 'error');
-    }
-  };
-
-  const removeSavedAddress = async (id: string) => {
-    showConfirm({
-      title: 'Hapus Alamat',
-      message: 'Alamat ini akan dihapus dari daftar alamat pengiriman Anda.',
-      confirmLabel: 'Hapus',
-      tone: 'danger',
-      onConfirm: async () => {
-        try {
-          const res = await authFetch(`/api/user/addresses/${user.id}/${id}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error('Gagal menghapus');
-          mutateAddresses();
-          addToast('Alamat berhasil dihapus!', 'success');
-        } catch (e: any) {
-          addToast(e.message, 'error');
-        }
-      },
-    });
   };
 
   return (
@@ -398,183 +260,6 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
           </div>
         </div>
 
-        <div className="space-y-6 pt-6 border-t border-black/10">
-           <h3 className="text-sm uppercase tracking-widest font-semibold flex items-center justify-between pb-2 border-b border-black/5">
-              <span className="flex items-center gap-2"><MapPin size={16} /> Daftar Alamat Pengiriman</span>
-              {!isAddingAddress && (
-                <button type="button" onClick={() => setIsAddingAddress(true)} className="flex items-center gap-1 text-[10px] bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-full transition-colors">
-                  <Plus size={12} /> Tambah Baru
-                </button>
-              )}
-           </h3>
-
-           {!isAddingAddress && savedAddresses.length > 0 && (
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               {savedAddresses.map(addr => (
-                 <div key={addr.id} className="p-5 border border-black/10 bg-white/50 rounded-3xl relative group">
-                   <div className="flex gap-3 items-start">
-                     <div className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-xl shrink-0">{addr.icon}</div>
-                     <div className="flex-1">
-                       <h4 className="font-semibold text-ink text-sm flex items-center gap-2">{addr.label}</h4>
-                       <p className="text-sm mt-1 text-gray-800 font-medium">{addr.recipient_name} ({formatPhoneDigits(addr.recipient_phone || '')})</p>
-                       <p className="text-xs text-gray-500 mt-1 line-clamp-3">{addr.street_address}, {addr.village_name}, {addr.district_name}, {addr.regency_name}, {addr.province_name}</p>
-                     </div>
-                   </div>
-                   <button 
-                     type="button" 
-                     onClick={() => removeSavedAddress(addr.id)}
-                     className="absolute top-4 right-4 p-2 bg-red-50 text-red-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100"
-                     title="Hapus Alamat"
-                   >
-                     <Trash2 size={14} />
-                   </button>
-                 </div>
-               ))}
-             </div>
-           )}
-
-           {isAddingAddress && (
-             <div className="glass-panel p-6 rounded-3xl bg-white/40 space-y-6">
-                <div className="flex justify-between items-center pb-4 border-b border-black/5">
-                  <h4 className="text-sm font-semibold">Tambah Alamat Baru</h4>
-                  {savedAddresses.length > 0 && (
-                    <button type="button" onClick={() => setIsAddingAddress(false)} className="text-xs text-gray-500 hover:text-black">Batal</button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Label Alamat</label>
-                    <input type="text" value={addressLabel} onChange={e => setAddressLabel(e.target.value)} placeholder="Contoh: Rumah, Kantor..." className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Pilih Ikon</label>
-                    <div className="flex gap-2 p-1 bg-black/5 rounded-xl">
-                       {['🏠', '🏢', 'Apartemen'].map(ic => {
-                         const rawIcon = ic === 'Apartemen' ? '🏗️' : ic;
-                         return (
-                           <button 
-                             key={ic} type="button" 
-                             onClick={() => setAddressIcon(rawIcon)}
-                             className={`flex-1 py-1.5 rounded-lg text-lg transition-colors ${addressIcon === rawIcon ? 'bg-white shadow' : 'hover:bg-black/5'}`}
-                           >
-                             {rawIcon}
-                           </button>
-                         )
-                       })}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Nama Penerima</label>
-                    <input type="text" value={addressRecipient} onChange={e => setAddressRecipient(e.target.value)} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">No WA Penerima</label>
-                    <input type="tel" value={addressPhone} onChange={(e) => {
-                      setAddressPhone(formatPhoneDigits(e.target.value));
-                    }} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" placeholder="Contoh: 0812 3456 7890" />
-                  </div>
-                </div>
-                
-                <div className={`transition-opacity ${activeStep >= 1 ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2 flex items-center gap-2">
-                  Langkah 1: Provinsi {selectedProvinsi && <CheckCircle2 size={14} className="text-green-600" />}
-                </label>
-                <AutoSuggest 
-                  items={provinsiList} 
-                  value={selectedProvinsi} 
-                  placeholder="Ketik untuk mencari provinsi..."
-                  onChange={(val) => {
-                    setSelectedProvinsi(val);
-                    setSelectedKota(null);
-                    setSelectedKecamatan(null);
-                    setSelectedKelurahan(null);
-                    if (val) setActiveStep(2);
-                    else setActiveStep(1);
-                  }}
-                />
-              </div>
-
-              <div className={`transition-opacity ${activeStep >= 2 ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2 mt-4 flex items-center gap-2">
-                  Langkah 2: Kota / Kabupaten {selectedKota && <CheckCircle2 size={14} className="text-green-600" />}
-                </label>
-                <AutoSuggest 
-                  items={kotaList} 
-                  value={selectedKota} 
-                  placeholder="Ketik untuk mencari kota/kabupaten..."
-                  onChange={(val) => {
-                    setSelectedKota(val);
-                    setSelectedKecamatan(null);
-                    setSelectedKelurahan(null);
-                    if (val) setActiveStep(3);
-                    else setActiveStep(2);
-                  }}
-                />
-              </div>
-
-              <div className={`transition-opacity ${activeStep >= 3 ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2 mt-4 flex items-center gap-2">
-                  Langkah 3: Kecamatan {selectedKecamatan && <CheckCircle2 size={14} className="text-green-600" />}
-                </label>
-                <AutoSuggest 
-                  items={kecamatanList} 
-                  value={selectedKecamatan} 
-                  placeholder="Ketik untuk mencari kecamatan..."
-                  onChange={(val) => {
-                    setSelectedKecamatan(val);
-                    setSelectedKelurahan(null);
-                    if (val) setActiveStep(4);
-                    else setActiveStep(3);
-                  }}
-                />
-              </div>
-
-              <div className={`transition-opacity ${activeStep >= 4 ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2 mt-4 flex items-center gap-2">
-                  Langkah 4: Kelurahan/Desa {selectedKelurahan && <CheckCircle2 size={14} className="text-green-600" />}
-                </label>
-                <AutoSuggest 
-                  items={kelurahanList} 
-                  value={selectedKelurahan} 
-                  placeholder="Ketik untuk mencari kelurahan/desa..."
-                  onChange={(val) => {
-                    setSelectedKelurahan(val);
-                    if (val) setActiveStep(5);
-                    else setActiveStep(4);
-                  }}
-                />
-              </div>
-
-              <div className={`transition-opacity ${activeStep >= 5 ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2 mt-4 flex items-center gap-2">
-                  Langkah 5: Detail Alamat & Kode Pos {alamatDetail.length > 5 && <CheckCircle2 size={14} className="text-green-600" />}
-                </label>
-                <textarea 
-                  rows={3}
-                  value={alamatDetail}
-                  onChange={(e) => setAlamatDetail(e.target.value)}
-                  placeholder="Masukkan nama jalan, nomor rumah, RT/RW, gang, dan kode pos..."
-                  className="w-full bg-white/80 border border-black/10 rounded-2xl py-3 px-4 outline-none focus:border-black/50 resize-none text-sm"
-                ></textarea>
-              </div>
-
-              <div className="pt-4 border-t border-black/5 text-right">
-                <button 
-                  type="button" 
-                  onClick={handleSaveAddress}
-                  disabled={activeStep < 5 || alamatDetail.length < 5 || !addressRecipient || !addressPhone}
-                  className="px-6 py-2.5 bg-ink text-white rounded-full uppercase tracking-widest text-xs hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Tambah Ke Daftar Alamat
-                </button>
-              </div>
-           </div>
-           )}
-        </div>
       </form>
     </>
   );

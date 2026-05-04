@@ -1,0 +1,206 @@
+import { useState } from 'react';
+import useSWR from 'swr';
+import { Archive, Database, HardDrive, RefreshCw, Scissors, Users } from 'lucide-react';
+import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
+import { useStore } from '../../store';
+
+type FreeTierPanelProps = {
+  compact?: boolean;
+  onNavigate?: () => void;
+};
+
+export default function AdminFreeTierPanel({ compact = false, onNavigate }: FreeTierPanelProps) {
+  const fetcher = useAuthFetcher();
+  const authFetch = useAuthFetch();
+  const { addToast } = useStore();
+  const { data, isLoading, mutate } = useSWR('/api/admin/free-tier', fetcher);
+  const [isPruning, setIsPruning] = useState(false);
+  const [includeAuditLogs, setIncludeAuditLogs] = useState(false);
+
+  const runPruning = async () => {
+    setIsPruning(true);
+    try {
+      const res = await authFetch('/api/admin/free-tier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ includeAuditLogs }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Pruning gagal');
+      const totalDeleted = Object.values(payload.changes || {}).reduce((sum: number, value: any) => sum + Number(value || 0), 0);
+      addToast(`Pruning selesai: ${totalDeleted} row dihapus.`, 'success');
+      mutate();
+    } catch (error: any) {
+      addToast(error.message || 'Gagal menjalankan pruning', 'error');
+    } finally {
+      setIsPruning(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white/40 border border-black/5 rounded-2xl p-4 text-sm text-black/50 flex items-center gap-2">
+        <RefreshCw size={16} className="animate-spin" /> Memuat limit free tier...
+      </div>
+    );
+  }
+
+  const cards = buildUsageCards(data);
+
+  if (compact) {
+    return (
+      <div className="bg-white/40 border border-black/5 rounded-3xl p-6 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400">Free Tier Guard</h3>
+            <p className="text-xs text-black/50 mt-1">Pantau Clerk, D1, dan R2 supaya operasional tetap efisien.</p>
+          </div>
+          {onNavigate && (
+            <button type="button" onClick={onNavigate} className="px-4 py-2 rounded-full bg-ink text-white text-[10px] uppercase tracking-widest hover:bg-black/80 transition-colors">
+              Lihat Detail
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {cards.slice(0, 3).map((card) => (
+            <UsageCard key={card.label} {...card} compact />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-in fade-in duration-300 space-y-8">
+      <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
+        <div>
+          <h2 className="text-2xl font-light mb-2 flex items-center gap-2">
+            <HardDrive size={24} /> Limit Free Tier
+          </h2>
+          <p className="text-sm font-light text-black/60">Pantau pemakaian Cloudflare D1, R2, dan Clerk dari data yang bisa dibaca aplikasi.</p>
+        </div>
+        <button type="button" onClick={() => mutate()} className="px-4 py-2 rounded-full bg-white border border-black/10 text-xs uppercase tracking-widest hover:bg-black/5 transition-colors">
+          Refresh
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {cards.map((card) => (
+          <UsageCard key={card.label} {...card} />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_0.9fr] gap-6">
+        <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Tabel Terbesar Berdasarkan Row</h3>
+          <div className="space-y-2">
+            {(data?.d1?.tableStats || []).slice(0, 10).map((row: any) => (
+              <div key={row.table} className="flex items-center justify-between rounded-2xl bg-white/60 px-4 py-3 text-sm">
+                <span className="font-mono text-xs">{row.table}</span>
+                <span className="font-semibold">{Number(row.rows || 0).toLocaleString('id-ID')} row</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-black/45 mt-4">Ukuran D1 memakai `PRAGMA page_count * page_size`; row read/write harian resmi tetap dicek dari Cloudflare dashboard.</p>
+        </div>
+
+        <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
+            <Scissors size={16} /> Pruning Aman
+          </h3>
+          <p className="text-sm text-black/60 leading-relaxed mb-5">
+            Pruning menghapus event lama, snapshot cart lama yang sudah converted, snapshot cart kosong yang stale, dan cache wilayah lama. Data order, user, alamat, stok, voucher usage, dan retur tidak dihapus.
+          </p>
+          <label className="flex items-start gap-3 rounded-2xl bg-white/60 border border-black/5 p-4 text-sm mb-5">
+            <input type="checkbox" checked={includeAuditLogs} onChange={(event) => setIncludeAuditLogs(event.target.checked)} className="mt-1" />
+            <span>
+              <span className="font-medium block">Ikut pangkas audit log lama</span>
+              <span className="text-xs text-black/50">Default off. Aktifkan hanya jika ukuran DB mulai mendekati limit dan audit lama sudah tidak dibutuhkan.</span>
+            </span>
+          </label>
+          <button
+            type="button"
+            onClick={runPruning}
+            disabled={isPruning}
+            className="w-full py-3 rounded-full bg-ink text-white text-xs uppercase tracking-widest hover:bg-black/80 transition-colors disabled:opacity-50"
+          >
+            {isPruning ? 'Menjalankan Pruning...' : 'Jalankan Pruning Aman'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function buildUsageCards(data: any) {
+  return [
+    {
+      icon: Users,
+      label: 'Clerk Users',
+      value: Number(data?.clerk?.users || 0),
+      limit: Number(data?.clerk?.limit || 50000),
+      formatter: formatNumber,
+      note: 'Proxy dari user yang sinkron ke D1.',
+    },
+    {
+      icon: Database,
+      label: 'D1 Database',
+      value: Number(data?.d1?.databaseBytes || 0),
+      limit: Number(data?.d1?.databaseLimitBytes || 500 * 1024 * 1024),
+      formatter: formatBytes,
+      note: 'Limit database Free: 500 MB.',
+    },
+    {
+      icon: Archive,
+      label: 'R2 Storage',
+      value: data?.r2?.storageBytes ?? null,
+      limit: Number(data?.r2?.storageLimitBytes || 10 * 1024 * 1024 * 1024),
+      formatter: formatBytes,
+      note: data?.r2?.available ? `${Number(data?.r2?.objectCount || 0).toLocaleString('id-ID')} object` : 'Binding R2 belum terbaca.',
+    },
+    {
+      icon: HardDrive,
+      label: 'D1 Account',
+      value: Number(data?.d1?.databaseBytes || 0),
+      limit: Number(data?.d1?.accountStorageLimitBytes || 5 * 1024 * 1024 * 1024),
+      formatter: formatBytes,
+      note: 'Aplikasi menampilkan DB aktif sebagai bagian dari limit akun.',
+    },
+  ];
+}
+
+function UsageCard({ icon: Icon, label, value, limit, formatter, note, compact = false }: any) {
+  const percentage = value === null ? 0 : Math.min(100, (Number(value || 0) / Number(limit || 1)) * 100);
+  return (
+    <div className="rounded-2xl bg-white/60 border border-black/5 p-4">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center text-ink">
+          <Icon size={17} />
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-black/40 font-bold">{label}</p>
+          <p className={`${compact ? 'text-lg' : 'text-xl'} font-semibold text-ink`}>
+            {value === null ? 'Belum tersedia' : `${formatter(value)} / ${formatter(limit)}`}
+          </p>
+        </div>
+      </div>
+      <div className="h-2 rounded-full bg-black/5 overflow-hidden">
+        <div className={`h-full rounded-full ${percentage > 80 ? 'bg-red-500' : percentage > 60 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${percentage}%` }} />
+      </div>
+      {!compact && <p className="text-xs text-black/45 mt-3">{note}</p>}
+    </div>
+  );
+}
+
+function formatNumber(value: number) {
+  return Number(value || 0).toLocaleString('id-ID');
+}
+
+function formatBytes(value: number) {
+  const bytes = Number(value || 0);
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toLocaleString('id-ID', { maximumFractionDigits: 2 })} GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} KB`;
+  return `${bytes.toLocaleString('id-ID')} B`;
+}
+

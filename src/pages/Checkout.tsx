@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import { useStore } from '../store';
-import { Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useUser } from '@clerk/react';
 import { useAuthFetch, useAuthFetcher } from '../hooks/useAuthFetch';
 import { useTrackEvent } from '../hooks/useTrackEvent';
@@ -195,6 +195,8 @@ export default function Checkout() {
       finalAddressSnapshot = `${selected.recipientName} (${selected.phone}) - ${selected.street}, ${selected.village_name}, ${selected.district_name}, ${selected.regency_name}, ${selected.province_name}`;
     } else {
       if (!selectedVill) return addToast('Pilih Kelurahan tujuan dengan lengkap', 'error');
+      if (!address.name.trim()) return addToast('Isi nama penerima', 'error');
+      if (!address.phone.trim()) return addToast('Isi nomor WhatsApp penerima', 'error');
       if (address.street.length < 5) return addToast('Detail alamat terlalu pendek', 'error');
       destinationVillageCode = selectedVill.code;
       finalAddressSnapshot = `${address.name} (${address.phone.replace(/\s/g, '')}) - ${address.street}, ${selectedVill.name}, ${selectedDist?.name}, ${selectedReg?.name}, ${selectedProv?.name}`;
@@ -327,113 +329,113 @@ export default function Checkout() {
               </div>
             ) : (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Nama Penerima</label>
-                    <input required={!isAddressCollapsed} type="text" value={address.name} onChange={e => setAddress({...address, name: e.target.value})} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">No WhatsApp</label>
-                    <input required={!isAddressCollapsed} type="tel" value={address.phone} onChange={e => setAddress({...address, phone: formatPhoneDigits(e.target.value)})} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors" />
-                  </div>
-                </div>
+                <CheckoutAddressStep label="Langkah 1: Provinsi" done={Boolean(selectedProv)}>
+                  <select
+                    required={!isAddressCollapsed}
+                    value={selectedProv?.code || ''}
+                    onChange={e => {
+                      const p = provinces.find((x: any) => x.code === e.target.value);
+                      setSelectedProv(p);
+                      setSelectedReg(null);
+                      setSelectedDist(null);
+                      setSelectedVill(null);
+                      setSelectedCourier(null);
+                    }}
+                    className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-black/30 transition-colors text-sm"
+                  >
+                    <option value="" disabled>-- Pilih Provinsi --</option>
+                    {provinces.map((c: any) => (
+                      <option key={c.code} value={c.code}>{c.name}</option>
+                    ))}
+                  </select>
+                </CheckoutAddressStep>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-black/5">
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Provinsi</label>
-                    <select 
+                {selectedProv && (
+                  <CheckoutAddressStep label="Langkah 2: Kota / Kabupaten" done={Boolean(selectedReg)}>
+                    <select
                       required={!isAddressCollapsed}
-                      value={selectedProv?.code || ''} 
+                      value={selectedReg?.code || ''}
                       onChange={e => {
-                         const p = provinces.find((x: any) => x.code === e.target.value);
-                         setSelectedProv(p);
-                         setSelectedReg(null);
-                         setSelectedDist(null);
-                         setSelectedVill(null);
-                         setSelectedCourier(null);
-                      }} 
+                        const r = regencies.find((x: any) => x.code === e.target.value);
+                        setSelectedReg(r);
+                        setSelectedDist(null);
+                        setSelectedVill(null);
+                        setSelectedCourier(null);
+                      }}
                       className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-black/30 transition-colors text-sm"
                     >
-                      <option value="" disabled>-- Pilih --</option>
-                      {provinces.map((c: any) => (
-                        <option key={c.code} value={c.code}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Kota / Kabupaten</label>
-                    <select 
-                      required={!isAddressCollapsed}
-                      disabled={!selectedProv}
-                      value={selectedReg?.code || ''} 
-                      onChange={e => {
-                         const r = regencies.find((x: any) => x.code === e.target.value);
-                         setSelectedReg(r);
-                         setSelectedDist(null);
-                         setSelectedVill(null);
-                         setSelectedCourier(null);
-                      }} 
-                      className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-black/30 transition-colors text-sm disabled:opacity-50"
-                    >
-                      <option value="" disabled>-- Pilih --</option>
+                      <option value="" disabled>-- Pilih Kota / Kabupaten --</option>
                       {regencies.map((c: any) => (
                         <option key={c.code} value={c.code}>{c.name}</option>
                       ))}
                     </select>
-                  </div>
+                  </CheckoutAddressStep>
+                )}
 
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Kecamatan</label>
-                    <select 
+                {selectedReg && (
+                  <CheckoutAddressStep label="Langkah 3: Kecamatan" done={Boolean(selectedDist)}>
+                    <select
                       required={!isAddressCollapsed}
-                      disabled={!selectedReg}
-                      value={selectedDist?.code || ''} 
+                      value={selectedDist?.code || ''}
                       onChange={e => {
-                         const d = districts.find((x: any) => x.code === e.target.value);
-                         setSelectedDist(d);
-                         setSelectedVill(null);
-                         setSelectedCourier(null);
-                      }} 
-                      className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-black/30 transition-colors text-sm disabled:opacity-50"
+                        const d = districts.find((x: any) => x.code === e.target.value);
+                        setSelectedDist(d);
+                        setSelectedVill(null);
+                        setSelectedCourier(null);
+                      }}
+                      className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-black/30 transition-colors text-sm"
                     >
-                      <option value="" disabled>-- Pilih --</option>
+                      <option value="" disabled>-- Pilih Kecamatan --</option>
                       {districts.map((c: any) => (
                         <option key={c.code} value={c.code}>{c.name}</option>
                       ))}
                     </select>
-                  </div>
+                  </CheckoutAddressStep>
+                )}
 
-                  <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Kelurahan / Desa</label>
-                    <select 
+                {selectedDist && (
+                  <CheckoutAddressStep label="Langkah 4: Kelurahan / Desa" done={Boolean(selectedVill)}>
+                    <select
                       required={!isAddressCollapsed}
-                      disabled={!selectedDist}
-                      value={selectedVill?.code || ''} 
+                      value={selectedVill?.code || ''}
                       onChange={e => {
-                         const v = villages.find((x: any) => x.code === e.target.value);
-                         setSelectedVill(v);
-                      }} 
-                      className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-black/30 transition-colors text-sm disabled:opacity-50"
+                        const v = villages.find((x: any) => x.code === e.target.value);
+                        setSelectedVill(v);
+                      }}
+                      className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-black/30 transition-colors text-sm"
                     >
-                      <option value="" disabled>-- Pilih --</option>
+                      <option value="" disabled>-- Pilih Kelurahan / Desa --</option>
                       {villages.map((c: any) => (
                         <option key={c.code} value={c.code}>{c.name}</option>
                       ))}
                     </select>
-                  </div>
-                </div>
+                  </CheckoutAddressStep>
+                )}
 
-                <div>
-                  <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2 mt-4">Jalan / Gedung / Detail Lengkap</label>
-                  <textarea 
-                    required={!isAddressCollapsed} 
-                    value={address.street} 
-                    onChange={e => setAddress({...address, street: e.target.value.toUpperCase()})} 
-                    className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 min-h-[80px] focus:outline-none focus:border-black/30 transition-colors uppercase text-sm"
-                    placeholder="RT/RW, Nomor Rumah..."
-                  />
-                </div>
+                {selectedVill && (
+                  <CheckoutAddressStep label="Langkah 5: Penerima & Detail Alamat" done={Boolean(address.name && address.phone && address.street.length > 5)}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Nama Penerima</label>
+                        <input required={!isAddressCollapsed} type="text" value={address.name} onChange={e => setAddress({...address, name: e.target.value})} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">No WhatsApp</label>
+                        <input required={!isAddressCollapsed} type="tel" value={address.phone} onChange={e => setAddress({...address, phone: formatPhoneDigits(e.target.value)})} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors" />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Jalan / Gedung / Detail Lengkap</label>
+                      <textarea
+                        required={!isAddressCollapsed}
+                        value={address.street}
+                        onChange={e => setAddress({...address, street: e.target.value.toUpperCase()})}
+                        className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 min-h-[80px] focus:outline-none focus:border-black/30 transition-colors uppercase text-sm"
+                        placeholder="RT/RW, Nomor Rumah..."
+                      />
+                    </div>
+                  </CheckoutAddressStep>
+                )}
               </div>
             )}
             
@@ -674,6 +676,17 @@ export default function Checkout() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CheckoutAddressStep({ label, done, children }: { label: string; done: boolean; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-white/50 border border-black/5 p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+      <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
+        {label} {done && <CheckCircle2 size={14} className="text-green-600" />}
+      </label>
+      {children}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { User, Package, History, Eye, Ticket, HelpCircle, Heart, LogIn } from 'lucide-react';
+import { User, Package, History, Eye, Ticket, HelpCircle, Heart, LogIn, MapPin } from 'lucide-react';
 import { useStore } from '../store';
 import { Link, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
@@ -6,6 +6,7 @@ import Tooltip from '../components/Tooltip';
 import { useUser, SignInButton } from '@clerk/react';
 
 import ProfileAccount from '../components/profile/ProfileAccount';
+import ProfileAddresses from '../components/profile/ProfileAddresses';
 import ProfileStatus from '../components/profile/ProfileStatus';
 import ProfileHistory from '../components/profile/ProfileHistory';
 import ProfileRecentlyViewed from '../components/profile/ProfileRecentlyViewed';
@@ -18,7 +19,7 @@ export default function Profile() {
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  type TabType = 'akun' | 'status' | 'riwayat' | 'terakhir' | 'voucher' | 'bantuan' | 'rekomendasi';
+  type TabType = 'akun' | 'alamat' | 'status' | 'riwayat' | 'terakhir' | 'voucher' | 'bantuan' | 'rekomendasi';
   
   const tabFromUrl = searchParams.get('tab') as TabType | null;
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
@@ -77,6 +78,7 @@ export default function Profile() {
 
   const tabs = [
     { id: 'akun', label: 'Akun Saya', icon: <User size={16} /> },
+    { id: 'alamat', label: 'Alamat', icon: <MapPin size={16} /> },
     { id: 'status', label: 'Status Pesanan', icon: <Package size={16} /> },
     { id: 'riwayat', label: 'Riwayat Pesanan', icon: <History size={16} /> },
     { id: 'terakhir', label: 'Terakhir Dilihat', icon: <Eye size={16} /> },
@@ -97,7 +99,7 @@ export default function Profile() {
           <nav className="flex flex-row lg:flex-col gap-4 overflow-x-auto lg:overflow-visible scrollbar-hide justify-start md:justify-center items-center w-full sticky lg:top-28">
             {tabs.map((tab) => (
               <React.Fragment key={tab.id}>
-                <Tooltip content={tab.id === 'terakhir' ? 'Produk yang terakhir Anda buka.' : tab.id === 'voucher' ? 'Voucher yang bisa dipakai saat checkout.' : tab.id === 'rekomendasi' ? 'Rekomendasi produk berdasarkan aktivitas belanja.' : tab.label} position="right">
+                <Tooltip content={tab.id === 'alamat' ? 'Alamat pengiriman untuk checkout.' : tab.id === 'terakhir' ? 'Produk yang terakhir Anda buka.' : tab.id === 'voucher' ? 'Voucher yang bisa dipakai saat checkout.' : tab.id === 'rekomendasi' ? 'Rekomendasi produk berdasarkan aktivitas belanja.' : tab.label} position="right">
                   <button
                     type="button"
                     onClick={() => {
@@ -122,6 +124,7 @@ export default function Profile() {
         <div className="flex-1 min-w-0">
           <div className="bg-white/60 rounded-[24px] md:rounded-[36px] p-6 lg:p-12 border border-black/5 min-h-[500px]">
             {activeTab === 'akun' && <ProfileAccount user={localUser || clerkUser} setBlockerOpen={setIsBlockerOpen} />}
+            {activeTab === 'alamat' && <ProfileAddresses user={localUser || clerkUser} />}
             {activeTab === 'status' && <ProfileStatus user={localUser || clerkUser} />}
             {activeTab === 'riwayat' && <ProfileHistory user={localUser || clerkUser} />}
             {activeTab === 'terakhir' && <ProfileRecentlyViewed user={localUser || clerkUser} />}

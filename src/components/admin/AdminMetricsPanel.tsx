@@ -13,8 +13,9 @@ import {
   RevenueTooltip,
   TimelineFilterTooltip,
 } from '../term-tooltips';
+import AdminFreeTierPanel from './AdminFreeTierPanel';
 
-export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'orders') => void }) {
+export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'orders' | 'free-tier') => void }) {
   const { addToast } = useStore();
   const [timeline, setTimeline] = useState('all');
   const fetcher = useAuthFetcher();
@@ -181,6 +182,8 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
          </div>
 
       </div>
+
+      <AdminFreeTierPanel compact onNavigate={() => onNavigate?.('free-tier')} />
 
       <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Aktivitas Pesanan Terbaru</h3>
       <div className="glass-panel rounded-3xl overflow-hidden border border-black/5">

@@ -39,7 +39,12 @@ export const developmentRoadmap: RoadmapItem[] = [
   { title: 'Drag-and-drop gallery produk', status: 'done', area: 'Admin', note: 'Urutan gambar produk bisa disusun ulang langsung di form produk.' },
   { title: 'Template abandoned cart dari snapshot', status: 'done', area: 'Marketing', note: 'Pesan abandoned cart menyebut produk utama dari snapshot keranjang terakhir.' },
   { title: 'Return QC per item', status: 'done', area: 'Operations', note: 'Admin bisa mencatat bukti gudang, keputusan, dan quality control per item retur.' },
+  { title: 'Dashboard limit free tier', status: 'done', area: 'Admin', note: 'Admin bisa memantau pemakaian Clerk, D1, R2, dan menjalankan pruning aman.' },
+  { title: 'Tab alamat profil', status: 'done', area: 'Customer', note: 'Alamat pengiriman dipisahkan dari data akun dan diberi CTA jika belum ada alamat.' },
+  { title: 'Checkout alamat multi-step', status: 'done', area: 'Customer', note: 'Alamat baru dibimbing bertahap dari provinsi sampai detail penerima.' },
   { title: 'Pisahkan schema dan seed demo', status: 'planned', area: 'Data', note: 'schema.sql masih bercampur definisi tabel dan data contoh.' },
+  { title: 'Tab keuangan sederhana', status: 'planned', area: 'Admin', note: 'Rancang laporan laba rugi, uang masuk/keluar, dan export CSV.' },
+  { title: 'Kompresi gambar sebelum R2', status: 'planned', area: 'Data', note: 'Optimasi storage dan bandwidth agar free tier R2 lebih awet.' },
   { title: 'Provider WhatsApp/email', status: 'planned', area: 'Marketing', note: 'Template pesan belum terkirim otomatis dari provider resmi.' },
   { title: 'Analytics event lebih detail', status: 'planned', area: 'Marketing', note: 'Metadata event belum memuat device/source campaign secara rapi.' },
 ];
