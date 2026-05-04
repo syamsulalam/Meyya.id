@@ -82,11 +82,12 @@ export default function AdminMarketingPanel() {
   });
 
   const generateMessage = (target: any) => {
+    const leadCartItem = getLeadCartItem(target.cartSnapshot);
     switch (target.tag) {
       case 'pending_payment':
         return `Hai Kak ${target.name}, pesanan kakak di Meyya.id masih menunggu pembayaran. Jika sudah transfer, boleh kirim bukti transfer di sini agar bisa segera kami proses. Terima kasih.`;
       case 'abandoned_cart':
-        return `Hai Kak ${target.name}, keranjang belanja Kakak di Meyya.id masih tersimpan${target.cartSnapshot?.subtotal ? ` senilai Rp ${target.cartSnapshot.subtotal.toLocaleString('id-ID')}` : ''}. Kalau masih bingung memilih ukuran, warna, atau bahan, kami bisa bantu rekomendasikan sebelum checkout.`;
+        return `Hai Kak ${target.name}, ${leadCartItem ? `${leadCartItem.product_name} masih ada di keranjang Kakak` : 'keranjang belanja Kakak di Meyya.id masih tersimpan'}${target.cartSnapshot?.subtotal ? ` senilai Rp ${target.cartSnapshot.subtotal.toLocaleString('id-ID')}` : ''}. Kalau masih bingung memilih ukuran, warna, atau bahan, kami bisa bantu rekomendasikan sebelum checkout.`;
       case 'birthday':
         return `Halo Kak ${target.name}, bulan spesial Kakak sudah dekat. Tim Meyya.id ingin kirim voucher birthday khusus supaya Kakak bisa pilih koleksi favorit dengan harga lebih ringan.`;
       case 'vip_retention':
@@ -259,4 +260,12 @@ export default function AdminMarketingPanel() {
       </div>
     </div>
   );
+}
+
+function getLeadCartItem(cartSnapshot: any) {
+  const items = Array.isArray(cartSnapshot?.items) ? cartSnapshot.items : [];
+  if (items.length === 0) return null;
+  return [...items].sort((a: any, b: any) =>
+    (Number(b.price || 0) * Number(b.quantity || 0)) - (Number(a.price || 0) * Number(a.quantity || 0))
+  )[0];
 }

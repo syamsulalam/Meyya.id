@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Settings, Plus, Check, Edit2, Package, X, ChevronLeft, Download, Trash2 } from 'lucide-react';
+import { Upload, Settings, Plus, Check, Edit2, Package, X, ChevronLeft, Download, Trash2, GripVertical } from 'lucide-react';
 import { useStore } from '../../store';
 import useSWR from 'swr';
 import { mutate } from 'swr';
@@ -437,6 +437,17 @@ export default function AdminProductForm() {
     }
   };
 
+  const moveGalleryImage = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    setGalleryImages(prev => {
+      if (fromIndex >= prev.length || toIndex >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next.map((image, index) => ({ ...image, is_primary: index === 0 }));
+    });
+  };
+
   const exportProducts = () => {
     const productRows = Array.isArray(products) ? products : [];
     const rows = [
@@ -672,7 +683,20 @@ export default function AdminProductForm() {
                {galleryImages.length > 0 && (
                  <div className="grid grid-cols-4 md:grid-cols-6 gap-3 mt-4">
                    {galleryImages.map((image, index) => (
-                     <div key={`${image.image_url}-${index}`} className="relative group/gallery">
+                     <div
+                       key={`${image.image_url}-${index}`}
+                       draggable
+                       onDragStart={e => e.dataTransfer.setData('text/plain', String(index))}
+                       onDragOver={e => e.preventDefault()}
+                       onDrop={e => {
+                         e.preventDefault();
+                         moveGalleryImage(Number(e.dataTransfer.getData('text/plain')), index);
+                       }}
+                       className="relative group/gallery"
+                     >
+                       <div className="absolute left-1 top-1 z-10 rounded-full bg-white/90 p-1 text-black/40 opacity-0 shadow-sm transition-opacity group-hover/gallery:opacity-100 cursor-grab" title="Drag untuk mengubah urutan galeri">
+                         <GripVertical size={12} />
+                       </div>
                        <button type="button" onClick={() => {
                          setImageUrl(image.image_url);
                          setGalleryImages(galleryImages.map((img, i) => ({ ...img, is_primary: i === index })));

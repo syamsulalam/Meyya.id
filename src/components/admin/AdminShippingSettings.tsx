@@ -160,10 +160,53 @@ export default function AdminShippingSettings() {
             <RefreshCw size={14} />
             <ExplainedLabel tooltip={<RegionCacheTooltip />}>Refresh Cache Wilayah ({cacheStats?.total || 0})</ExplainedLabel>
           </button>
+          <div className="bg-white/60 border border-black/5 rounded-2xl p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-black/50">Umur Cache Wilayah</p>
+                <p className="text-xs text-black/50">TTL cache {cacheStats?.ttl_days || 30} hari per endpoint.</p>
+              </div>
+              <span className="text-xs font-mono text-black/50">{cacheStats?.total || 0} endpoint</span>
+            </div>
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              {(cacheStats?.endpoints || []).length === 0 && <p className="text-xs text-black/40">Belum ada endpoint wilayah yang tersimpan di cache.</p>}
+              {(cacheStats?.endpoints || []).map((endpoint: any) => (
+                <div key={endpoint.endpoint} className="rounded-xl border border-black/5 bg-white px-3 py-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 truncate text-xs font-mono" title={endpoint.endpoint}>{endpoint.endpoint}</p>
+                    <CacheStatusPill status={endpoint.status} />
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-black/40">
+                    <span>Umur: {formatCacheAge(endpoint.age_hours)}</span>
+                    {endpoint.cached_at && <span>Cached: {new Date(endpoint.cached_at).toLocaleString('id-ID')}</span>}
+                    {endpoint.expires_at && <span>Expire: {new Date(endpoint.expires_at).toLocaleDateString('id-ID')}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+function CacheStatusPill({ status }: { status: string }) {
+  const meta: Record<string, { label: string; className: string }> = {
+    FRESH: { label: 'Fresh', className: 'bg-emerald-50 text-emerald-700' },
+    EXPIRING_SOON: { label: 'Segera Expire', className: 'bg-amber-50 text-amber-700' },
+    STALE: { label: 'Stale', className: 'bg-red-50 text-red-700' },
+    UNKNOWN: { label: 'Unknown', className: 'bg-black/5 text-black/50' },
+  };
+  const item = meta[status] || meta.UNKNOWN;
+  return <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] uppercase tracking-widest ${item.className}`}>{item.label}</span>;
+}
+
+function formatCacheAge(ageHours: number | null) {
+  if (ageHours === null || ageHours === undefined) return '-';
+  if (ageHours < 1) return '<1 jam';
+  if (ageHours < 24) return `${ageHours} jam`;
+  return `${Math.floor(ageHours / 24)} hari ${ageHours % 24} jam`;
 }
 
 function Select({ label, value, onChange, options, disabled }: { label: string; value: string; onChange: (value: string) => void; options: any[]; disabled?: boolean }) {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ChangeEvent } from 'react';
 import useSWR, { mutate } from 'swr';
 import { AlertCircle, CheckCircle2, ClipboardList, Download, Gift, MessageSquare, PackageCheck, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
@@ -30,6 +31,15 @@ export default function AdminOrderManager() {
   const bundles = Array.isArray(bundlesData) ? bundlesData : [];
   const products = Array.isArray(productsData) ? productsData : [];
   const [trackingDrafts, setTrackingDrafts] = useState<Record<string, { tracking_number: string; tracking_courier: string }>>({});
+  const [returnDrafts, setReturnDrafts] = useState<Record<number, {
+    admin_note?: string;
+    received_note?: string;
+    restock_received_items?: boolean;
+    warehouse_evidence_urls?: string[];
+    decision?: string;
+    decision_note?: string;
+    qc_log?: any[];
+  }>>({});
   const [bundleForm, setBundleForm] = useState({ name: '', slug: '', bundle_price: 0, items: [{ product_id: '', quantity: 1 }] });
 
   const exportOrders = () => {
@@ -65,18 +75,59 @@ export default function AdminOrderManager() {
   };
 
   const updateReturn = async (id: number, status: string) => {
+    const draft = returnDrafts[id] || {};
     try {
       const res = await authFetch('/api/admin/returns', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status, ...draft }),
       });
-      if (!res.ok) throw new Error('Gagal update return request');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal update return request');
       mutate('/api/admin/returns');
       addToast('Return request diperbarui', 'success');
     } catch (error: any) {
       addToast(error.message, 'error');
     }
+  };
+
+  const uploadWarehouseEvidence = async (event: ChangeEvent<HTMLInputElement>, returnId: number) => {
+    const existing = returnDrafts[returnId]?.warehouse_evidence_urls || [];
+    const files = (Array.from(event.target.files ?? []) as File[]).slice(0, Math.max(0, 8 - existing.length));
+    if (files.length === 0) return;
+    try {
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await authFetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.url) throw new Error(data.error || 'Gagal upload bukti gudang');
+        uploaded.push(data.url);
+      }
+      setReturnDrafts(prev => ({
+        ...prev,
+        [returnId]: {
+          ...(prev[returnId] || {}),
+          warehouse_evidence_urls: [...existing, ...uploaded].slice(0, 8),
+        },
+      }));
+      addToast('Bukti penerimaan gudang berhasil diunggah', 'success');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const updateQcItem = (returnId: number, qcItem: any, patch: any, allItems: any[]) => {
+    setReturnDrafts(prev => {
+      const current = prev[returnId] || {};
+      const currentLog = Array.isArray(current.qc_log) ? current.qc_log : buildInitialQcLog(allItems);
+      const key = getQcKey(qcItem);
+      const nextLog = currentLog.map((row: any) => getQcKey(row) === key ? { ...row, ...patch } : row);
+      return { ...prev, [returnId]: { ...current, qc_log: nextLog } };
+    });
   };
 
   const saveTemplate = async (template: any) => {
@@ -195,15 +246,141 @@ export default function AdminOrderManager() {
             {returns.length === 0 && <p className="text-sm text-black/50">Belum ada request retur/exchange.</p>}
             {returns.map((item: any) => (
               <div key={item.id} className="bg-white/60 border border-black/5 rounded-2xl p-4">
-                <div className="flex justify-between gap-3">
-                  <div>
-                    <p className="font-mono text-xs">{item.order_id}</p>
-                    <p className="text-sm font-medium">{item.type} - {item.status}</p>
-                    <p className="text-xs text-black/60 mt-1">{item.reason}</p>
+                <div className="flex flex-col gap-4">
+                  <div className="flex justify-between gap-3">
+                    <div>
+                      <p className="font-mono text-xs">{item.order_id}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <p className="text-sm font-medium">{item.type} - {item.status}</p>
+                        <SlaPill dueAt={item.sla_due_at} status={item.sla_status} />
+                        {item.stock_restored_at && <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] uppercase tracking-widest">Stok kembali</span>}
+                      </div>
+                      <p className="text-xs text-black/60 mt-1">{item.reason}</p>
+                      {item.admin_note && <p className="text-[10px] text-black/40 mt-1">Catatan admin: {item.admin_note}</p>}
+                      {item.received_note && <p className="text-[10px] text-black/40 mt-1">Catatan penerimaan: {item.received_note}</p>}
+                      {item.decision && <p className="text-[10px] text-black/40 mt-1">Keputusan: {item.decision}{item.decision_note ? ` - ${item.decision_note}` : ''}</p>}
+                    </div>
+                    <div className="text-right text-[10px] text-black/40">
+                      <p>{item.created_at ? new Date(item.created_at).toLocaleString('id-ID') : '-'}</p>
+                      {item.sla_due_at && <p>SLA: {new Date(item.sla_due_at).toLocaleString('id-ID')}</p>}
+                    </div>
                   </div>
-                  <div className="flex gap-2 h-fit">
+
+                  {Array.isArray(item.evidence_urls) && item.evidence_urls.length > 0 && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {item.evidence_urls.map((url: string) => (
+                        <a key={url} href={url} target="_blank" rel="noreferrer" className="aspect-square overflow-hidden rounded-xl border border-black/10 bg-black/5">
+                          <img src={url} alt="Bukti retur" className="h-full w-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="rounded-2xl border border-black/5 bg-white/50 p-3">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <p className="text-[10px] uppercase tracking-widest text-black/50">Bukti Penerimaan Gudang</p>
+                      <label className="cursor-pointer rounded-full bg-black/5 px-3 py-1.5 text-[10px] uppercase tracking-widest hover:bg-black/10">
+                        Upload Foto
+                        <input type="file" accept="image/*" multiple onChange={e => uploadWarehouseEvidence(e, item.id)} className="hidden" />
+                      </label>
+                    </div>
+                    {((returnDrafts[item.id]?.warehouse_evidence_urls || item.warehouse_evidence_urls || []) as string[]).length > 0 ? (
+                      <div className="grid grid-cols-4 gap-2">
+                        {((returnDrafts[item.id]?.warehouse_evidence_urls || item.warehouse_evidence_urls || []) as string[]).map((url: string) => (
+                          <a key={url} href={url} target="_blank" rel="noreferrer" className="aspect-square overflow-hidden rounded-xl border border-black/10 bg-black/5">
+                            <img src={url} alt="Bukti gudang" className="h-full w-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-black/40">Belum ada bukti penerimaan dari gudang.</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <input
+                      value={returnDrafts[item.id]?.admin_note || ''}
+                      onChange={e => setReturnDrafts(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), admin_note: e.target.value } }))}
+                      placeholder="Catatan admin"
+                      className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs"
+                    />
+                    <input
+                      value={returnDrafts[item.id]?.received_note || ''}
+                      onChange={e => setReturnDrafts(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), received_note: e.target.value } }))}
+                      placeholder="Catatan saat barang diterima"
+                      className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs"
+                    />
+                    <select
+                      value={returnDrafts[item.id]?.decision || item.decision || ''}
+                      onChange={e => setReturnDrafts(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), decision: e.target.value } }))}
+                      className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs"
+                    >
+                      <option value="">Keputusan refund/exchange</option>
+                      <option value="REFUND">Refund</option>
+                      <option value="EXCHANGE">Exchange</option>
+                      <option value="REJECT">Reject</option>
+                      <option value="REPAIR">Repair</option>
+                      <option value="STORE_CREDIT">Store credit</option>
+                    </select>
+                    <input
+                      value={returnDrafts[item.id]?.decision_note || item.decision_note || ''}
+                      onChange={e => setReturnDrafts(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), decision_note: e.target.value } }))}
+                      placeholder="Catatan keputusan"
+                      className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs"
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-black/5 bg-white/50 p-3">
+                    <p className="text-[10px] uppercase tracking-widest text-black/50 mb-2">Quality Control Per Item</p>
+                    <div className="space-y-2">
+                      {buildInitialQcLog(item.order_items || []).map((qcItem: any) => {
+                        const saved = (returnDrafts[item.id]?.qc_log || item.qc_log || []).find((row: any) => getQcKey(row) === getQcKey(qcItem));
+                        const row = { ...qcItem, ...(saved || {}) };
+                        return (
+                          <div key={getQcKey(qcItem)} className="grid grid-cols-1 md:grid-cols-[1fr_140px_1fr] gap-2">
+                            <div className="text-xs">
+                              <p className="font-medium">{qcItem.product_name}</p>
+                              <p className="text-[10px] text-black/40">Qty {qcItem.quantity}{qcItem.color_name ? ` / ${qcItem.color_name}` : ''}{qcItem.size_name ? ` / ${qcItem.size_name}` : ''}</p>
+                            </div>
+                            <select
+                              value={row.condition}
+                              onChange={e => updateQcItem(item.id, qcItem, { condition: e.target.value }, item.order_items || [])}
+                              className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs"
+                            >
+                              <option value="GOOD">Good</option>
+                              <option value="DAMAGED">Damaged</option>
+                              <option value="MISSING">Missing</option>
+                              <option value="WRONG_ITEM">Wrong item</option>
+                              <option value="USED">Used</option>
+                              <option value="INCOMPLETE">Incomplete</option>
+                            </select>
+                            <input
+                              value={row.note || ''}
+                              onChange={e => updateQcItem(item.id, qcItem, { note: e.target.value }, item.order_items || [])}
+                              placeholder="Catatan QC item"
+                              className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-2 text-xs text-black/60">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(returnDrafts[item.id]?.restock_received_items)}
+                      onChange={e => setReturnDrafts(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), restock_received_items: e.target.checked } }))}
+                      disabled={Boolean(item.stock_restored_at)}
+                    />
+                    Kembalikan stok item order saat status diubah ke RECEIVED
+                  </label>
+
+                  <div className="flex flex-wrap gap-2 h-fit">
                     <button onClick={() => updateReturn(item.id, 'APPROVED')} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] uppercase">Setujui</button>
                     <button onClick={() => updateReturn(item.id, 'REJECTED')} className="px-3 py-1.5 bg-red-50 text-red-700 rounded-full text-[10px] uppercase">Tolak</button>
+                    <button onClick={() => updateReturn(item.id, 'RECEIVED')} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-[10px] uppercase">Barang Diterima</button>
+                    <button onClick={() => updateReturn(item.id, item.type === 'EXCHANGE' ? 'EXCHANGED' : 'REFUNDED')} className="px-3 py-1.5 bg-black/5 text-ink rounded-full text-[10px] uppercase">{item.type === 'EXCHANGE' ? 'Exchange Selesai' : 'Refund Selesai'}</button>
                   </div>
                 </div>
               </div>
@@ -287,6 +464,38 @@ export default function AdminOrderManager() {
       </section>
     </div>
   );
+}
+
+function buildInitialQcLog(items: any[]) {
+  return (Array.isArray(items) ? items : []).map((item) => ({
+    product_id: item.product_id,
+    variant_id: item.variant_id || null,
+    product_name: item.product_name || `Produk ${item.product_id}`,
+    quantity: Number(item.quantity || 0),
+    color_name: item.color_name || '',
+    size_name: item.size_name || '',
+    condition: 'GOOD',
+    note: '',
+  }));
+}
+
+function getQcKey(item: any) {
+  return `${item.product_id || 0}:${item.variant_id || 'base'}`;
+}
+
+function SlaPill({ dueAt, status }: { dueAt?: string; status?: string }) {
+  if (!dueAt || status === 'NONE') return null;
+  const styles: Record<string, string> = {
+    OVERDUE: 'bg-red-50 text-red-700',
+    DUE_SOON: 'bg-amber-50 text-amber-700',
+    ON_TRACK: 'bg-emerald-50 text-emerald-700',
+  };
+  const labels: Record<string, string> = {
+    OVERDUE: 'SLA lewat',
+    DUE_SOON: 'SLA dekat',
+    ON_TRACK: 'SLA aman',
+  };
+  return <span className={`px-2 py-1 rounded-full text-[10px] uppercase tracking-widest ${styles[status || 'ON_TRACK'] || styles.ON_TRACK}`}>{labels[status || 'ON_TRACK'] || labels.ON_TRACK}</span>;
 }
 
 function StatusPill({ status }: { status: string }) {

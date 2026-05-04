@@ -93,8 +93,17 @@ export async function ensureCommerceSchema(env: any) {
       clerk_id TEXT NOT NULL,
       type TEXT DEFAULT 'RETURN',
       reason TEXT,
+      evidence_urls TEXT,
       status TEXT DEFAULT 'REQUESTED',
       admin_note TEXT,
+      sla_due_at DATETIME,
+      received_at DATETIME,
+      received_note TEXT,
+      warehouse_evidence_urls TEXT,
+      decision TEXT,
+      decision_note TEXT,
+      qc_log TEXT,
+      stock_restored_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -204,6 +213,15 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'user_cart_snapshots', 'last_event_at', 'DATETIME');
   await addColumn(env, 'user_cart_snapshots', 'converted_order_id', 'TEXT');
   await addColumn(env, 'user_cart_snapshots', 'updated_at', 'DATETIME');
+  await addColumn(env, 'return_requests', 'evidence_urls', 'TEXT');
+  await addColumn(env, 'return_requests', 'sla_due_at', 'DATETIME');
+  await addColumn(env, 'return_requests', 'received_at', 'DATETIME');
+  await addColumn(env, 'return_requests', 'received_note', 'TEXT');
+  await addColumn(env, 'return_requests', 'warehouse_evidence_urls', 'TEXT');
+  await addColumn(env, 'return_requests', 'decision', 'TEXT');
+  await addColumn(env, 'return_requests', 'decision_note', 'TEXT');
+  await addColumn(env, 'return_requests', 'qc_log', 'TEXT');
+  await addColumn(env, 'return_requests', 'stock_restored_at', 'DATETIME');
 
   await env.MEYYA_DB.prepare(`
     INSERT OR IGNORE INTO message_templates (key, channel, title, body)

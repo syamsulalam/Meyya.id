@@ -277,8 +277,17 @@ CREATE TABLE IF NOT EXISTS return_requests (
   clerk_id TEXT NOT NULL,
   type TEXT DEFAULT 'RETURN',
   reason TEXT,
+  evidence_urls TEXT,
   status TEXT DEFAULT 'REQUESTED',
   admin_note TEXT,
+  sla_due_at DATETIME,
+  received_at DATETIME,
+  received_note TEXT,
+  warehouse_evidence_urls TEXT,
+  decision TEXT,
+  decision_note TEXT,
+  qc_log TEXT,
+  stock_restored_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

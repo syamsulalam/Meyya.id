@@ -1,8 +1,66 @@
 # MEYYA.ID Improvement Notes
 
-Audit terakhir: 2026-05-04.
+Audit terakhir: 2026-05-05.
 
 Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, checkout, payment, CRM, dan debug produksi terakhir. Item yang sudah fixed tidak lagi dimasukkan sebagai prioritas aktif.
+
+## Next Actions Paling Atas
+
+Yang paling masuk akal dikerjakan berikutnya:
+
+1. Pisahkan `schema.sql` menjadi schema-only dan seed demo agar migration production berikutnya lebih aman.
+2. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
+
+Catatan fungsi next action nomor 2:
+
+- Template pesan sekarang sudah rapi dan tervalidasi, tetapi masih dipakai manual untuk disalin/dibuka ke WhatsApp Web.
+- Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
+- Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
+
+## Batch Gallery Reorder, Abandoned Template, dan Return QC 2026-05-05 02:12:01 +07:00
+
+Checklist:
+
+- [x] Galeri produk di form tambah/edit produk sekarang bisa diurutkan dengan drag-and-drop.
+- [x] Foto pertama setelah reorder otomatis menjadi primary image agar urutan galeri dan preview produk konsisten.
+- [x] Template pesan abandoned cart di WhatsApp Marketing sekarang mengambil nama produk utama dari snapshot cart.
+- [x] Produk utama abandoned cart dipilih dari item dengan nilai cart terbesar (`price * quantity`).
+- [x] Return admin punya bukti penerimaan gudang berupa upload foto internal.
+- [x] Return admin punya field keputusan refund/exchange/reject/repair/store credit.
+- [x] Return admin punya log quality control per item order: kondisi item dan catatan QC.
+- [x] API admin return menyimpan `warehouse_evidence_urls`, `decision`, `decision_note`, dan `qc_log`.
+- [x] Migration production disiapkan di `migrations/2026-05-05_return_ops_qc_gallery_reorder.sql`.
+
+Catatan apply D1:
+
+```powershell
+npx wrangler d1 execute meyya-id --remote --file migrations/2026-05-05_return_ops_qc_gallery_reorder.sql
+```
+
+Jika endpoint return sudah self-heal kolom baru setelah deploy, cek schema dulu sebelum menjalankan migration ini.
+
+## Batch Return/Exchange SLA dan Region Cache Age 2026-05-05 02:02:33 +07:00
+
+Checklist:
+
+- [x] Return/exchange customer sekarang bisa melampirkan bukti foto sampai 6 file.
+- [x] Return/exchange otomatis punya SLA due date 7 hari dari waktu request dibuat.
+- [x] Admin return queue menampilkan status SLA: aman, segera expire, atau lewat.
+- [x] Admin bisa menulis catatan admin dan catatan penerimaan barang.
+- [x] Admin bisa menandai barang diterima (`RECEIVED`) dan memilih opsi mengembalikan stok item order ke stok produk/varian.
+- [x] Restock return hanya dilakukan sekali lewat `stock_restored_at` agar stok tidak dobel.
+- [x] Stock movement `RETURN_RECEIVED` dicatat saat barang retur diterima dan stok dikembalikan.
+- [x] Region cache admin sekarang menampilkan umur cache per endpoint, status fresh/expiring/stale, waktu cached, dan perkiraan expire.
+- [x] Endpoint `/api/admin/region-cache` sekarang mengembalikan daftar endpoint cache, bukan hanya total global.
+- [x] Migration production disiapkan di `migrations/2026-05-05_return_sla_evidence_restock.sql`.
+
+Catatan apply D1:
+
+```powershell
+npx wrangler d1 execute meyya-id --remote --file migrations/2026-05-05_return_sla_evidence_restock.sql
+```
+
+Jika endpoint return sudah sempat self-heal kolom baru setelah deploy, jangan jalankan migration ini begitu saja karena `ALTER TABLE ADD COLUMN` akan gagal pada kolom yang sudah ada. Cek schema/export dulu.
 
 ## Batch Improvement 2026-05-04
 
@@ -70,8 +128,8 @@ Audit edge case lanjutan:
 - WhatsApp marketing masih membuka WhatsApp Web/manual; provider resmi belum terhubung untuk pengiriman otomatis dan audit delivery.
 - Template pesan sudah memakai variable preview/validation dan endpoint admin menolak placeholder tidak dikenal.
 - Tracking resi live sudah tersedia di halaman order melalui endpoint server-side yang memanggil provider tracking kurir.
-- Return/exchange belum punya SLA, bukti foto, dan stok penerimaan barang kembali.
-- Region cache sudah bisa di-refresh, tetapi belum ada indikator umur cache per endpoint di UI.
+- Return/exchange sudah punya SLA 7 hari, bukti foto customer, catatan penerimaan, dan opsi restock barang kembali.
+- Region cache sudah bisa di-refresh dan punya indikator umur cache per endpoint di UI admin pengiriman.
 - Admin roadmap sekarang statis dari file frontend; jika ingin jadi sumber kebenaran tim, pindahkan ke D1 agar bisa diedit dari admin.
 
 ## Batch Birthday Voucher dan Voucher Rules 2026-05-04
@@ -344,7 +402,7 @@ Status 2026-05-04:
 - Related products/manual upsell mapping: schema `product_related` tersedia; product detail fallback ke produk kategori sama jika mapping manual belum diisi.
 - Bundle/paket produk: implemented dengan `product_bundles`, public `GET /api/bundles`, admin `GET/POST /api/admin/bundles`, dan creator sederhana di admin.
 - Coupon per user atau segment: implemented lewat `target_clerk_id` dan `target_segment` di voucher.
-- Return/exchange workflow: implemented untuk customer order completed dan admin return queue.
+- Return/exchange workflow: implemented untuk customer order completed, bukti foto, SLA 7 hari, admin return queue, penerimaan barang, dan opsi restock.
 - Inventory reservation: implemented saat checkout membuat order; stok dikurangi saat `PENDING`, lalu reservation consumed saat paid/completed atau released saat cancel/expired.
 - Dashboard margin per produk dan kategori: product margin tampil di dashboard metrics; API juga mengirim `categoryMargins`.
 - CSV export orders/products: implemented di admin Operasional Toko dan admin Produk.
@@ -361,5 +419,3 @@ Catatan lanjutan:
 
 1. Pisahkan `schema.sql` menjadi schema-only dan seed demo agar migration production berikutnya lebih aman.
 2. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
-3. Tambah drag-and-drop reorder untuk galeri produk.
-4. Tambah template abandoned cart yang mengambil nama produk utama dari snapshot cart.
