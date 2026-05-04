@@ -142,6 +142,19 @@ export async function ensureCommerceSchema(env: any) {
     )
   `).run();
 
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS user_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      clerk_id TEXT,
+      event_type TEXT NOT NULL,
+      product_id INTEGER,
+      order_id TEXT,
+      campaign_tag TEXT,
+      metadata TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
   await addColumn(env, 'products', 'deleted_at', 'DATETIME');
   await addColumn(env, 'products', 'meta_title', 'TEXT');
   await addColumn(env, 'products', 'meta_description', 'TEXT');
@@ -163,6 +176,12 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'inventory_reservations', 'variant_id', 'INTEGER');
   await addColumn(env, 'vouchers', 'target_clerk_id', 'TEXT');
   await addColumn(env, 'vouchers', 'target_segment', 'TEXT');
+  await addColumn(env, 'wishlists', 'created_at', 'DATETIME');
+  await addColumn(env, 'users', 'birth_date', 'DATE');
+  await addColumn(env, 'user_events', 'product_id', 'INTEGER');
+  await addColumn(env, 'user_events', 'order_id', 'TEXT');
+  await addColumn(env, 'user_events', 'campaign_tag', 'TEXT');
+  await addColumn(env, 'user_events', 'metadata', 'TEXT');
 
   await env.MEYYA_DB.prepare(`
     INSERT OR IGNORE INTO message_templates (key, channel, title, body)

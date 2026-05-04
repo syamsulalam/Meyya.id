@@ -1,3 +1,5 @@
+import { ensureUsersSchema } from '../../_users';
+
 export async function onRequestGet(context: any) {
   const { env, request, params, data } = context;
   const id = params.id;
@@ -6,6 +8,7 @@ export async function onRequestGet(context: any) {
   if (!clerkId || clerkId !== id) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
 
   try {
+    await ensureUsersSchema(env);
     const user = await env.MEYYA_DB.prepare('SELECT * FROM users WHERE clerk_id = ?').bind(id).first();
     const addresses = await env.MEYYA_DB.prepare('SELECT * FROM user_addresses WHERE user_id = ?').bind(id).all();
 
@@ -34,6 +37,7 @@ export async function onRequestPut(context: any) {
   if (!clerkId || clerkId !== id) return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
 
   try {
+    await ensureUsersSchema(env);
     const body = await request.json();
 
     // Split full name into first and last name
@@ -47,10 +51,10 @@ export async function onRequestPut(context: any) {
     }
 
     // Update user info
-    if (body.name !== undefined || body.phone_wa !== undefined) {
+    if (body.name !== undefined || body.phone_wa !== undefined || body.birth_date !== undefined) {
       await env.MEYYA_DB.prepare(`
-         UPDATE users SET first_name = ?, last_name = ?, phone_wa = ? WHERE clerk_id = ?
-      `).bind(firstName, lastName, body.phone_wa || '', id).run();
+         UPDATE users SET first_name = ?, last_name = ?, phone_wa = ?, birth_date = ? WHERE clerk_id = ?
+      `).bind(firstName, lastName, body.phone_wa || '', cleanBirthDate(body.birth_date), id).run();
     }
 
     return new Response(JSON.stringify({ success: true, message: 'Profile updated' }), {
@@ -60,4 +64,10 @@ export async function onRequestPut(context: any) {
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
+}
+
+function cleanBirthDate(value: any) {
+  if (!value) return null;
+  const clean = String(value).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(clean) ? clean : null;
 }

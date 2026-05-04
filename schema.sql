@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS users (
   first_name TEXT,
   last_name TEXT,
   phone_wa TEXT,
+  birth_date DATE,
   role TEXT,
   last_login_at DATETIME,
   joined_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -203,6 +204,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   action TEXT NOT NULL,
   entity_type TEXT,
   entity_id TEXT,
+  metadata TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  clerk_id TEXT,
+  event_type TEXT NOT NULL,
+  product_id INTEGER,
+  order_id TEXT,
+  campaign_tag TEXT,
   metadata TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

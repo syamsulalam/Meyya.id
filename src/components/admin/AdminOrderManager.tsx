@@ -3,6 +3,15 @@ import useSWR, { mutate } from 'swr';
 import { ClipboardList, Download, Gift, MessageSquare, PackageCheck, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
+import {
+  AuditLogTooltip,
+  BundleTooltip,
+  ExplainedLabel,
+  FulfillmentTooltip,
+  MessageTemplateTooltip,
+  ReturnExchangeTooltip,
+  TrackingNumberTooltip,
+} from '../term-tooltips';
 
 export default function AdminOrderManager() {
   const fetcher = useAuthFetcher();
@@ -120,21 +129,24 @@ export default function AdminOrderManager() {
           <p className="text-sm text-black/60">Fulfillment, bukti transfer, retur, template pesan, dan audit aktivitas admin.</p>
         </div>
         <button onClick={exportOrders} className="px-5 py-3 bg-white border border-black/10 rounded-full text-xs uppercase tracking-widest font-semibold flex items-center gap-2 hover:bg-black/5">
-          <Download size={14} /> Export Orders
+          <Download size={14} /> Ekspor Pesanan
         </button>
       </div>
 
       <section className="bg-white/40 border border-black/5 rounded-[2rem] p-6">
-        <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2"><PackageCheck size={16} /> Fulfillment Pesanan</h3>
+        <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2">
+          <PackageCheck size={16} />
+          <ExplainedLabel tooltip={<FulfillmentTooltip />}>Fulfillment Pesanan</ExplainedLabel>
+        </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="text-[10px] uppercase tracking-widest text-black/50 border-b border-black/10">
               <tr>
-                <th className="py-3 pr-4">Order</th>
+                <th className="py-3 pr-4">Pesanan</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Total</th>
                 <th className="py-3 px-4">Bukti</th>
-                <th className="py-3 px-4">Resi</th>
+                <th className="py-3 px-4"><ExplainedLabel tooltip={<TrackingNumberTooltip />}>Resi</ExplainedLabel></th>
                 <th className="py-3 pl-4">Aksi</th>
               </tr>
             </thead>
@@ -162,7 +174,7 @@ export default function AdminOrderManager() {
                       {order.status === 'PENDING' && <button onClick={() => updateOrder(order.id, 'PROCESSING')} className="px-3 py-1.5 bg-ink text-white rounded-full text-[10px] uppercase tracking-widest">Konfirmasi</button>}
                       <button onClick={() => updateOrder(order.id, 'SHIPPED')} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-[10px] uppercase tracking-widest">Kirim</button>
                       <button onClick={() => updateOrder(order.id, 'COMPLETED')} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] uppercase tracking-widest">Selesai</button>
-                      {order.status !== 'CANCELLED' && <button onClick={() => updateOrder(order.id, 'CANCELLED')} className="px-3 py-1.5 bg-red-50 text-red-700 rounded-full text-[10px] uppercase tracking-widest">Cancel</button>}
+                      {order.status !== 'CANCELLED' && <button onClick={() => updateOrder(order.id, 'CANCELLED')} className="px-3 py-1.5 bg-red-50 text-red-700 rounded-full text-[10px] uppercase tracking-widest">Batalkan</button>}
                     </div>
                   </td>
                 </tr>
@@ -174,7 +186,10 @@ export default function AdminOrderManager() {
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <div className="bg-white/40 border border-black/5 rounded-[2rem] p-6">
-          <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2"><RotateCcw size={16} /> Retur & Exchange</h3>
+          <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2">
+            <RotateCcw size={16} />
+            <ExplainedLabel tooltip={<ReturnExchangeTooltip />}>Retur & Exchange</ExplainedLabel>
+          </h3>
           <div className="space-y-3">
             {returns.length === 0 && <p className="text-sm text-black/50">Belum ada request retur/exchange.</p>}
             {returns.map((item: any) => (
@@ -186,8 +201,8 @@ export default function AdminOrderManager() {
                     <p className="text-xs text-black/60 mt-1">{item.reason}</p>
                   </div>
                   <div className="flex gap-2 h-fit">
-                    <button onClick={() => updateReturn(item.id, 'APPROVED')} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] uppercase">Approve</button>
-                    <button onClick={() => updateReturn(item.id, 'REJECTED')} className="px-3 py-1.5 bg-red-50 text-red-700 rounded-full text-[10px] uppercase">Reject</button>
+                    <button onClick={() => updateReturn(item.id, 'APPROVED')} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] uppercase">Setujui</button>
+                    <button onClick={() => updateReturn(item.id, 'REJECTED')} className="px-3 py-1.5 bg-red-50 text-red-700 rounded-full text-[10px] uppercase">Tolak</button>
                   </div>
                 </div>
               </div>
@@ -196,7 +211,10 @@ export default function AdminOrderManager() {
         </div>
 
         <div className="bg-white/40 border border-black/5 rounded-[2rem] p-6">
-          <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2"><MessageSquare size={16} /> Template Pesan</h3>
+          <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2">
+            <MessageSquare size={16} />
+            <ExplainedLabel tooltip={<MessageTemplateTooltip />}>Template Pesan</ExplainedLabel>
+          </h3>
           <div className="space-y-4">
             {templates.map((template: any) => (
               <TemplateEditor template={template} onSave={saveTemplate} />
@@ -206,7 +224,10 @@ export default function AdminOrderManager() {
       </section>
 
       <section className="bg-white/40 border border-black/5 rounded-[2rem] p-6">
-        <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2"><Gift size={16} /> Bundle / Paket Produk</h3>
+        <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2">
+          <Gift size={16} />
+          <ExplainedLabel tooltip={<BundleTooltip />}>Bundle / Paket Produk</ExplainedLabel>
+        </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white/60 border border-black/5 rounded-2xl p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -248,7 +269,10 @@ export default function AdminOrderManager() {
       </section>
 
       <section className="bg-white/40 border border-black/5 rounded-[2rem] p-6">
-        <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2"><ShieldCheck size={16} /> Audit Log Admin</h3>
+        <h3 className="text-sm uppercase tracking-widest font-semibold mb-5 flex items-center gap-2">
+          <ShieldCheck size={16} />
+          <ExplainedLabel tooltip={<AuditLogTooltip />}>Audit Log Admin</ExplainedLabel>
+        </h3>
         <div className="space-y-2 max-h-80 overflow-y-auto">
           {auditLogs.map((log: any) => (
             <div key={log.id} className="grid grid-cols-1 md:grid-cols-[160px_1fr_160px] gap-2 bg-white/60 border border-black/5 rounded-xl px-4 py-3 text-xs">

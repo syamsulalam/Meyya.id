@@ -97,7 +97,7 @@ export default function Profile() {
           <nav className="flex flex-row lg:flex-col gap-4 overflow-x-auto lg:overflow-visible scrollbar-hide justify-start md:justify-center items-center w-full sticky lg:top-28">
             {tabs.map((tab) => (
               <React.Fragment key={tab.id}>
-                <Tooltip content={tab.label} position="right">
+                <Tooltip content={tab.id === 'terakhir' ? 'Produk yang terakhir Anda buka.' : tab.id === 'voucher' ? 'Voucher yang bisa dipakai saat checkout.' : tab.id === 'rekomendasi' ? 'Rekomendasi produk berdasarkan aktivitas belanja.' : tab.label} position="right">
                   <button
                     type="button"
                     onClick={() => {

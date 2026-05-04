@@ -1,12 +1,13 @@
 import { useState, ReactNode } from 'react';
 
 interface TooltipProps {
-  content: string;
+  content: ReactNode;
   children: ReactNode;
   position?: 'top' | 'bottom' | 'left' | 'right';
+  className?: string;
 }
 
-export default function Tooltip({ content, children, position = 'bottom' }: TooltipProps) {
+export default function Tooltip({ content, children, position = 'bottom', className = '' }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   const positionClasses = {
@@ -18,14 +19,16 @@ export default function Tooltip({ content, children, position = 'bottom' }: Tool
 
   return (
     <div 
-      className="relative inline-flex"
+      className={`relative inline-flex ${className}`}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
+      onFocus={() => setIsVisible(true)}
+      onBlur={() => setIsVisible(false)}
     >
       {children}
       {isVisible && (
         <div 
-          className={`absolute z-[100] px-3 py-1.5 bg-ink text-white text-xs font-medium rounded-lg whitespace-nowrap shadow-xl pointer-events-none ${positionClasses[position]}`}
+          className={`absolute z-[100] w-max max-w-[240px] px-3 py-2 bg-ink text-white text-xs font-medium rounded-lg whitespace-normal leading-relaxed shadow-xl pointer-events-none ${positionClasses[position]}`}
         >
           {content}
           {/* Caret */}

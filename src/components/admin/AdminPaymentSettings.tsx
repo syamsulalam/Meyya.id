@@ -3,6 +3,12 @@ import useSWR, { mutate } from 'swr';
 import { CreditCard, Plus, Save, Trash2, Upload } from 'lucide-react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
+import {
+  AdminFeeTooltip,
+  ExplainedLabel,
+  PaymentExpiryTooltip,
+  QrisTooltip,
+} from '../term-tooltips';
 
 const emptyBank = {
   bank_name: '',
@@ -74,7 +80,7 @@ export default function AdminPaymentSettings() {
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || 'Gagal upload QRIS');
       setForm((prev: any) => ({ ...prev, qris_image_url: data.url }));
-      addToast('QRIS berhasil diupload', 'success');
+      addToast('QRIS berhasil diunggah', 'success');
     } catch (error: any) {
       addToast(error.message, 'error');
     }
@@ -134,7 +140,9 @@ export default function AdminPaymentSettings() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <div className="bg-white/40 border border-black/5 rounded-[2rem] p-6 space-y-5">
-          <h3 className="text-sm uppercase tracking-widest font-semibold">Instruksi & Fee</h3>
+          <h3 className="text-sm uppercase tracking-widest font-semibold">
+            <ExplainedLabel tooltip={<AdminFeeTooltip />}>Instruksi & Fee</ExplainedLabel>
+          </h3>
           {settingsLoading ? (
             <p className="text-sm text-black/50">Memuat setting pembayaran...</p>
           ) : (
@@ -149,15 +157,15 @@ export default function AdminPaymentSettings() {
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <NumberField label="Expiry Menit" value={form.payment_expiry_minutes} onChange={(value) => setForm({ ...form, payment_expiry_minutes: value })} />
-                <NumberField label="Fee Transfer" value={form.transfer_admin_fee} onChange={(value) => setForm({ ...form, transfer_admin_fee: value })} />
-                <NumberField label="Fee QRIS" value={form.qris_admin_fee} onChange={(value) => setForm({ ...form, qris_admin_fee: value })} />
+                <NumberField label="Expiry Menit" tooltip={<PaymentExpiryTooltip />} value={form.payment_expiry_minutes} onChange={(value) => setForm({ ...form, payment_expiry_minutes: value })} />
+                <NumberField label="Fee Transfer" tooltip={<AdminFeeTooltip />} value={form.transfer_admin_fee} onChange={(value) => setForm({ ...form, transfer_admin_fee: value })} />
+                <NumberField label="Fee QRIS" tooltip={<QrisTooltip />} value={form.qris_admin_fee} onChange={(value) => setForm({ ...form, qris_admin_fee: value })} />
               </div>
               <div className="border-t border-black/5 pt-5 space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <input type="checkbox" checked={form.qris_is_active} onChange={(event) => setForm({ ...form, qris_is_active: event.target.checked })} />
-                    QRIS aktif
+                    <ExplainedLabel tooltip={<QrisTooltip />}>QRIS aktif</ExplainedLabel>
                   </label>
                   <label className="px-4 py-2 rounded-xl border border-black/10 bg-white text-xs font-semibold uppercase tracking-widest cursor-pointer hover:bg-black/5 flex items-center gap-2">
                     <Upload size={14} /> Upload QRIS
@@ -229,10 +237,12 @@ function TextField({ label, value, onChange, placeholder }: { label: string; val
   );
 }
 
-function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+function NumberField({ label, value, onChange, tooltip }: { label: string; value: number; onChange: (value: number) => void; tooltip?: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-[10px] uppercase tracking-widest text-black/50 mb-2">{label}</label>
+      <label className="block text-[10px] uppercase tracking-widest text-black/50 mb-2">
+        {tooltip ? <ExplainedLabel tooltip={tooltip}>{label}</ExplainedLabel> : label}
+      </label>
       <input type="number" value={value || 0} onChange={(event) => onChange(Number(event.target.value || 0))} className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-ink" />
     </div>
   );

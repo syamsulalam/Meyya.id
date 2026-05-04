@@ -5,6 +5,8 @@ import { useStore } from '../store';
 import clsx from 'clsx';
 import { useAuthFetch } from '../hooks/useAuthFetch';
 import { useUser } from '@clerk/react';
+import { useTrackEvent } from '../hooks/useTrackEvent';
+import { ExplainedLabel, ReturnExchangeTooltip } from '../components/term-tooltips';
 
 const getVariantOptionValue = (variant: any, key: string) => {
   if (variant?.option_values && typeof variant.option_values === 'object' && variant.option_values[key]) {
@@ -39,6 +41,7 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const { addToCart, toggleWishlist, wishlist, addRecentlyViewed, addToast } = useStore();
   const authFetch = useAuthFetch();
+  const trackEvent = useTrackEvent();
   const { isSignedIn } = useUser();
   
   const [product, setProduct] = useState<any>(null);
@@ -72,6 +75,10 @@ export default function ProductDetail() {
              return acc;
            }, {}));
            setSelectedImageUrl(data.image_url || data.images?.[0]?.image_url || '');
+           trackEvent('PRODUCT_VIEW', {
+             product_id: data.id,
+             metadata: { slug: data.slug, name: data.name, category: data.category_name },
+           });
            document.title = data.meta_title || `${data.name} | MEYYA.ID`;
            const metaDescription = document.querySelector('meta[name="description"]') || document.head.appendChild(document.createElement('meta'));
            metaDescription.setAttribute('name', 'description');
@@ -83,7 +90,7 @@ export default function ProductDetail() {
          console.error('Failed to load product:', err);
          setLoading(false);
       });
-  }, [slug, navigate, addRecentlyViewed]);
+  }, [slug, navigate, addRecentlyViewed, trackEvent]);
 
   if (loading) {
     return <div className="py-20 text-center text-gray-500">Memuat produk...</div>;
@@ -130,6 +137,16 @@ export default function ProductDetail() {
       price: product.base_price,
       weight: product.weight || 250,
       image_url: selectedImageUrl || product.image_url
+    });
+    trackEvent('CART_UPDATED', {
+      product_id: product.id,
+      metadata: {
+        action: 'add',
+        quantity: 1,
+        product_name: product.name,
+        variant_id: selectedVariant?.id,
+        variant_options: selectedVariant?.option_values || selectedOptionValues,
+      },
     });
     addToast('Produk ditambahkan ke keranjang!', 'success');
   };
@@ -350,7 +367,9 @@ export default function ProductDetail() {
             </ul>
           </div>
           <div className="border-b border-black/10 pb-4">
-            <h4 className="font-heading uppercase tracking-widest text-sm font-semibold mb-2">Pengiriman & Retur (<i>Returns</i>)</h4>
+            <h4 className="font-heading uppercase tracking-widest text-sm font-semibold mb-2">
+              <ExplainedLabel tooltip={<ReturnExchangeTooltip />}>Pengiriman & Retur (<i>Returns</i>)</ExplainedLabel>
+            </h4>
             <p className="text-xs font-light opacity-70 leading-relaxed">
               Pengiriman standar gratis untuk semua pesanan (<i>orders</i>) di atas Rp 500.000. 
               Retur diterima dalam waktu 7 hari pengiriman dalam kondisi utuh dengan tanda pengenal (<i>tags</i>) orisinil belum dilepas.

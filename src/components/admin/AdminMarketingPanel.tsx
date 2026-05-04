@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
 import { MessageSquare, ExternalLink, RefreshCw, Send, Users, AlertCircle, Bug } from 'lucide-react';
 import useSWR from 'swr';
-import { useAuthFetcher } from '../../hooks/useAuthFetch';
+import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
+import {
+  AbandonedCartTooltip,
+  BirthdayTooltip,
+  CampaignTouchTooltip,
+  CrmTooltip,
+  DebugDataTooltip,
+  ExplainedLabel,
+  LtvTooltip,
+} from '../term-tooltips';
 
 export default function AdminMarketingPanel() {
   const fetcher = useAuthFetcher();
+  const authFetch = useAuthFetch();
   const { isLoaded, isSignedIn } = useAuth();
   const authReady = isLoaded && isSignedIn;
   const { data: dbUsers, isLoading, mutate } = useSWR(authReady ? '/api/admin/users' : null, fetcher);
@@ -30,6 +40,18 @@ export default function AdminMarketingPanel() {
           tag: 'pending_payment',
           tagColor: 'bg-orange-100 text-orange-800'
         };
+      } else if (u.abandonedCart) {
+        scenario = {
+          context: `Keranjang terakhir belum checkout ${u.cartAgeHours || 0} jam lalu`,
+          tag: 'abandoned_cart',
+          tagColor: 'bg-amber-100 text-amber-800'
+        };
+      } else if (u.birthday?.daysUntil <= 14) {
+        scenario = {
+          context: u.birthday.isToday ? 'Ulang tahun pelanggan hari ini' : `Ulang tahun pelanggan ${u.birthday.daysUntil} hari lagi`,
+          tag: 'birthday',
+          tagColor: 'bg-pink-100 text-pink-800'
+        };
       } else if ((u.ltv || 0) >= 5000000 && daysSinceLastOrder !== null && daysSinceLastOrder >= 60) {
         scenario = {
           context: `VIP LTV Rp ${(u.ltv || 0).toLocaleString('id-ID')}, belum order ${daysSinceLastOrder} hari`,
@@ -51,6 +73,7 @@ export default function AdminMarketingPanel() {
         name: u.name,
         email: u.email,
         phone: cleanPhone,
+        birthDate: u.birthDate,
         ...scenario
       }];
   });
@@ -59,6 +82,10 @@ export default function AdminMarketingPanel() {
     switch (target.tag) {
       case 'pending_payment':
         return `Hai Kak ${target.name}, pesanan kakak di Meyya.id masih menunggu pembayaran. Jika sudah transfer, boleh kirim bukti transfer di sini agar bisa segera kami proses. Terima kasih.`;
+      case 'abandoned_cart':
+        return `Hai Kak ${target.name}, keranjang belanja Kakak di Meyya.id masih tersimpan. Kalau masih bingung memilih ukuran, warna, atau bahan, kami bisa bantu rekomendasikan sebelum checkout.`;
+      case 'birthday':
+        return `Halo Kak ${target.name}, bulan spesial Kakak sudah dekat. Tim Meyya.id ingin kirim voucher birthday khusus supaya Kakak bisa pilih koleksi favorit dengan harga lebih ringan.`;
       case 'vip_retention':
         return `Halo Kak ${target.name}, terima kasih sudah menjadi pelanggan setia Meyya.id. Kami baru menyiapkan koleksi terbaru yang mungkin cocok untuk Kakak. Silakan mampir lagi saat sempat ya.`;
       case 'new_customer':
@@ -73,8 +100,26 @@ export default function AdminMarketingPanel() {
     setCustomMessage(generateMessage(target));
   };
 
-  const handleSendWA = () => {
+  const handleSendWA = async () => {
     if (!selectedTarget) return;
+    try {
+      await authFetch('/api/admin/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'CAMPAIGN_TOUCH',
+          target_clerk_id: selectedTarget.id,
+          campaign_tag: selectedTarget.tag,
+          metadata: {
+            channel: 'WHATSAPP',
+            message: customMessage,
+          },
+        }),
+      });
+      mutate();
+    } catch (error) {
+      console.error('Failed to record campaign touch:', error);
+    }
     const url = `https://wa.me/${selectedTarget.phone}?text=${encodeURIComponent(customMessage)}`;
     window.open(url, '_blank');
   };
@@ -84,13 +129,15 @@ export default function AdminMarketingPanel() {
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-4 flex-shrink-0">
         <div>
           <h2 className="text-2xl font-light mb-2 flex items-center gap-2">
-            <MessageSquare size={24} /> WhatsApp Marketing CRM
+            <MessageSquare size={24} />
+            <ExplainedLabel tooltip={<CrmTooltip />}>WhatsApp Marketing CRM</ExplainedLabel>
           </h2>
           <p className="text-sm font-light text-black/60">Kirim reminder langsung ke pelanggan menggunakan WhatsApp Web yang terintegrasi dengan Database Users (D1).</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowDebug(!showDebug)} className={`px-4 py-2 text-xs rounded-full font-medium transition-colors border ${showDebug ? 'border-ink bg-black/5 text-ink' : 'border-black/10 text-gray-400 hover:text-ink hover:bg-black/5'}`}>
-            <Bug size={14} className="inline mr-1" /> Debug D1 Data
+            <Bug size={14} className="inline mr-1" />
+            <ExplainedLabel tooltip={<DebugDataTooltip />}>Debug D1 Data</ExplainedLabel>
           </button>
         </div>
       </div>
@@ -107,7 +154,8 @@ export default function AdminMarketingPanel() {
         <div className="w-full lg:w-1/3 bg-white/40 border border-black/5 rounded-[2rem] p-4 flex flex-col overflow-hidden">
            <div className="flex justify-between items-center mb-4 px-2">
              <h3 className="font-semibold text-sm uppercase tracking-widest text-ink flex items-center gap-2">
-               <Users size={16} /> Prioritas Hari Ini {targets.length > 0 && `(${targets.length})`}
+               <Users size={16} />
+               <ExplainedLabel tooltip={<CampaignTouchTooltip />}>Prioritas Hari Ini</ExplainedLabel> {targets.length > 0 && `(${targets.length})`}
              </h3>
              <button onClick={() => mutate()} className="text-gray-400 hover:text-ink"><RefreshCw size={14} className={isLoading ? "animate-spin" : ""} /></button>
            </div>
@@ -130,7 +178,13 @@ export default function AdminMarketingPanel() {
                    </span>
                  </div>
                  <p className="text-xs text-black/60 font-medium mb-2">{target.phone}</p>
-                 <p className="text-[10px] text-gray-500 bg-black/5 p-2 rounded-lg italic flex items-center gap-1.5 line-clamp-2"><AlertCircle size={12} className="shrink-0" /> {target.context}</p>
+                 <p className="text-[10px] text-gray-500 bg-black/5 p-2 rounded-lg italic flex items-center gap-1.5 line-clamp-2">
+                  <AlertCircle size={12} className="shrink-0" />
+                  {target.context}
+                  {target.tag === 'abandoned_cart' && <AbandonedCartTooltip />}
+                  {target.tag === 'birthday' && <BirthdayTooltip />}
+                  {target.tag === 'vip_retention' && <LtvTooltip />}
+                 </p>
                </div>
              ))}
            </div>

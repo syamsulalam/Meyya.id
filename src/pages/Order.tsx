@@ -5,6 +5,7 @@ import { CheckCircle2, Package, Copy, ArrowRight, Truck } from 'lucide-react';
 import { useStore } from '../store';
 import { useAuthFetcher } from '../hooks/useAuthFetch';
 import { useAuthFetch } from '../hooks/useAuthFetch';
+import { ExplainedLabel, ReturnExchangeTooltip, TrackingNumberTooltip, UniqueCodeTooltip } from '../components/term-tooltips';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -44,7 +45,7 @@ export default function Order() {
       const res = await authFetch(`/api/orders/${id}/payment-proof`, { method: 'POST', body: formData });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Gagal upload bukti transfer');
-      addToast('Bukti transfer berhasil diupload.', 'success');
+      addToast('Bukti transfer berhasil diunggah.', 'success');
     } catch (error: any) {
       addToast(error.message, 'error');
     } finally {
@@ -86,7 +87,7 @@ export default function Order() {
         <h1 className="text-3xl font-heading font-light mb-2 text-ink">
           {order.status === 'CANCELLED' ? 'Pesanan Dibatalkan' : isPaid ? 'Pesanan Berhasil Dibayar' : 'Menunggu Pembayaran'}
         </h1>
-        <p className="text-sm opacity-60 mb-8 font-mono">Order ID: #{id}</p>
+        <p className="text-sm opacity-60 mb-8 font-mono">ID Pesanan: #{id}</p>
 
         {isTransfer ? (
           <div className="text-left bg-orange-50/50 border border-orange-100 p-6 md:p-8 rounded-3xl mb-8">
@@ -118,7 +119,9 @@ export default function Order() {
                     <Copy size={14} /> Salin
                   </button>
                 </div>
-                <p className="text-xs text-red-500 mt-2 font-medium">Penting: Transfer tepat hingga 3 digit terakhir! (kode unik: {order.unique_code})</p>
+                <p className="text-xs text-red-500 mt-2 font-medium">
+                  <ExplainedLabel tooltip={<UniqueCodeTooltip />}>Penting: Transfer tepat hingga 3 digit terakhir</ExplainedLabel> (kode unik: {order.unique_code})
+                </p>
               </div>
               
               <div className="bg-white/60 text-xs p-4 rounded-xl text-gray-600 border border-black/5 leading-relaxed">
@@ -132,10 +135,10 @@ export default function Order() {
               <div className="bg-white/60 border border-black/5 rounded-xl p-4">
                 <p className="text-[10px] uppercase font-semibold text-gray-500 mb-3 tracking-widest">Upload Bukti Transfer</p>
                 {order.payment_proof_url ? (
-                  <a href={order.payment_proof_url} target="_blank" rel="noreferrer" className="text-sm underline text-ink">Bukti transfer sudah diupload</a>
+                  <a href={order.payment_proof_url} target="_blank" rel="noreferrer" className="text-sm underline text-ink">Bukti transfer sudah diunggah</a>
                 ) : (
                   <label className="inline-flex cursor-pointer px-4 py-2 bg-ink text-white rounded-full text-xs uppercase tracking-widest font-semibold">
-                    {uploadingProof ? 'Mengupload...' : 'Pilih File'}
+                    {uploadingProof ? 'Mengunggah...' : 'Pilih File'}
                     <input type="file" accept="image/*,application/pdf" onChange={uploadPaymentProof} disabled={uploadingProof || paymentExpired} className="hidden" />
                   </label>
                 )}
@@ -154,7 +157,7 @@ export default function Order() {
             <p className="text-sm text-emerald-700/80 mb-6 max-w-sm mx-auto">Kami sedang mengemas pesanan Anda dengan penuh cinta. Anda akan menerima notifikasi saat paket dikirim.</p>
             {order.tracking_number && (
               <div className="bg-white/70 border border-emerald-100 rounded-xl p-4 text-sm text-emerald-800">
-                Resi {order.tracking_courier || ''}: <span className="font-mono font-semibold">{order.tracking_number}</span>
+                <ExplainedLabel tooltip={<TrackingNumberTooltip />}>Resi {order.tracking_courier || ''}</ExplainedLabel>: <span className="font-mono font-semibold">{order.tracking_number}</span>
               </div>
             )}
           </div>
@@ -168,7 +171,9 @@ export default function Order() {
 
         {(order.status === 'COMPLETED' || order.status === 'SELESAI') && (
           <div className="text-left bg-white/50 border border-black/5 rounded-3xl p-6 mb-8">
-            <h2 className="text-xs uppercase tracking-widest font-semibold mb-3">Retur / Exchange</h2>
+            <h2 className="text-xs uppercase tracking-widest font-semibold mb-3">
+              <ExplainedLabel tooltip={<ReturnExchangeTooltip />}>Retur / Exchange</ExplainedLabel>
+            </h2>
             <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)} rows={3} placeholder="Tuliskan alasan retur atau exchange..." className="w-full bg-white border border-black/10 rounded-xl p-3 text-sm resize-none mb-3" />
             <div className="flex gap-2">
               <button type="button" onClick={() => submitReturnRequest('RETURN')} className="px-4 py-2 bg-black/5 rounded-full text-xs uppercase tracking-widest font-semibold">Ajukan Retur</button>

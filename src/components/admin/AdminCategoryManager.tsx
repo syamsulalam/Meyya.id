@@ -3,6 +3,7 @@ import { Plus, Trash2, Tag, Upload, Edit, X, Check } from 'lucide-react';
 import useSWR, { mutate } from 'swr';
 import { useAuthFetch } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
+import { AttributeTooltip, ExplainedLabel, TaxonomyTooltip, VariantTooltip } from '../term-tooltips';
 
 type CategoryAttribute = { name: string; options: string[] };
 
@@ -110,7 +111,7 @@ export default function AdminCategoryManager() {
             setPreviewUrl(data.url);
           }
         } else {
-          addToast('Gagal mengupload gambar', 'error');
+          addToast('Gagal mengunggah gambar', 'error');
         }
       } catch (err) {
         console.error(err);
@@ -216,7 +217,9 @@ export default function AdminCategoryManager() {
 
   return (
     <div>
-      <h2 className="text-2xl font-light mb-8 font-heading">Manajemen Kategori (Taxonomy)</h2>
+      <h2 className="text-2xl font-light mb-8 font-heading">
+        <ExplainedLabel tooltip={<TaxonomyTooltip />}>Manajemen Kategori (Taxonomy)</ExplainedLabel>
+      </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="glass-panel p-8 rounded-3xl bg-white/40">
           <h3 className="text-sm uppercase tracking-widest font-semibold mb-6 flex items-center gap-2"><Tag size={16}/> Daftar Kategori</h3>
@@ -247,7 +250,9 @@ export default function AdminCategoryManager() {
                      
                      {/* Edit Atribut Kategori */}
                      <div className="bg-white/40 p-4 rounded-xl border border-black/5 space-y-3">
-                       <p className="text-xs font-semibold uppercase tracking-widest opacity-60">Pengaturan Varian Produk</p>
+                       <p className="text-xs font-semibold uppercase tracking-widest opacity-60">
+                         <ExplainedLabel tooltip={<VariantTooltip />}>Pengaturan Varian Produk</ExplainedLabel>
+                       </p>
                        <label className="flex items-center gap-2 cursor-pointer">
                          <input type="checkbox" checked={editHasColors} onChange={e => setEditHasColors(e.target.checked)} className="rounded border-black/20 text-ink focus:ring-ink" />
                          <span className="text-sm">Aktifkan Varian Warna</span>
@@ -258,7 +263,9 @@ export default function AdminCategoryManager() {
                        </label>
                        
                        <div className="pt-2 border-t border-black/5">
-                         <p className="text-xs uppercase opacity-60 mb-2">Atribut Spesifikasi Khusus</p>
+                         <p className="text-xs uppercase opacity-60 mb-2">
+                           <ExplainedLabel tooltip={<AttributeTooltip />}>Atribut Spesifikasi Khusus</ExplainedLabel>
+                         </p>
                          {editAttributes.map((attr, idx) => (
                            <div key={idx} className="flex gap-2 items-center mb-2">
                              <input type="text" value={attr.name} onChange={e => {
@@ -358,18 +365,22 @@ export default function AdminCategoryManager() {
              </div>
              
              <div className="bg-white/40 border border-black/5 rounded-xl p-4 space-y-3">
-                <p className="text-xs uppercase tracking-widest opacity-60 font-semibold mb-2">Varian Pada Kategori Ini</p>
+                <p className="text-xs uppercase tracking-widest opacity-60 font-semibold mb-2">
+                  <ExplainedLabel tooltip={<VariantTooltip />}>Varian Pada Kategori Ini</ExplainedLabel>
+                </p>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={newHasColors} onChange={e => setNewHasColors(e.target.checked)} className="rounded border-black/20 text-ink focus:ring-ink" />
-                  <span className="text-sm">Aktifkan Varian Warna (Colors)</span>
+                  <span className="text-sm">Aktifkan Varian Warna</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={newHasSizes} onChange={e => setNewHasSizes(e.target.checked)} className="rounded border-black/20 text-ink focus:ring-ink" />
-                  <span className="text-sm">Aktifkan Varian Ukuran (Sizes)</span>
+                  <span className="text-sm">Aktifkan Varian Ukuran</span>
                 </label>
                 
                 <div className="pt-4 border-t border-black/5 mt-2">
-                  <p className="text-[10px] uppercase opacity-60 mb-2">Spesifikasi Lainnya (Opsional)</p>
+                  <p className="text-[10px] uppercase opacity-60 mb-2">
+                    <ExplainedLabel tooltip={<AttributeTooltip />}>Spesifikasi Lainnya (Opsional)</ExplainedLabel>
+                  </p>
                   {newAttributes.map((attr, idx) => (
                     <div key={idx} className="flex gap-2 items-center mb-2">
                       <input type="text" value={attr.name} onChange={e => {

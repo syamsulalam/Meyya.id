@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { createPortal } from 'react-dom';
-import { User, MapPin, Phone, Mail, CheckCircle2, Plus, Trash2 } from 'lucide-react';
+import { User, MapPin, Phone, Mail, CheckCircle2, Plus, Trash2, Gift } from 'lucide-react';
 import AutoSuggest from './AutoSuggest';
 import { useBlocker } from 'react-router-dom';
 import { useStore } from '../../store';
 import { useUser } from '@clerk/react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
+import { BirthdayTooltip, ExplainedLabel } from '../term-tooltips';
 
 const COUNTRY_CODES = [
   { code: '+62', flag: '🇮🇩', label: 'ID' },
@@ -49,6 +50,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
   const [isSaved, setIsSaved] = useState(true);
   const [profileName, setProfileName] = useState(user?.name || user?.fullName || '');
   const [profilePhone, setProfilePhone] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [canSyncNameToClerk, setCanSyncNameToClerk] = useState(false);
 
   // Fetch Profile Data
@@ -65,6 +67,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
             const cc = COUNTRY_CODES.find(c => phone.startsWith(c.code))?.code || '+62';
             setCountryCode(cc);
             setProfilePhone(formatPhoneDigits(phone.replace(cc, '')));
+            setBirthDate(data.user.birth_date || '');
             setTimeout(() => setIsSaved(true), 10);
           }
         });
@@ -140,7 +143,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       const res = await authFetch(`/api/user/profile/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: profileName, phone_wa: countryCode + profilePhone.replace(/\s/g, '') })
+        body: JSON.stringify({ name: profileName, phone_wa: countryCode + profilePhone.replace(/\s/g, ''), birth_date: birthDate || null })
       });
       
       if (!res.ok) throw new Error("Gagal menyimpan data");
@@ -317,6 +320,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">No. WhatsApp</label>
             <div className="flex gap-2">
@@ -344,6 +348,24 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                 />
               </div>
             </div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">
+              <ExplainedLabel tooltip={<BirthdayTooltip />}>Tanggal Lahir</ExplainedLabel>
+            </label>
+            <div className="relative">
+              <Gift size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50" />
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className="w-full bg-white/50 border border-black/10 rounded-full py-3 pl-12 pr-4 focus:outline-none focus:border-black/50 transition-colors text-sm"
+              />
+            </div>
+            <p className="mt-2 text-xs text-black/50">
+              Masukkan tanggal lahir Anda untuk peluang mendapatkan voucher diskon birthday.
+            </p>
+          </div>
           </div>
           <div className="pt-2">
             <button type="button" onClick={handleSave} className="px-6 py-2.5 bg-ink text-white rounded-full uppercase tracking-widest text-xs hover:bg-black/80 transition-colors">

@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import clsx from 'clsx';
 import { useUser } from '@clerk/react';
 import { useAuthFetch } from '../hooks/useAuthFetch';
+import { useTrackEvent } from '../hooks/useTrackEvent';
 
 const getVariantOptionValue = (variant: any, key: string) => {
   if (variant?.option_values && typeof variant.option_values === 'object' && variant.option_values[key]) {
@@ -26,6 +27,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
   const { wishlist, toggleWishlist, addToCart, decreaseQuantity, cart } = useStore();
   const { isSignedIn } = useUser();
   const authFetch = useAuthFetch();
+  const trackEvent = useTrackEvent();
   const navigate = useNavigate();
   
   // States for Quick Add Modal
@@ -79,6 +81,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
         weight: product.weight || 250,
         image_url: product.image_url
       });
+      trackEvent('CART_UPDATED', { product_id: product.id, metadata: { action: 'add', quantity: 1, source: 'catalog_card' } });
     }
   };
 
@@ -125,6 +128,16 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
       weight: product.weight || 250,
       image_url: product.image_url
     });
+    trackEvent('CART_UPDATED', {
+      product_id: product.id,
+      metadata: {
+        action: 'add',
+        quantity: 1,
+        source: 'catalog_card',
+        variant_id: selectedVariant?.id,
+        variant_options: selectedVariant?.option_values,
+      },
+    });
     setQuickAddStep(0);
     setSelectedColor(null);
     setSelectedSize('');
@@ -149,6 +162,16 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
       price: product.base_price,
       weight: product.weight || 250,
       image_url: product.image_url
+    });
+    trackEvent('CART_UPDATED', {
+      product_id: product.id,
+      metadata: {
+        action: 'buy_now',
+        quantity: 1,
+        source: 'catalog_card',
+        variant_id: product.variants?.[0]?.id,
+        variant_options: product.variants?.[0]?.option_values,
+      },
     });
     navigate('/cart');
   };

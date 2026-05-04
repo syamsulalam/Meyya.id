@@ -36,8 +36,8 @@ export async function onRequestPost(context: any) {
 
     const statements = productIds.map((productId: number) =>
       env.MEYYA_DB.prepare(`
-        INSERT INTO wishlists (user_id, product_id)
-        SELECT ?, ?
+        INSERT INTO wishlists (user_id, product_id, created_at)
+        SELECT ?, ?, CURRENT_TIMESTAMP
         WHERE NOT EXISTS (SELECT 1 FROM wishlists WHERE user_id = ? AND product_id = ?)
       `).bind(clerkId, productId, clerkId, productId)
     );

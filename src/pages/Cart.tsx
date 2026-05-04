@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Trash2, Plus, Minus } from 'lucide-react';
 import { useStore } from '../store';
+import { useTrackEvent } from '../hooks/useTrackEvent';
 
 type GroupedCartItem = {
   product_id: number;
@@ -22,6 +23,7 @@ type GroupedCartItem = {
 export default function Cart() {
   const { cart, removeFromCart, addToCart, decreaseQuantity } = useStore();
   const navigate = useNavigate();
+  const trackEvent = useTrackEvent();
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
@@ -154,7 +156,11 @@ export default function Cart() {
                         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end mt-1 sm:mt-0">
                            <div className="flex items-center bg-black/5 rounded-full px-2 py-1">
                             <button 
-                              onClick={(e) => { e.preventDefault(); decreaseQuantity(v.originalIndex); }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                decreaseQuantity(v.originalIndex);
+                                trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'decrease', source: 'cart', quantity: Math.max(v.quantity - 1, 0) } });
+                              }}
                               className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white transition-colors"
                             >
                               <Minus size={12} />
@@ -174,7 +180,8 @@ export default function Cart() {
                                   price: product.price,
                                   image_url: product.image_url,
                                   quantity: 1
-                                }); 
+                                });
+                                trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'increase', source: 'cart', quantity: v.quantity + 1 } });
                               }}
                               className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white transition-colors"
                             >
@@ -185,7 +192,11 @@ export default function Cart() {
                           <div className="flex items-center gap-3">
                             <span className="font-medium text-sm sm:text-base">Rp {(product.price * v.quantity).toLocaleString('id-ID')}</span>
                             <button 
-                              onClick={(e) => { e.preventDefault(); removeFromCart(v.originalIndex); }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                removeFromCart(v.originalIndex);
+                                trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'remove', source: 'cart', quantity: 0 } });
+                              }}
                               className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors flex-shrink-0"
                               title="Hapus variasi ini"
                             >
@@ -227,7 +238,15 @@ export default function Cart() {
             </div>
             
             <button 
-              onClick={() => navigate('/checkout')}
+              onClick={() => {
+                trackEvent('CHECKOUT_STARTED', {
+                  metadata: {
+                    item_count: cart.reduce((acc, curr) => acc + curr.quantity, 0),
+                    subtotal,
+                  },
+                });
+                navigate('/checkout');
+              }}
               className="w-full glass-button py-4 text-base"
             >
               Lanjutkan ke Checkout

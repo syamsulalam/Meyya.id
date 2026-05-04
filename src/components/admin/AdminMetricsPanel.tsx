@@ -4,6 +4,15 @@ import { Package, Users, Tags, ArrowRight, TrendingUp, Filter, AlertCircle, Refr
 import { useStore } from '../../store';
 import { useAuthFetcher, useAuthFetch } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
+import {
+  ExplainedLabel,
+  HelicopterViewTooltip,
+  LowStockTooltip,
+  NetProfitTooltip,
+  ProductMarginTooltip,
+  RevenueTooltip,
+  TimelineFilterTooltip,
+} from '../term-tooltips';
 
 export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'orders') => void }) {
   const { addToast } = useStore();
@@ -37,12 +46,16 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
       {/* Header & Filter */}
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-8">
         <div>
-          <h2 className="text-2xl font-light mb-2 flex items-center gap-2"><TrendingUp size={24} /> Helicopter View</h2>
+          <h2 className="text-2xl font-light mb-2 flex items-center gap-2">
+            <TrendingUp size={24} />
+            <ExplainedLabel tooltip={<HelicopterViewTooltip />}>Helicopter View</ExplainedLabel>
+          </h2>
           <p className="text-sm font-light text-black/60">Ringkasan performa bisnis dan katalog Meyya.id.</p>
         </div>
         
         <div className="flex items-center gap-2 bg-white/50 border border-black/10 rounded-full p-1 shadow-sm">
            <Filter size={14} className="ml-3 text-gray-400" />
+           <TimelineFilterTooltip />
            <select 
              value={timeline} 
              onChange={(e) => setTimeline(e.target.value)}
@@ -65,11 +78,15 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
           )}
         </div>
         <div className="glass-panel p-6 rounded-3xl relative overflow-hidden">
-          <p className="text-sm text-gray-500 uppercase tracking-widest font-medium mb-2">Total Omset</p>
+          <p className="text-sm text-gray-500 uppercase tracking-widest font-medium mb-2">
+            <ExplainedLabel tooltip={<RevenueTooltip />}>Total Omset</ExplainedLabel>
+          </p>
           <p className="text-4xl font-light text-ink">Rp {safeMetrics.totalRevenue?.toLocaleString('id-ID') || 0}</p>
         </div>
         <div className="glass-panel p-6 rounded-3xl bg-ink/5 border border-ink/10 relative overflow-hidden">
-          <p className="text-sm uppercase tracking-widest font-semibold mb-2 text-emerald-700">Total Profit Bebersih</p>
+          <p className="text-sm uppercase tracking-widest font-semibold mb-2 text-emerald-700">
+            <ExplainedLabel tooltip={<NetProfitTooltip />}>Total Profit Bersih</ExplainedLabel>
+          </p>
           <p className="text-4xl font-light text-emerald-800">Rp {safeMetrics.totalProfit?.toLocaleString('id-ID') || 0}</p>
         </div>
       </div>
@@ -77,7 +94,9 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
       {(safeMetrics.lowStockProducts?.length > 0 || safeMetrics.productMargins?.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
           <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Low Stock Alert</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">
+              <ExplainedLabel tooltip={<LowStockTooltip />}>Low Stock Alert</ExplainedLabel>
+            </h3>
             <div className="space-y-3">
               {(safeMetrics.lowStockProducts || []).map((product: any) => (
                 <div key={product.id} className="flex justify-between items-center bg-white/60 rounded-xl px-4 py-3 text-sm">
@@ -89,7 +108,9 @@ export default function AdminMetricsPanel({ onNavigate }: { onNavigate?: (tab: '
             </div>
           </div>
           <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Margin Produk Teratas</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">
+              <ExplainedLabel tooltip={<ProductMarginTooltip />}>Margin Produk Teratas</ExplainedLabel>
+            </h3>
             <div className="space-y-3">
               {(safeMetrics.productMargins || []).slice(0, 5).map((product: any) => (
                 <div key={product.product_id} className="flex justify-between items-center bg-white/60 rounded-xl px-4 py-3 text-sm">

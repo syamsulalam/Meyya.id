@@ -11,7 +11,7 @@ Checklist permintaan terbaru:
 - [x] Filter kategori homepage, menu navbar, dan footer mengikuti kategori yang punya produk.
 - [x] Produk out of stock ditampilkan greyed out.
 - [x] Laman `/search` memakai data produk nyata, bukan mockup.
-- [x] Voucher bisa dibuat tanpa tanggal mulai dan/atau tanggal kadaluarsa untuk promo first-order yang selalu berlaku.
+- [x] Voucher bisa dibuat tanpa tanggal mulai dan/atau tanggal kedaluwarsa untuk promo first-order yang selalu berlaku.
 - [x] Tombol tambah produk dikembalikan dekat posisi semula; tombol export dipindah ke kanan atas tabel produk.
 - [x] Border persegi hitam bawaan pada filter "Semua Waktu" dashboard Helicopter View dihapus.
 
@@ -19,6 +19,61 @@ Verifikasi:
 
 - `npm run lint` berhasil.
 - `npm run build` berhasil, masih dengan warning chunk size Vite.
+
+## Batch Prioritas Menengah 2026-05-04
+
+Checklist:
+
+- [x] `CLOUDFLARE_API_TOKEN` diperjelas: token yang dipakai agent/wrangler adalah Cloudflare API token dengan akses Account/D1, bukan token account-owned khusus untuk otomasi internal Cloudflare.
+- [x] Profil pelanggan punya field tanggal lahir dengan copy insentif voucher birthday.
+- [x] Schema self-heal menambahkan `users.birth_date` dan tabel `user_events`.
+- [x] Event tracking dasar tersedia untuk product view, cart update, checkout started, order created, dan campaign touch.
+- [x] CRM menghitung return rate dari `return_requests` dan menampilkan signal birthday/abandoned cart.
+- [x] Marketing panel memakai signal birthday dan abandoned cart sebagai target nyata.
+- [x] Remote D1 schema sudah diexport dari database `meyya-id` dan dibandingkan dengan `schema.sql`.
+- [x] Migration production kecil sudah dibuat di `migrations/2026-05-04_remote_schema_patch.sql`.
+- [x] Migration disesuaikan dengan batasan D1: `wishlists.created_at` ditambah tanpa default `CURRENT_TIMESTAMP`, lalu existing row diisi lewat `UPDATE`.
+- [x] Migration production `migrations/2026-05-04_remote_schema_patch.sql` sudah berhasil di-apply ke D1 remote `meyya-id`.
+- [x] Export ulang remote schema setelah migration sudah terverifikasi: kolom `users.birth_date`, `wishlists.created_at`, `payment_settings.transfer_admin_fee`, dan `payment_settings.qris_admin_fee` sudah ada.
+
+## Batch Tooltip, Typo, Roadmap, dan Audit 2026-05-04 19:20:51 +07:00
+
+Checklist:
+
+- [x] Pemetaan tooltip teknis selesai untuk area admin, profil, checkout, order, dan product detail.
+- [x] Komponen tooltip istilah dibuat di `src/components/term-tooltips.tsx` dengan komponen penjelasan terpisah per istilah.
+- [x] Komponen `Tooltip` diperkuat agar menerima konten lebih panjang, bisa muncul saat focus, dan tidak memaksa satu baris.
+- [x] Tooltip dipasang untuk istilah: Helicopter View, CRM, LTV, AOV, return rate, abandoned cart, birthday signal, campaign touch, D1, debug data, segment, Clerk ID, QRIS, payment expiry, admin fee, origin toko, cache wilayah, kurir aktif, taxonomy, varian, atribut, HPP, yield, SEO, canonical slug, Open Graph, SKU, fulfillment, resi, retur/exchange, audit log, bundle, template pesan, voucher, kode unik transfer, dan order bump.
+- [x] Salah ketik `Total Profit Bebersih` diperbaiki menjadi `Total Profit Bersih`.
+- [x] Copy minor disisir dan diperbaiki: `diupload/mengupload` menjadi `diunggah/mengunggah`, `kadaluarsa` menjadi `kedaluwarsa`, `Export/Orders/Stock/Action/Cancel/Approve/Reject/Gallery` pada area admin yang terlihat diganti ke istilah Indonesia yang lebih rapi.
+- [x] Tab admin baru `Roadmap Pengembangan` ditambahkan untuk melacak fitur yang sudah ada dan yang akan ada.
+- [x] Data roadmap UI dibuat di `src/data/developmentRoadmap.ts`.
+
+Pemetaan tooltip yang dipasang:
+
+- Dashboard admin: Helicopter View, filter waktu, total omset, total profit bersih, low stock alert, margin produk.
+- CRM admin: CRM, LTV, AOV, return rate, keranjang terakhir/abandoned cart, campaign touch, D1, birthday signal.
+- Marketing admin: WhatsApp Marketing CRM, debug D1 data, prioritas hari ini, abandoned cart, birthday, VIP/LTV.
+- Voucher admin: voucher publik, target pengguna/segment, Clerk ID, segment label.
+- Pembayaran admin: fee, expiry menit, fee transfer, fee QRIS, QRIS aktif.
+- Pengiriman admin: API_CO_ID_KEY, origin toko, kurir aktif, refresh cache wilayah.
+- Kategori admin: taxonomy, varian, atribut spesifikasi khusus.
+- Produk admin: D1 status, low stock alert, stok varian, SKU, SEO, canonical slug, Open Graph image, HPP, yield, kalkulator profit.
+- Operasional admin: fulfillment, resi, retur/exchange, template pesan, bundle, audit log.
+- Customer flow: tanggal lahir birthday di profil, voucher/order bump/biaya transaksi/kode unik transfer di checkout, kode unik/resi/retur-exchange di order, pengiriman/retur di product detail.
+
+Audit edge case lanjutan:
+
+- `schema.sql` masih bercampur schema dan seed demo; migration berikutnya sebaiknya berasal dari file schema-only.
+- Stok produk utama masih bisa berbeda dari total stok varian; idealnya stok global dihitung otomatis dari varian aktif.
+- Voucher birthday otomatis belum dibuat; perlu aturan nominal, periode klaim, minimal belanja, dan guard agar tidak bisa dipakai berulang dengan mengubah tanggal lahir.
+- Abandoned cart berbasis event, belum menyimpan snapshot cart agregat yang mudah dibaca admin.
+- WhatsApp marketing masih membuka WhatsApp Web/manual; provider resmi belum terhubung untuk pengiriman otomatis dan audit delivery.
+- Template pesan belum memakai variable preview/validation, sehingga placeholder yang salah bisa lolos.
+- Tracking resi live belum terhubung ke API kurir; saat ini resi hanya disimpan dan ditampilkan.
+- Return/exchange belum punya SLA, bukti foto, dan stok penerimaan barang kembali.
+- Region cache sudah bisa di-refresh, tetapi belum ada indikator umur cache per endpoint di UI.
+- Admin roadmap sekarang statis dari file frontend; jika ingin jadi sumber kebenaran tim, pindahkan ke D1 agar bisa diedit dari admin.
 
 ## Ringkasan Status Terbaru
 
@@ -80,33 +135,31 @@ Catatan produksi:
 
 ## Prioritas Tinggi
 
-### 1. D1 remote schema belum bisa diverifikasi dari agent
+### 1. D1 remote schema sudah verified setelah patch
 
 Kondisi saat ini:
 
-- Agent belum punya `CLOUDFLARE_API_TOKEN`, sehingga tidak bisa export schema remote.
-- Beberapa endpoint sudah punya self-heal ringan untuk tabel `users`.
-- Remote D1 masih bisa tertinggal untuk tabel lain seperti payment, product images, wishlist, atau shipping.
+- Export schema remote terbaru sudah berhasil dibuat di `.context/d1-remote-schema.sql`.
+- Nama database D1 remote yang benar dari `wrangler d1 list --json` adalah `meyya-id`, bukan `meyya_id` atau `meyya_db`.
+- Remote sudah punya tabel baru besar seperti `user_events`, `product_variants`, dan `region_cache`.
+- Gap remote yang sebelumnya terdeteksi:
+  `users.birth_date`,
+  `wishlists.created_at`,
+  `payment_settings.transfer_admin_fee`,
+  `payment_settings.qris_admin_fee`.
+- Patch production sudah dibuat, berhasil dijalankan ke remote D1 `meyya-id`, lalu terverifikasi lewat export ulang.
 
 Saran:
 
-Jalankan dari terminal yang punya token:
-
-```powershell
-$env:CLOUDFLARE_API_TOKEN="TOKEN_ANDA"
-npx wrangler d1 export meyya_db --remote --no-data --output .context/d1-remote-schema.sql --skip-confirmation
-git diff --no-index schema.sql .context/d1-remote-schema.sql
-```
-
-Jika remote belum punya tabel baru, apply migration/schema:
-
-```powershell
-npx wrangler d1 execute meyya_db --remote --file schema.sql
-```
+- Tidak ada migration D1 tambahan yang perlu dijalankan untuk batch ini.
+- Simpan file migration sebagai histori perubahan schema, tetapi jangan jalankan ulang tanpa cek schema dulu.
 
 Catatan:
 
-- `schema.sql` masih berisi seed demo. Untuk production, lebih aman pisahkan migration schema-only dari seed.
+- Token yang diperlukan untuk perintah `wrangler d1 export/execute` adalah `CLOUDFLARE_API_TOKEN` dari Cloudflare API Tokens. Gunakan user API token custom dengan permission minimal `Account: D1: Edit` pada account yang berisi database `meyya-id`. Untuk `wrangler whoami`/account discovery, permission `User: Memberships: Read` membantu menghindari error `/memberships`; `User: User Details: Read` hanya untuk menampilkan email dan tidak wajib untuk D1.
+- Jangan apply full `schema.sql` ke production karena file itu masih berisi seed demo.
+- `ALTER TABLE ... ADD COLUMN` di D1/SQLite tidak menerima default non-konstan seperti `CURRENT_TIMESTAMP`; karena itu `wishlists.created_at` ditambah nullable dan insert aplikasi mengisi timestamp secara eksplisit.
+- File migration ini one-time dan sudah applied. Jangan jalankan ulang kecuali schema remote sudah dicek dan memang perlu.
 - Jangan commit full dump karena bisa berisi PII customer/order.
 - D1 schema tambahan yang sekarang dibutuhkan untuk varian lengkap:
   `product_variants.option_signature`, `product_variants.option_label`, dan `order_items.variant_options`.
@@ -133,26 +186,25 @@ Kondisi saat ini:
 - List customer, LTV, AOV, total order, pending payment, last activity, ukuran dominan, hari checkout favorit, voucher count, wishlist count, search, dan export sudah dari D1.
 - Detail order sudah dari D1.
 - Journey timeline sudah dari join date dan order D1.
-- Return/exchange belum ada, sehingga `returnRate` belum bisa dihitung.
-- Return/exchange sudah ada; `returnRate` belum ditampilkan sebagai metrik CRM.
+- Return/exchange sudah ada; `returnRate` sekarang dihitung dari `return_requests` per pelanggan dan tampil di CRM.
 - Voucher personal/segment sudah didukung di voucher form/API.
+- Event tracking dasar untuk cart, view product, checkout started, order created, dan campaign touch sudah tersedia di `user_events`.
 
 Saran:
 
-- Hitung return rate setelah return/exchange workflow ada.
-- Tambah event tracking untuk cart, view product, dan campaign touch.
+- Tambahkan event analytics lebih detail jika ingin cohort dashboard, misalnya source campaign, device, dan nilai cart terakhir.
 
 ### 4. Marketing panel sudah tidak memakai scenario palsu, tetapi datanya masih terbatas
 
 Kondisi saat ini:
 
 - Target berbasis data nyata: pending payment, VIP retention, customer baru.
-- Birthday dan abandoned cart disembunyikan karena belum ada data dasar.
+- Birthday sudah aktif jika pelanggan mengisi tanggal lahir di profil.
+- Abandoned cart sudah aktif dari event `CART_UPDATED` yang belum diikuti order setelah minimal 4 jam.
 
 Saran:
 
-- Birthday hanya jika field tanggal lahir tersedia.
-- Abandoned cart butuh persistent cart/event tracking.
+- Tambah voucher birthday otomatis per user/segment jika aturan nominal diskonnya sudah ditentukan.
 - Tambah template campaign dari status order dan segment.
 
 ### 5. Debug JSON produksi masih aktif
@@ -178,10 +230,9 @@ Temuan yang sudah dibereskan:
 
 Temuan lanjutan yang masih layak dikerjakan:
 
-- `schema.sql` masih bercampur schema dan seed demo; migration production sebaiknya dipisah.
+- `schema.sql` masih bercampur schema dan seed demo; patch production kecil sudah dibuat, tetapi pemisahan permanen schema/seed masih sebaiknya dilakukan.
 - `shipping_settings.active_couriers` seed lama masih memakai variasi nama kurir campuran (`JNE`, `JT`, `paxel`); normalisasi kode kurir perlu disamakan dengan response api.co.id.
-- Return rate CRM belum dihitung dari tabel `return_requests`.
-- Event tracking untuk cart/view product/campaign touch belum tersedia.
+- Event analytics masih sederhana; metadata cart terakhir belum dipecah menjadi tabel agregat khusus.
 
 ## Backlog Fitur Toko Online
 
@@ -214,10 +265,9 @@ Catatan lanjutan:
 
 ## Urutan Fix Disarankan Berikutnya
 
-1. Apply/verify D1 remote schema dengan `CLOUDFLARE_API_TOKEN`.
-2. Pisahkan `schema.sql` menjadi migration schema-only dan seed demo agar apply production lebih aman.
-3. Hitung dan tampilkan return rate CRM dari `return_requests`.
-4. Tambah event tracking untuk cart/view product/campaign touch.
-5. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
-6. Tambah drag-and-drop reorder untuk product gallery.
-7. Normalisasi stok global agar otomatis dihitung dari total `product_variants`, bukan diinput manual.
+1. Pisahkan `schema.sql` menjadi schema-only dan seed demo agar migration production berikutnya lebih aman.
+2. Normalisasi stok global agar otomatis dihitung dari total `product_variants`, bukan diinput manual.
+3. Tambah voucher birthday otomatis setelah aturan promo ditentukan.
+4. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
+5. Tambah tracking resi live dari API kurir.
+6. Tambah drag-and-drop reorder untuk galeri produk.

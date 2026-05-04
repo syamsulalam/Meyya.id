@@ -4,6 +4,12 @@ import useSWR, { mutate } from 'swr';
 import { useStore } from '../../store';
 import { useAuthFetcher, useAuthFetch } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
+import {
+  ClerkIdTooltip,
+  ExplainedLabel,
+  SegmentTooltip,
+  VoucherTooltip,
+} from '../term-tooltips';
 
 type VoucherType = 'PERCENTAGE' | 'FIXED' | 'FREE_SHIPPING';
 
@@ -153,7 +159,9 @@ export default function AdminVoucherManager() {
     <div className="space-y-8 slide-up">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h2 className="text-2xl font-light font-heading text-ink">Manajemen Voucher & Promo</h2>
+          <h2 className="text-2xl font-light font-heading text-ink">
+            <ExplainedLabel tooltip={<VoucherTooltip />}>Manajemen Voucher & Promo</ExplainedLabel>
+          </h2>
           <p className="text-sm opacity-60 mt-1">Buat diskon dinamis untuk pelanggan Anda</p>
         </div>
         <button 
@@ -189,7 +197,9 @@ export default function AdminVoucherManager() {
               <input type="text" value={formVoucher.name || ''} onChange={e => setFormVoucher({...formVoucher, name: e.target.value})} placeholder="Misal: Flash Sale Ramadhan" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Kode Voucher (Publik)</label>
+              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">
+                <ExplainedLabel tooltip={<VoucherTooltip />}>Kode Voucher (Publik)</ExplainedLabel>
+              </label>
               <input type="text" disabled={isEditing} value={formVoucher.code || ''} onChange={e => setFormVoucher({...formVoucher, code: e.target.value.toUpperCase()})} placeholder="Misal: RAMADHAN50" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink uppercase font-mono disabled:opacity-50 disabled:bg-black/5" />
             </div>
 
@@ -268,11 +278,11 @@ export default function AdminVoucherManager() {
                 </label>
               </div>
               <div>
-                <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium"><Clock size={12} className="inline mr-1" />Tgl Kadaluarsa</label>
+                <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium"><Clock size={12} className="inline mr-1" />Tgl Kedaluwarsa</label>
                 <input type="date" disabled={formVoucher.disableEndDate} value={formVoucher.disableEndDate ? '' : formVoucher.endDate || ''} onChange={e => setFormVoucher({...formVoucher, endDate: e.target.value})} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink disabled:bg-black/5 disabled:text-black/30" />
                 <label className="mt-2 flex items-center gap-2 text-[11px] text-black/60">
                   <input type="checkbox" checked={!!formVoucher.disableEndDate} onChange={e => setFormVoucher({...formVoucher, disableEndDate: e.target.checked})} className="accent-ink" />
-                  Tanpa kadaluarsa
+                  Tanpa kedaluwarsa
                 </label>
               </div>
             </div>
@@ -287,7 +297,9 @@ export default function AdminVoucherManager() {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Target Pengguna</label>
+              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">
+                <ExplainedLabel tooltip={<SegmentTooltip />}>Target Pengguna</ExplainedLabel>
+              </label>
               <select value={formVoucher.targetUserRole || 'ALL'} onChange={e => setFormVoucher({...formVoucher, targetUserRole: e.target.value as any})} className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink">
                 <option value="ALL">Semua Pengguna</option>
                 <option value="NEW_USER">Pengguna Baru / Belum Pernah Belanja</option>
@@ -296,12 +308,16 @@ export default function AdminVoucherManager() {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Target Clerk ID (Opsional)</label>
+              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">
+                <ExplainedLabel tooltip={<ClerkIdTooltip />}>Target Clerk ID (Opsional)</ExplainedLabel>
+              </label>
               <input type="text" value={formVoucher.targetClerkId || ''} onChange={e => setFormVoucher({...formVoucher, targetClerkId: e.target.value})} placeholder="user_xxx untuk kupon personal" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink font-mono" />
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">Segment Label (Opsional)</label>
+              <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2 font-medium">
+                <ExplainedLabel tooltip={<SegmentTooltip />}>Segment Label (Opsional)</ExplainedLabel>
+              </label>
               <input type="text" value={formVoucher.targetSegment || ''} onChange={e => setFormVoucher({...formVoucher, targetSegment: e.target.value})} placeholder="VIP, NEW_USER, RETENTION" className="w-full bg-white border border-black/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-ink" />
             </div>
 

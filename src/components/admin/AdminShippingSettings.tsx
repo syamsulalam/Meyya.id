@@ -3,6 +3,13 @@ import useSWR, { mutate } from 'swr';
 import { MapPin, RefreshCw, Save, Truck } from 'lucide-react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
+import {
+  ActiveCourierTooltip,
+  ApiCoIdTooltip,
+  ExplainedLabel,
+  OriginStoreTooltip,
+  RegionCacheTooltip,
+} from '../term-tooltips';
 
 const COURIERS = ['JNE', 'SICEPAT', 'JNT', 'ANTERAJA', 'POS', 'TIKI', 'IDEXPRESS', 'LION'];
 
@@ -97,13 +104,16 @@ export default function AdminShippingSettings() {
 
       {!isLoading && settings && !settings.api_key_configured && (
         <div className="bg-orange-50 text-orange-800 border border-orange-100 rounded-2xl p-4 text-sm">
-          API_CO_ID_KEY belum dikonfigurasi. Kalkulasi ongkir akan gagal sampai key tersedia di Cloudflare Pages environment.
+          <ExplainedLabel tooltip={<ApiCoIdTooltip />}>API_CO_ID_KEY</ExplainedLabel> belum dikonfigurasi. Kalkulasi ongkir akan gagal sampai key tersedia di Cloudflare Pages environment.
         </div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <div className="bg-white/40 border border-black/5 rounded-[2rem] p-6 space-y-5">
-          <h3 className="text-sm uppercase tracking-widest font-semibold flex items-center gap-2"><MapPin size={16} /> Origin Toko</h3>
+          <h3 className="text-sm uppercase tracking-widest font-semibold flex items-center gap-2">
+            <MapPin size={16} />
+            <ExplainedLabel tooltip={<OriginStoreTooltip />}>Origin Toko</ExplainedLabel>
+          </h3>
           <div className="bg-white/60 border border-black/5 rounded-2xl p-4">
             <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Origin Aktif</p>
             <p className="text-sm font-semibold">{originVillageName || '-'}</p>
@@ -123,7 +133,9 @@ export default function AdminShippingSettings() {
         </div>
 
         <div className="bg-white/40 border border-black/5 rounded-[2rem] p-6 space-y-5">
-          <h3 className="text-sm uppercase tracking-widest font-semibold">Kurir Aktif</h3>
+          <h3 className="text-sm uppercase tracking-widest font-semibold">
+            <ExplainedLabel tooltip={<ActiveCourierTooltip />}>Kurir Aktif</ExplainedLabel>
+          </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {COURIERS.map((courier) => {
               const selected = activeCouriers.includes(courier);
@@ -145,7 +157,8 @@ export default function AdminShippingSettings() {
             <Save size={14} /> Simpan Pengiriman
           </button>
           <button onClick={refreshRegionCache} className="w-full bg-white border border-black/10 text-ink py-3 rounded-full text-xs uppercase tracking-widest font-semibold hover:bg-black/5 flex items-center justify-center gap-2">
-            <RefreshCw size={14} /> Refresh Cache Wilayah ({cacheStats?.total || 0})
+            <RefreshCw size={14} />
+            <ExplainedLabel tooltip={<RegionCacheTooltip />}>Refresh Cache Wilayah ({cacheStats?.total || 0})</ExplainedLabel>
           </button>
         </div>
       </div>

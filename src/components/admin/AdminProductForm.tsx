@@ -4,6 +4,19 @@ import { useStore } from '../../store';
 import useSWR from 'swr';
 import { mutate } from 'swr';
 import { useAuthFetch } from '../../hooks/useAuthFetch';
+import {
+  CanonicalSlugTooltip,
+  D1Tooltip,
+  ExplainedLabel,
+  HppTooltip,
+  LowStockTooltip,
+  OpenGraphTooltip,
+  ProductMarginTooltip,
+  SeoTooltip,
+  SkuTooltip,
+  VariantTooltip,
+  YieldTooltip,
+} from '../term-tooltips';
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -477,13 +490,18 @@ export default function AdminProductForm() {
            <div>
              {isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database (D1)...</span>}
              {error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database: {error.message}</span>}
-             {products && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({products?.length || 0} produk ditemukan)</span>}
+             {products && (
+              <span className="inline-flex items-center gap-1.5 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
+                Terhubung ke database D1 ({products?.length || 0} produk ditemukan)
+                <D1Tooltip />
+              </span>
+             )}
            </div>
            <button
              onClick={exportProducts}
              className="self-start sm:self-auto bg-white border border-black/10 text-ink px-4 py-2 rounded-full text-xs font-semibold tracking-widest uppercase hover:bg-black/5 transition-colors shadow-m flex items-center gap-2"
            >
-             <Download size={16} /> Export
+             <Download size={16} /> Ekspor
            </button>
         </div>
         <table className="w-full text-sm text-left">
@@ -492,8 +510,8 @@ export default function AdminProductForm() {
               <th className="py-3 font-medium">Nama Produk</th>
               <th className="py-3 font-medium">Kategori</th>
               <th className="py-3 font-medium">Harga (Rp)</th>
-              <th className="py-3 font-medium">Stock</th>
-              <th className="py-3 font-medium">Action</th>
+              <th className="py-3 font-medium">Stok</th>
+              <th className="py-3 font-medium">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -659,7 +677,7 @@ export default function AdminProductForm() {
                  </div>
                )}
                <label className="mt-4 inline-flex cursor-pointer items-center gap-2 px-4 py-2 rounded-xl border border-black/10 bg-white text-xs font-semibold uppercase tracking-widest hover:bg-black/5">
-                 <Upload size={14} /> Tambah Gallery
+                 <Upload size={14} /> Tambah Galeri
                  <input type="file" className="hidden" accept="image/*" multiple onChange={handleGalleryUpload} />
                </label>
             </div>
@@ -695,7 +713,9 @@ export default function AdminProductForm() {
               </div>
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Low Stock Alert</label>
+              <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">
+                <ExplainedLabel tooltip={<LowStockTooltip />}>Low Stock Alert</ExplainedLabel>
+              </label>
               <input type="number" value={lowStockThreshold} onChange={e => setLowStockThreshold(Number(e.target.value || 0))} placeholder="5" className="w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm font-mono" />
               <p className="text-[10px] opacity-50 mt-1">Produk masuk alert dashboard jika stok sama/di bawah angka ini.</p>
             </div>
@@ -794,7 +814,9 @@ export default function AdminProductForm() {
             <div className="md:col-span-2 bg-white/40 p-5 rounded-2xl border border-black/5 space-y-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <h4 className="text-xs uppercase tracking-widest font-semibold opacity-60">Stok Per Kombinasi Varian</h4>
+              <h4 className="text-xs uppercase tracking-widest font-semibold opacity-60">
+                <ExplainedLabel tooltip={<VariantTooltip />}>Stok Per Kombinasi Varian</ExplainedLabel>
+              </h4>
                   <p className="text-xs text-black/50 mt-1">
                     Stok di-bind ke kombinasi opsi: {variantAxes.map(axis => axis.name).join(' + ') || 'belum ada opsi'}.
                   </p>
@@ -811,7 +833,10 @@ export default function AdminProductForm() {
                       <p className="text-xs font-semibold text-ink truncate" title={variant.option_label}>{variant.option_label}</p>
                       <p className="text-[10px] text-black/40 truncate">{variant.option_signature}</p>
                     </div>
-                    <input value={variant.sku} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, sku: e.target.value } : v))} placeholder="SKU" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs" />
+                    <div className="relative">
+                      <input value={variant.sku} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, sku: e.target.value } : v))} placeholder="SKU" className="w-full bg-white border border-black/10 rounded-xl px-3 py-2 pr-8 text-xs" />
+                      <SkuTooltip className="absolute right-2 top-1/2 -translate-y-1/2" />
+                    </div>
                     <input type="number" min={0} value={variant.stock} onChange={e => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, stock: Number(e.target.value || 0) } : v))} placeholder="Stok" className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs font-mono" />
                     <button type="button" onClick={() => setProductVariants(productVariants.map((v, i) => i === index ? { ...v, is_active: !v.is_active } : v))} className={`px-3 py-2 rounded-xl text-[10px] uppercase tracking-widest font-semibold ${variant.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-black/5 text-black/40 border border-black/10'}`}>
                       {variant.is_active ? 'Aktif' : 'Nonaktif'}
@@ -845,14 +870,18 @@ export default function AdminProductForm() {
             </div>
 
             <div className="md:col-span-2 bg-white/40 p-5 rounded-2xl border border-black/5 space-y-4">
-              <h4 className="text-xs uppercase tracking-widest font-semibold opacity-60">SEO Produk</h4>
+              <h4 className="text-xs uppercase tracking-widest font-semibold opacity-60">
+                <ExplainedLabel tooltip={<SeoTooltip />}>SEO Produk</ExplainedLabel>
+              </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2">Meta Title</label>
                   <input type="text" value={metaTitle} onChange={e => setMetaTitle(e.target.value)} placeholder={productName || 'Judul SEO'} className="w-full bg-white border border-black/10 rounded-xl py-2 px-3 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2">Canonical Slug</label>
+                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2">
+                    <ExplainedLabel tooltip={<CanonicalSlugTooltip />}>Canonical Slug</ExplainedLabel>
+                  </label>
                   <input type="text" value={canonicalSlug} onChange={e => setCanonicalSlug(e.target.value)} placeholder={slug || 'slug-produk'} className="w-full bg-white border border-black/10 rounded-xl py-2 px-3 text-sm" />
                 </div>
                 <div className="md:col-span-2">
@@ -860,7 +889,9 @@ export default function AdminProductForm() {
                   <textarea value={metaDescription} onChange={e => setMetaDescription(e.target.value)} rows={2} className="w-full bg-white border border-black/10 rounded-xl py-2 px-3 text-sm resize-none" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2">Open Graph Image URL</label>
+                  <label className="block text-[10px] uppercase tracking-widest opacity-60 mb-2">
+                    <ExplainedLabel tooltip={<OpenGraphTooltip />}>Open Graph Image URL</ExplainedLabel>
+                  </label>
                   <input type="text" value={ogImageUrl} onChange={e => setOgImageUrl(e.target.value)} placeholder={imageUrl || 'https://...'} className="w-full bg-white border border-black/10 rounded-xl py-2 px-3 text-sm" />
                 </div>
               </div>
@@ -871,7 +902,9 @@ export default function AdminProductForm() {
 
         {/* 2. Biaya Produksi */}
         <div className="space-y-6">
-          <h3 className="text-sm uppercase tracking-widest font-semibold pb-2 border-b border-black/10">2. Kalkulasi Biaya Produksi (HPP)</h3>
+          <h3 className="text-sm uppercase tracking-widest font-semibold pb-2 border-b border-black/10">
+            <ExplainedLabel tooltip={<HppTooltip />}>2. Kalkulasi Biaya Produksi (HPP)</ExplainedLabel>
+          </h3>
           
           <div className="bg-white/40 p-6 rounded-3xl border border-black/5 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -880,7 +913,9 @@ export default function AdminProductForm() {
                 <input type="number" value={hargaKainRoll || ''} onChange={e => setHargaKainRoll(Number(e.target.value))} placeholder="Mis: 1500000" className="w-full bg-white border border-black/10 rounded-xl py-2 px-4 text-sm font-mono" />
               </div>
               <div>
-                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Yield (Jml Produk per Roll)</label>
+                <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">
+                  <ExplainedLabel tooltip={<YieldTooltip />}>Yield (Jml Produk per Roll)</ExplainedLabel>
+                </label>
                 <input type="number" value={yieldKain || ''} onChange={e => setYieldKain(Number(e.target.value))} placeholder="Mis: 30" className="w-full bg-white border border-black/10 rounded-xl py-2 px-4 text-sm font-mono" />
               </div>
               <div>
@@ -924,7 +959,10 @@ export default function AdminProductForm() {
           
           {/* Kalkulator Otomatis */}
           <div className="bg-ink p-6 rounded-3xl text-white mt-8 shadow-xl">
-            <h4 className="text-sm uppercase tracking-widest font-medium mb-6 opacity-80 flex items-center gap-2"><Settings size={16} /> Kalkulator Profit</h4>
+            <h4 className="text-sm uppercase tracking-widest font-medium mb-6 opacity-80 flex items-center gap-2">
+              <Settings size={16} />
+              <ExplainedLabel tooltip={<ProductMarginTooltip />}>Kalkulator Profit</ExplainedLabel>
+            </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
               <div className="space-y-4">
                  <div className="flex justify-between border-b border-white/20 pb-2 text-sm">

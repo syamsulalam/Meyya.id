@@ -5,6 +5,14 @@ import { useStore } from '../store';
 import { Loader2 } from 'lucide-react';
 import { useUser } from '@clerk/react';
 import { useAuthFetch, useAuthFetcher } from '../hooks/useAuthFetch';
+import { useTrackEvent } from '../hooks/useTrackEvent';
+import {
+  AdminFeeTooltip,
+  ExplainedLabel,
+  OrderBumpTooltip,
+  UniqueCodeTooltip,
+  VoucherTooltip,
+} from '../components/term-tooltips';
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -23,6 +31,7 @@ export default function Checkout() {
   const { user: clerkUser } = useUser();
   const authFetch = useAuthFetch();
   const authFetcher = useAuthFetcher();
+  const trackEvent = useTrackEvent();
   const { data: dbAddresses } = useSWR(clerkUser?.id ? `/api/user/addresses/${clerkUser.id}` : null, authFetcher);
   const d1SavedAddresses = React.useMemo(() => Array.isArray(dbAddresses) ? dbAddresses.map((a, idx) => ({
     id: String(a.id),
@@ -220,6 +229,14 @@ export default function Checkout() {
         throw new Error(data.error || 'Gagal membuat pesanan');
       }
 
+      await trackEvent('ORDER_CREATED', {
+        order_id: data.orderId,
+        metadata: {
+          item_count: cart.reduce((acc, item) => acc + item.quantity, 0),
+          subtotal,
+          voucher_code: appliedVoucher?.code || null,
+        },
+      });
       clearCart();
       // Redirect to new order page
       navigate(`/order/${data.orderId}`);
@@ -427,7 +444,7 @@ export default function Checkout() {
                  </div>
               ) : couriers.length === 0 && !shippingLoading ? (
                  <div className="text-xs text-red-500 bg-red-50 p-4 rounded-xl text-center">
-                   Maaf, tidak ada kurir yang tersedia menuju lokasi Anda. Hubungi Customer Service kami.
+                   Maaf, tidak ada kurir yang tersedia menuju lokasi Anda. Hubungi customer service kami.
                  </div>
               ) : (
                 <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
@@ -551,14 +568,19 @@ export default function Checkout() {
               </div>
             ) : (
               <div className="flex gap-2">
-                <input type="text" value={voucherCode} onChange={e => setVoucherCode(e.target.value.toUpperCase())} placeholder="Kode Voucher/Promo" className="flex-1 bg-white border border-black/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-ink uppercase" />
-                <button type="button" onClick={handleApplyVoucher} className="bg-black/5 hover:bg-black/10 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">Apply</button>
+                <div className="relative flex-1">
+                  <input type="text" value={voucherCode} onChange={e => setVoucherCode(e.target.value.toUpperCase())} placeholder="Kode Voucher/Promo" className="w-full bg-white border border-black/10 rounded-xl px-4 py-2 pr-9 text-sm focus:outline-none focus:border-ink uppercase" />
+                  <VoucherTooltip className="absolute right-3 top-1/2 -translate-y-1/2" />
+                </div>
+                <button type="button" onClick={handleApplyVoucher} className="bg-black/5 hover:bg-black/10 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">Pakai</button>
               </div>
             )}
 
             {/* Order Bump Upsell */}
             <div className="bg-orange-50/50 border border-orange-100 p-4 rounded-xl mt-6">
-              <h3 className="text-[10px] uppercase font-bold text-orange-800 tracking-widest mb-3">Produk Lain yang Mungkin Anda Suka</h3>
+              <h3 className="text-[10px] uppercase font-bold text-orange-800 tracking-widest mb-3">
+                <ExplainedLabel tooltip={<OrderBumpTooltip />}>Produk Lain yang Mungkin Anda Suka</ExplainedLabel>
+              </h3>
               <div className="flex flex-col gap-3">
                 {recommendedProducts.slice(0, 2).map((product: any) => {
                   const inCart = cart.find(c => c.product_id === product.id);
@@ -608,7 +630,10 @@ export default function Checkout() {
               </div>
               {adminFee > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500 z-10 flex gap-1 items-center">Biaya Transaksi <span className="text-[9px] bg-black/5 px-1.5 rounded">{paymentMethod}</span></span>
+                  <span className="text-gray-500 z-10 flex gap-1 items-center">
+                    <ExplainedLabel tooltip={<AdminFeeTooltip />}>Biaya Transaksi</ExplainedLabel>
+                    <span className="text-[9px] bg-black/5 px-1.5 rounded">{paymentMethod}</span>
+                  </span>
                   <span className="font-medium">Rp {adminFee.toLocaleString('id-ID')}</span>
                 </div>
               )}
@@ -620,7 +645,9 @@ export default function Checkout() {
               )}
               {paymentMethod === 'TRANSFER' && (
                 <div className="flex justify-between text-red-500">
-                  <span className="font-medium text-[10px] tracking-wide uppercase">Kode Unik Transfer</span>
+                  <span className="font-medium text-[10px] tracking-wide uppercase">
+                    <ExplainedLabel tooltip={<UniqueCodeTooltip />}>Kode Unik Transfer</ExplainedLabel>
+                  </span>
                   <span className="font-medium">Ditambahkan saat order dibuat</span>
                 </div>
               )}

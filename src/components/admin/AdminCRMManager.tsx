@@ -4,6 +4,17 @@ import useSWR from 'swr';
 import { useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
 import { useStore } from '../../store';
+import {
+  AbandonedCartTooltip,
+  AovTooltip,
+  BirthdayTooltip,
+  CampaignTouchTooltip,
+  CrmTooltip,
+  D1Tooltip,
+  ExplainedLabel,
+  LtvTooltip,
+  ReturnRateTooltip,
+} from '../term-tooltips';
 
 export default function AdminCRMManager() {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
@@ -31,15 +42,18 @@ export default function AdminCRMManager() {
 
   const exportCustomers = () => {
     const rows = [
-      ['name', 'email', 'phone_wa', 'status', 'orders', 'ltv', 'last_active'],
+      ['name', 'email', 'phone_wa', 'birth_date', 'status', 'orders', 'ltv', 'return_rate', 'last_active', 'abandoned_cart'],
       ...FILTERED_CUSTOMERS.map((customer: any) => [
         customer.name,
         customer.email,
         customer.phone_wa || '',
+        customer.birthDate || '',
         customer.status,
         customer.orders || 0,
         customer.ltv || 0,
-        customer.lastActive || ''
+        customer.returnRate || '0%',
+        customer.lastActive || '',
+        customer.abandonedCart ? 'yes' : 'no'
       ])
     ];
     const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -56,7 +70,7 @@ export default function AdminCRMManager() {
       ...orders.slice(0, 6).map((order: any) => ({
         id: order.id,
         date: order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID') : '-',
-        title: `Order ${order.id} - ${order.status}`,
+        title: `Pesanan ${order.id} - ${order.status}`,
         type: 'purchase'
       })),
       {
@@ -91,8 +105,16 @@ export default function AdminCRMManager() {
             <p className="text-black/60 font-medium flex items-center justify-center md:justify-start gap-2">
               <FileText size={14} /> {selectedUser.email}
             </p>
-            <p className="text-sm text-black/50 flex items-center justify-center md:justify-start gap-2">
+           <p className="text-sm text-black/50 flex items-center justify-center md:justify-start gap-2">
               <Calendar size={14} /> Bergabung sejak {selectedUser.joinDate ? new Date(selectedUser.joinDate).toLocaleDateString() : '-'} • Aktif {selectedUser.lastActive ? new Date(selectedUser.lastActive).toLocaleDateString() : '-'}
+            </p>
+            <p className="text-sm text-black/50 flex items-center justify-center md:justify-start gap-2">
+              <Calendar size={14} /> Tanggal lahir {selectedUser.birthDate ? new Date(selectedUser.birthDate).toLocaleDateString('id-ID') : '-'}
+              {selectedUser.birthday?.daysUntil !== undefined && (
+                <span className="px-2 py-0.5 rounded-full bg-pink-50 text-pink-700 text-[10px] uppercase tracking-widest">
+                  {selectedUser.birthday.isToday ? 'Birthday hari ini' : `${selectedUser.birthday.daysUntil} hari lagi`}
+                </span>
+              )}
             </p>
           </div>
           <div className="flex gap-2">
@@ -108,11 +130,15 @@ export default function AdminCRMManager() {
         {/* Key Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white/40 border border-black/5 p-4 rounded-3xl">
-            <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Total LTV</p>
+            <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">
+              <ExplainedLabel tooltip={<LtvTooltip />}>Total LTV</ExplainedLabel>
+            </p>
             <p className="text-2xl font-light">Rp {(selectedUser.ltv || 0).toLocaleString('id-ID')}</p>
           </div>
           <div className="bg-white/40 border border-black/5 p-4 rounded-3xl">
-            <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Rata-Rata Order (AOV)</p>
+            <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">
+              <ExplainedLabel tooltip={<AovTooltip />}>Rata-Rata Order (AOV)</ExplainedLabel>
+            </p>
             <p className="text-2xl font-light">Rp {(selectedUser.aov || 0).toLocaleString('id-ID')}</p>
           </div>
           <div className="bg-white/40 border border-black/5 p-4 rounded-3xl">
@@ -120,8 +146,11 @@ export default function AdminCRMManager() {
             <p className="text-2xl font-light">{selectedUser.orders || 0}x</p>
           </div>
           <div className="bg-white/40 border border-black/5 p-4 rounded-3xl">
-            <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Return Rate</p>
-            <p className="text-2xl font-light">{selectedUser.returnRate || '-'}</p>
+            <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">
+              <ExplainedLabel tooltip={<ReturnRateTooltip />}>Return Rate</ExplainedLabel>
+            </p>
+            <p className="text-2xl font-light">{selectedUser.returnRate || '0%'}</p>
+            <p className="text-xs text-black/40 mt-1">{selectedUser.returnCount || 0} request</p>
           </div>
         </div>
 
@@ -147,10 +176,22 @@ export default function AdminCRMManager() {
                       <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Barang Wishlist</p>
                       <p className="font-medium">{selectedUser.wishlistCount || 0} Produk</p>
                    </div>
+                   <div>
+                      <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">
+                        <ExplainedLabel tooltip={<AbandonedCartTooltip />}>Keranjang Terakhir</ExplainedLabel>
+                      </p>
+                      <p className="font-medium">{selectedUser.lastCartAt ? new Date(selectedUser.lastCartAt).toLocaleString('id-ID') : '-'}</p>
+                   </div>
+                   <div>
+                      <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">
+                        <ExplainedLabel tooltip={<CampaignTouchTooltip />}>Campaign Touch</ExplainedLabel>
+                      </p>
+                      <p className="font-medium">{selectedUser.campaignTouchCount || 0}x</p>
+                   </div>
                 </div>
              </div>
 
-            {/* Riwayat Order */}
+            {/* Riwayat Pesanan */}
             <div className="bg-white/40 border border-black/5 p-6 rounded-[2rem]">
               <h3 className="font-heading font-semibold uppercase tracking-widest text-xs mb-6 flex items-center gap-2"><ShoppingBag size={16}/> Riwayat Transaksi Terbaru</h3>
               <div className="overflow-x-auto">
@@ -218,7 +259,9 @@ export default function AdminCRMManager() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-8">
         <div>
-          <h2 className="text-2xl font-light mb-2">Customer Relationship</h2>
+          <h2 className="text-2xl font-light mb-2">
+            <ExplainedLabel tooltip={<CrmTooltip />}>Customer Relationship</ExplainedLabel>
+          </h2>
           <p className="text-sm font-light text-black/60">Kelola dan pelajari habit pelanggan Anda untuk membuat keputusan yang lebih baik.</p>
         </div>
         <div className="flex gap-3">
@@ -233,16 +276,21 @@ export default function AdminCRMManager() {
             />
           </div>
           <button onClick={exportCustomers} className="px-6 py-3 bg-white border border-black/10 rounded-full text-xs font-semibold hover:bg-black/5 transition-colors uppercase tracking-widest flex items-center gap-2">
-            <Download size={14} /> Export
+            <Download size={14} /> Ekspor
           </button>
         </div>
       </div>
 
       <div className="mb-4">
          {!authReady && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Menunggu sesi admin...</span>}
-         {authReady && isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">⏳ Sedang memuat data dari database D1 (users)...</span>}
+         {authReady && isLoading && <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">Sedang memuat data dari database D1 (users)...</span>}
          {authReady && error && <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200">⚠️ Gagal terhubung ke database D1: {error.message}</span>}
-         {authReady && !isLoading && !error && Array.isArray(dbUsers) && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">✅ Terhubung ke database D1 ({CUSTOMERS.length} pelanggan ditemukan)</span>}
+         {authReady && !isLoading && !error && Array.isArray(dbUsers) && (
+          <span className="inline-flex items-center gap-1.5 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
+            Terhubung ke database D1 ({CUSTOMERS.length} pelanggan ditemukan)
+            <D1Tooltip />
+          </span>
+         )}
       </div>
 
       {authReady && errorInfo && (
@@ -259,7 +307,8 @@ export default function AdminCRMManager() {
               <tr className="bg-black/5">
                 <th className="font-semibold uppercase tracking-widest text-[10px] p-6 text-black/60">Nama Pelanggan</th>
                 <th className="font-semibold uppercase tracking-widest text-[10px] p-6 text-black/60">Status</th>
-                <th className="font-semibold uppercase tracking-widest text-[10px] p-6 text-black/60 text-right">LTV</th>
+                <th className="font-semibold uppercase tracking-widest text-[10px] p-6 text-black/60 text-right"><ExplainedLabel tooltip={<LtvTooltip />}>LTV</ExplainedLabel></th>
+                <th className="font-semibold uppercase tracking-widest text-[10px] p-6 text-black/60"><ExplainedLabel tooltip={<BirthdayTooltip />}>Signal</ExplainedLabel></th>
                 <th className="font-semibold uppercase tracking-widest text-[10px] p-6 text-black/60">Aktivitas Terakhir</th>
                 <th className="font-semibold uppercase tracking-widest text-[10px] p-6 text-black/60"></th>
               </tr>
@@ -285,7 +334,14 @@ export default function AdminCRMManager() {
                   </td>
                   <td className="p-6 text-right">
                     <p className="font-medium">Rp {(customer.ltv || 0).toLocaleString('id-ID')}</p>
-                    <p className="text-xs font-light text-black/50">{customer.orders || 0} Orders</p>
+                    <p className="text-xs font-light text-black/50">{customer.orders || 0} pesanan</p>
+                  </td>
+                  <td className="p-6">
+                    <div className="flex flex-wrap gap-1.5 max-w-48">
+                      <span className="px-2 py-1 bg-black/5 rounded-full text-[10px] uppercase tracking-widest">Return {customer.returnRate || '0%'}</span>
+                      {customer.abandonedCart && <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-full text-[10px] uppercase tracking-widest">Abandoned cart</span>}
+                      {customer.birthday?.daysUntil <= 30 && <span className="px-2 py-1 bg-pink-50 text-pink-700 rounded-full text-[10px] uppercase tracking-widest">Birthday</span>}
+                    </div>
                   </td>
                   <td className="p-6">
                     <p className="font-light">{customer.lastActive ? new Date(customer.lastActive).toLocaleDateString() : '-'}</p>
@@ -297,7 +353,7 @@ export default function AdminCRMManager() {
               ))}
               {authReady && FILTERED_CUSTOMERS.length === 0 && !isLoading && !error && (
                  <tr>
-                   <td colSpan={5} className="p-8 text-center text-black/50">
+                   <td colSpan={6} className="p-8 text-center text-black/50">
                      <p className="mb-2">{CUSTOMERS.length === 0 ? 'Belum ada pelanggan ditemukan di database D1.' : 'Tidak ada pelanggan yang cocok dengan pencarian.'}</p>
                      {CUSTOMERS.length === 0 && <p className="text-xs max-w-sm mx-auto">Pastikan webhook Clerk (`/api/webhooks/clerk`) sudah dikonfigurasi di dashboard Clerk agar data user sinkron ke D1 secara otomatis saat pendaftaran.</p>}
                    </td>

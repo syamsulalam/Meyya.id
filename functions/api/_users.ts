@@ -4,6 +4,7 @@ const USER_COLUMNS: Record<string, string> = {
   first_name: 'TEXT',
   last_name: 'TEXT',
   phone_wa: 'TEXT',
+  birth_date: 'DATE',
   role: 'TEXT',
   last_login_at: 'DATETIME',
   joined_at: 'DATETIME'
@@ -20,6 +21,7 @@ export async function ensureUsersSchema(env: any) {
         first_name TEXT,
         last_name TEXT,
         phone_wa TEXT,
+        birth_date DATE,
         role TEXT,
         last_login_at DATETIME,
         joined_at DATETIME DEFAULT CURRENT_TIMESTAMP
