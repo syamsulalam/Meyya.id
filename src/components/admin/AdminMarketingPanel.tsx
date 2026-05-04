@@ -41,8 +41,10 @@ export default function AdminMarketingPanel() {
           tagColor: 'bg-orange-100 text-orange-800'
         };
       } else if (u.abandonedCart) {
+        const cartItemCount = Number(u.cartSnapshot?.itemCount || 0);
+        const cartSubtotal = Number(u.cartSnapshot?.subtotal || 0);
         scenario = {
-          context: `Keranjang terakhir belum checkout ${u.cartAgeHours || 0} jam lalu`,
+          context: `Keranjang ${cartItemCount} item senilai Rp ${cartSubtotal.toLocaleString('id-ID')} belum checkout ${u.cartAgeHours || 0} jam lalu`,
           tag: 'abandoned_cart',
           tagColor: 'bg-amber-100 text-amber-800'
         };
@@ -74,6 +76,7 @@ export default function AdminMarketingPanel() {
         email: u.email,
         phone: cleanPhone,
         birthDate: u.birthDate,
+        cartSnapshot: u.cartSnapshot,
         ...scenario
       }];
   });
@@ -83,7 +86,7 @@ export default function AdminMarketingPanel() {
       case 'pending_payment':
         return `Hai Kak ${target.name}, pesanan kakak di Meyya.id masih menunggu pembayaran. Jika sudah transfer, boleh kirim bukti transfer di sini agar bisa segera kami proses. Terima kasih.`;
       case 'abandoned_cart':
-        return `Hai Kak ${target.name}, keranjang belanja Kakak di Meyya.id masih tersimpan. Kalau masih bingung memilih ukuran, warna, atau bahan, kami bisa bantu rekomendasikan sebelum checkout.`;
+        return `Hai Kak ${target.name}, keranjang belanja Kakak di Meyya.id masih tersimpan${target.cartSnapshot?.subtotal ? ` senilai Rp ${target.cartSnapshot.subtotal.toLocaleString('id-ID')}` : ''}. Kalau masih bingung memilih ukuran, warna, atau bahan, kami bisa bantu rekomendasikan sebelum checkout.`;
       case 'birthday':
         return `Halo Kak ${target.name}, bulan spesial Kakak sudah dekat. Tim Meyya.id ingin kirim voucher birthday khusus supaya Kakak bisa pilih koleksi favorit dengan harga lebih ringan.`;
       case 'vip_retention':

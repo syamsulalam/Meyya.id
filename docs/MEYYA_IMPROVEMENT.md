@@ -65,9 +65,8 @@ Pemetaan tooltip yang dipasang:
 Audit edge case lanjutan:
 
 - `schema.sql` masih bercampur schema dan seed demo; migration berikutnya sebaiknya berasal dari file schema-only.
-- Stok produk utama masih bisa berbeda dari total stok varian; idealnya stok global dihitung otomatis dari varian aktif.
-- Voucher birthday otomatis belum dibuat; perlu aturan nominal, periode klaim, minimal belanja, dan guard agar tidak bisa dipakai berulang dengan mengubah tanggal lahir.
-- Abandoned cart berbasis event, belum menyimpan snapshot cart agregat yang mudah dibaca admin.
+- Voucher birthday sudah otomatis tampil untuk pelanggan yang eligible dan dibatasi 1x klaim per pelanggan per tahun.
+- Abandoned cart sudah punya snapshot agregat aktif berisi jumlah item, subtotal, product ids, dan item summary.
 - WhatsApp marketing masih membuka WhatsApp Web/manual; provider resmi belum terhubung untuk pengiriman otomatis dan audit delivery.
 - Template pesan belum memakai variable preview/validation, sehingga placeholder yang salah bisa lolos.
 - Tracking resi live belum terhubung ke API kurir; saat ini resi hanya disimpan dan ditampilkan.
@@ -104,6 +103,52 @@ npx wrangler d1 execute meyya-id --remote --file migrations/2026-05-04_birthday_
 ```
 
 Endpoint admin voucher/order/validate juga punya self-heal untuk kolom baru, tetapi migration tetap disimpan agar histori schema production jelas.
+
+## Batch Produk, Voucher Otomatis, dan Roadmap 2026-05-04 21:00:08 +07:00
+
+Checklist:
+
+- [x] Bind warna foto galeri di form tambah/edit produk diubah dari text input menjadi dropdown dari warna produk yang sudah dipilih.
+- [x] Tombol edit di daftar produk dibuat icon-only dengan `title` dan `aria-label`.
+- [x] Stok global di form produk otomatis menampilkan total stok varian aktif saat produk punya varian.
+- [x] API create/update produk menormalisasi `products.stock` dari total `product_variants.stock` aktif, sehingga backend tetap konsisten walau request tidak lewat UI.
+- [x] Migration data `migrations/2026-05-04_normalize_variant_stock.sql` dibuat untuk menyamakan stok global produk lama dari total varian aktif.
+- [x] Voucher birthday tampil otomatis di `/profil` saat pelanggan berada dalam window klaim ulang tahun.
+- [x] Window klaim birthday dihitung dengan tanggal Asia/Jakarta agar tidak bergeser dari hari pelanggan Indonesia.
+- [x] Tampilan voucher profil diperbaiki untuk voucher tanpa tanggal kedaluwarsa agar tidak menampilkan tanggal 1970.
+- [x] Roadmap admin bisa diurutkan dari "Akan Ada di Atas", "Sudah Ada di Atas", atau berdasarkan area fitur.
+- [x] Data roadmap diperbarui: voucher birthday otomatis, normalisasi stok global, bind warna galeri, dan sort roadmap ditandai selesai.
+
+Catatan apply data production:
+
+```powershell
+npx wrangler d1 execute meyya-id --remote --file migrations/2026-05-04_normalize_variant_stock.sql
+```
+
+Jalankan migration ini setelah deploy kode jika ingin stok produk lama langsung sama dengan total varian aktif. Produk yang dibuat/diubah setelah deploy akan otomatis dinormalisasi oleh API.
+
+## Batch Birthday Strict dan Abandoned Cart Snapshot 2026-05-04 21:13:17 +07:00
+
+Checklist:
+
+- [x] Voucher birthday sekarang divalidasi strict hanya 1x klaim per pelanggan per tahun.
+- [x] `voucher_usages` ditambah `usage_type` dan `claim_year`, plus unique index partial untuk klaim birthday per tahun.
+- [x] Validasi `/api/vouchers/validate`, `/api/orders`, dan `/api/user/vouchers` menolak voucher birthday jika pelanggan sudah klaim di tahun berjalan.
+- [x] Jika race condition membuat klaim birthday dobel saat order dibuat, order baru dibatalkan sebelum stok direservasi dan user mendapat pesan klaim 1x per tahun.
+- [x] Snapshot cart agregat ditambahkan lewat tabel `user_cart_snapshots`.
+- [x] Event `CART_UPDATED` sekarang menyimpan snapshot ringkas: item count, subtotal, product ids, dan item summary.
+- [x] `POST /api/orders` menandai snapshot cart sebagai `CONVERTED` saat checkout berhasil membuat order.
+- [x] CRM dan WhatsApp Marketing membaca abandoned cart dari snapshot aktif, bukan hanya timestamp event mentah.
+- [x] Marketing abandoned cart sekarang menampilkan jumlah item dan subtotal keranjang terakhir.
+- [x] Migration production disiapkan di `migrations/2026-05-04_birthday_once_and_cart_snapshots.sql`.
+
+Catatan apply D1:
+
+```powershell
+npx wrangler d1 execute meyya-id --remote --file migrations/2026-05-04_birthday_once_and_cart_snapshots.sql
+```
+
+Jika kode sudah ter-deploy duluan, endpoint voucher/order/events punya self-heal untuk schema baru. Jangan jalankan migration ini setelah self-heal menambahkan kolom `voucher_usages.usage_type` atau `voucher_usages.claim_year`, karena `ALTER TABLE ADD COLUMN` akan gagal jika kolom sudah ada. Dalam kondisi itu cukup export schema dan cek kolomnya.
 
 ## Ringkasan Status Terbaru
 
@@ -230,11 +275,11 @@ Kondisi saat ini:
 
 - Target berbasis data nyata: pending payment, VIP retention, customer baru.
 - Birthday sudah aktif jika pelanggan mengisi tanggal lahir di profil.
-- Abandoned cart sudah aktif dari event `CART_UPDATED` yang belum diikuti order setelah minimal 4 jam.
+- Abandoned cart sudah aktif dari snapshot `user_cart_snapshots` yang belum menjadi order setelah minimal 4 jam.
 
 Saran:
 
-- Tambah voucher birthday otomatis per user/segment jika aturan nominal diskonnya sudah ditentukan.
+- Tambah variasi template abandoned cart berdasarkan isi snapshot cart, misalnya produk utama, nominal cart, atau kategori dominan.
 - Tambah template campaign dari status order dan segment.
 
 ### 5. Debug JSON produksi masih aktif
@@ -285,7 +330,7 @@ Status 2026-05-04:
 - Dashboard margin per produk dan kategori: product margin tampil di dashboard metrics; API juga mengirim `categoryMargins`.
 - CSV export orders/products: implemented di admin Operasional Toko dan admin Produk.
 - Soft delete produk/kategori: delete produk/kategori sekarang arsip (`deleted_at`) agar histori order tetap aman.
-- Full variant stock matrix: implemented dengan `product_variants.option_signature`, admin generator kombinasi warna/ukuran/spek custom, `variant_options` di order item, dan swatch warna di checkout.
+- Full variant stock matrix: implemented dengan `product_variants.option_signature`, admin generator kombinasi warna/ukuran/spek custom, stok global otomatis dari varian aktif, `variant_options` di order item, dan swatch warna di checkout.
 
 Catatan lanjutan:
 
@@ -296,8 +341,7 @@ Catatan lanjutan:
 ## Urutan Fix Disarankan Berikutnya
 
 1. Pisahkan `schema.sql` menjadi schema-only dan seed demo agar migration production berikutnya lebih aman.
-2. Normalisasi stok global agar otomatis dihitung dari total `product_variants`, bukan diinput manual.
-3. Tambah voucher birthday otomatis setelah aturan promo ditentukan.
-4. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
-5. Tambah tracking resi live dari API kurir.
-6. Tambah drag-and-drop reorder untuk galeri produk.
+2. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih.
+3. Tambah tracking resi live dari API kurir.
+4. Tambah drag-and-drop reorder untuk galeri produk.
+5. Tambah template abandoned cart yang mengambil nama produk utama dari snapshot cart.

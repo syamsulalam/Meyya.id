@@ -1,5 +1,6 @@
 import { CheckCircle2, Clock3, ListChecks, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { developmentRoadmap, RoadmapStatus } from '../../data/developmentRoadmap';
 
 const statusMeta: Record<RoadmapStatus, { label: string; className: string; icon: ReactNode }> = {
@@ -8,9 +9,29 @@ const statusMeta: Record<RoadmapStatus, { label: string; className: string; icon
   planned: { label: 'Akan Ada', className: 'bg-amber-50 text-amber-700 border-amber-100', icon: <Clock3 size={14} /> },
 };
 
+type SortMode = 'planned_first' | 'done_first' | 'area';
+
+const statusRank: Record<RoadmapStatus, number> = {
+  planned: 0,
+  in_progress: 1,
+  done: 2,
+};
+
 export default function AdminDevelopmentRoadmap() {
+  const [sortMode, setSortMode] = useState<SortMode>('planned_first');
   const doneCount = developmentRoadmap.filter((item) => item.status === 'done').length;
   const plannedCount = developmentRoadmap.filter((item) => item.status === 'planned').length;
+  const sortedRoadmap = useMemo(() => {
+    return [...developmentRoadmap].sort((a, b) => {
+      if (sortMode === 'done_first') {
+        return statusRank[b.status] - statusRank[a.status] || a.area.localeCompare(b.area) || a.title.localeCompare(b.title);
+      }
+      if (sortMode === 'area') {
+        return a.area.localeCompare(b.area) || statusRank[a.status] - statusRank[b.status] || a.title.localeCompare(b.title);
+      }
+      return statusRank[a.status] - statusRank[b.status] || a.area.localeCompare(b.area) || a.title.localeCompare(b.title);
+    });
+  }, [sortMode]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -34,6 +55,18 @@ export default function AdminDevelopmentRoadmap() {
       </div>
 
       <div className="bg-white/40 border border-black/5 rounded-[2rem] overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-black/5 px-5 py-4">
+          <p className="text-xs uppercase tracking-widest text-black/40">Urutan Roadmap</p>
+          <select
+            value={sortMode}
+            onChange={(event) => setSortMode(event.target.value as SortMode)}
+            className="bg-white border border-black/10 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-widest text-ink focus:outline-none focus:border-ink"
+          >
+            <option value="planned_first">Akan Ada di Atas</option>
+            <option value="done_first">Sudah Ada di Atas</option>
+            <option value="area">Area Fitur</option>
+          </select>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-black/5 text-[10px] uppercase tracking-widest text-black/50">
@@ -45,7 +78,7 @@ export default function AdminDevelopmentRoadmap() {
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
-              {developmentRoadmap.map((item) => {
+              {sortedRoadmap.map((item) => {
                 const meta = statusMeta[item.status];
                 return (
                   <tr key={`${item.area}-${item.title}`} className="hover:bg-white/50 transition-colors">

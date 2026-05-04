@@ -1,14 +1,22 @@
 import useSWR from 'swr';
 import { Ticket } from 'lucide-react';
 import { useState } from 'react';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+import { useAuthFetcher } from '../../hooks/useAuthFetch';
 
 export default function ProfileVouchers() {
-  const { data: dbVouchers, error, isLoading } = useSWR('/api/vouchers', fetcher);
+  const fetcher = useAuthFetcher();
+  const { data: dbVouchers, error, isLoading } = useSWR('/api/user/vouchers', fetcher);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
+
+  const getValidityLabel = (voucher: any) => {
+    if (voucher.endDate) return `Berlaku s/d: ${new Date(voucher.endDate).toLocaleDateString('id-ID')}`;
+    if (Number(voucher.birthdayClaimWindowDays || 0) > 0) {
+      return `Birthday: klaim maks. ${voucher.birthdayClaimWindowDays} hari setelah ulang tahun`;
+    }
+    return 'Berlaku tanpa tanggal kedaluwarsa';
+  };
 
   const handleCopy = (code: string) => {
      navigator.clipboard.writeText(code);
@@ -21,8 +29,9 @@ export default function ProfileVouchers() {
       <h3 className="text-xl font-light mb-6 border-b border-black/10 pb-4">Voucher Promo Tersedia</h3>
       
       {isLoading && <div className="text-sm px-4 py-3 bg-yellow-50 text-yellow-600 rounded-2xl border border-yellow-200">⏳ Memuat voucher dari database...</div>}
+      {error && <div className="text-sm px-4 py-3 bg-red-50 text-red-600 rounded-2xl border border-red-200">Gagal memuat voucher: {error.message}</div>}
       
-      {vouchers.length === 0 && !isLoading && (
+      {vouchers.length === 0 && !isLoading && !error && (
         <div className="text-center py-12 text-black/50">
            <Ticket size={48} className="mx-auto mb-4 opacity-30" />
            <p>Belum ada promo voucher aktif saat ini.</p>
@@ -46,7 +55,7 @@ export default function ProfileVouchers() {
                 <h4 className="font-semibold text-sm line-clamp-1">{v.code}</h4>
                 {v.minPurchase > 0 && <p className="text-[10px] text-gray-500 mt-1">Min. belanja Rp {v.minPurchase.toLocaleString('id-ID')}</p>}
                 {v.maxDiscount > 0 && v.type === 'PERCENTAGE' && <p className="text-[10px] text-gray-500 mt-0.5">Maks. diskon Rp {v.maxDiscount.toLocaleString('id-ID')}</p>}
-                <p className="text-[10px] text-gray-400 mt-1 font-mono">Berlaku s/d: {new Date(v.endDate).toLocaleDateString('id-ID')}</p>
+                <p className="text-[10px] text-gray-400 mt-1 font-mono">{getValidityLabel(v)}</p>
               </div>
             </div>
             

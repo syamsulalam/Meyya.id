@@ -1,6 +1,24 @@
 export async function ensureVoucherSchema(env: any) {
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS voucher_usages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_code TEXT,
+      clerk_id TEXT,
+      order_id TEXT,
+      used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      usage_type TEXT,
+      claim_year INTEGER
+    )
+  `).run();
   await addColumn(env, 'vouchers', 'birthday_claim_window_days', 'INTEGER');
   await addColumn(env, 'vouchers', 'applicable_product_ids', 'TEXT');
+  await addColumn(env, 'voucher_usages', 'usage_type', 'TEXT');
+  await addColumn(env, 'voucher_usages', 'claim_year', 'INTEGER');
+  await env.MEYYA_DB.prepare(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_voucher_usages_birthday_year
+    ON voucher_usages(clerk_id, claim_year)
+    WHERE usage_type = 'BIRTHDAY'
+  `).run();
 }
 
 async function addColumn(env: any, table: string, column: string, definition: string) {
@@ -88,6 +106,11 @@ export async function validateVoucherForCart(env: any, voucher: any, options: {
     if (!birthdayStatus.valid) {
       return invalid(`Voucher birthday hanya bisa diklaim sampai ${birthdayWindow} hari setelah tanggal ulang tahun`);
     }
+
+    const alreadyClaimed = await hasBirthdayVoucherClaimThisYear(env, options.clerkId, now);
+    if (alreadyClaimed) {
+      return invalid('Voucher birthday hanya bisa diklaim 1x per tahun');
+    }
   }
 
   const applicableProductIds = parseApplicableProductIds(voucher.applicable_product_ids);
@@ -123,26 +146,67 @@ export async function validateVoucherForCart(env: any, voucher: any, options: {
     discountAmount: Math.max(0, Math.min(discountAmount, discountBase || cartSubtotal)),
     discountBase,
     applicableProductIds,
+    isBirthdayVoucher,
+    birthdayClaimYear: isBirthdayVoucher ? getJakartaClaimYear(now) : null,
   };
 }
 
 function invalid(message: string) {
-  return { valid: false, error: message, discountAmount: 0, discountBase: 0, applicableProductIds: [] };
+  return { valid: false, error: message, discountAmount: 0, discountBase: 0, applicableProductIds: [], isBirthdayVoucher: false, birthdayClaimYear: null };
 }
 
-function getBirthdayClaimStatus(value: string, windowDays: number, now: Date) {
+export async function hasBirthdayVoucherClaimThisYear(env: any, clerkId: string, now: Date = new Date()) {
+  const claimYear = getJakartaClaimYear(now);
+  const existingClaim = await env.MEYYA_DB.prepare(`
+    SELECT vu.id
+    FROM voucher_usages vu
+    LEFT JOIN vouchers v ON v.code = vu.voucher_code
+    WHERE vu.clerk_id = ?
+      AND COALESCE(vu.claim_year, CAST(strftime('%Y', vu.used_at) AS INTEGER)) = ?
+      AND (
+        vu.usage_type = 'BIRTHDAY'
+        OR UPPER(COALESCE(v.target_user_role, '')) = 'BIRTHDAY'
+        OR UPPER(COALESCE(v.target_segment, '')) = 'BIRTHDAY'
+        OR COALESCE(v.birthday_claim_window_days, 0) > 0
+      )
+    LIMIT 1
+  `).bind(clerkId, claimYear).first();
+  return Boolean(existingClaim);
+}
+
+export function getJakartaClaimYear(now: Date = new Date()) {
+  return getJakartaDateParts(now).year;
+}
+
+export function getBirthdayClaimStatus(value: string, windowDays: number, now: Date = new Date()) {
   const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return { valid: false, daysSinceBirthday: null };
 
   const month = Number(match[2]);
   const day = Number(match[3]);
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const birthday = getBirthdayUtc(now.getUTCFullYear(), month, day);
+  const jakartaToday = getJakartaDateParts(now);
+  const today = Date.UTC(jakartaToday.year, jakartaToday.month - 1, jakartaToday.day);
+  const birthday = getBirthdayUtc(jakartaToday.year, month, day);
   const daysSinceBirthday = Math.floor((today - birthday) / 86400000);
 
   return {
     valid: daysSinceBirthday >= 0 && daysSinceBirthday <= windowDays,
     daysSinceBirthday,
+  };
+}
+
+function getJakartaDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
   };
 }
 

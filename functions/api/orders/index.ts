@@ -98,20 +98,21 @@ export async function onRequestPost(context: any) {
     });
 
     let finalDiscountAmount = 0;
+    let voucherValidation: any = null;
     
     if (voucher_code) {
         const voucher = await env.MEYYA_DB.prepare('SELECT * FROM vouchers WHERE code = ?').bind(voucher_code).first();
         if (voucher) {
-            const validation = await validateVoucherForCart(env, voucher, {
+            voucherValidation = await validateVoucherForCart(env, voucher, {
               clerkId: clerk_id,
               cartSubtotal: calculatedSubtotal,
               cartItems: items,
               shippingCost: finalShippingCost,
             });
-            if (!validation.valid) {
-                 return new Response(JSON.stringify({ error: validation.error || `Voucher ${voucher_code} is invalid or expired` }), { status: 400 });
+            if (!voucherValidation.valid) {
+                 return new Response(JSON.stringify({ error: voucherValidation.error || `Voucher ${voucher_code} is invalid or expired` }), { status: 400 });
             }
-            finalDiscountAmount = validation.discountAmount;
+            finalDiscountAmount = voucherValidation.discountAmount;
         } else {
             return new Response(JSON.stringify({ error: `Voucher ${voucher_code} not found` }), { status: 400 });
         }
@@ -142,6 +143,30 @@ export async function onRequestPost(context: any) {
     });
 
     await env.MEYYA_DB.batch(statements);
+
+    if (voucher_code) {
+      try {
+        await env.MEYYA_DB.batch([
+          env.MEYYA_DB.prepare(`
+            INSERT INTO voucher_usages (voucher_code, clerk_id, order_id, usage_type, claim_year)
+            VALUES (?, ?, ?, ?, ?)
+          `).bind(
+            voucher_code,
+            clerk_id,
+            orderId,
+            voucherValidation?.isBirthdayVoucher ? 'BIRTHDAY' : null,
+            voucherValidation?.birthdayClaimYear || null
+          ),
+          env.MEYYA_DB.prepare(`UPDATE vouchers SET used_count = used_count + 1 WHERE code = ?`).bind(voucher_code)
+        ]);
+      } catch (error: any) {
+        await env.MEYYA_DB.prepare("UPDATE orders SET status = 'CANCELLED' WHERE id = ?").bind(orderId).run();
+        const message = String(error?.message || '').toLowerCase().includes('unique')
+          ? 'Voucher birthday hanya bisa diklaim 1x per tahun'
+          : 'Gagal mencatat penggunaan voucher';
+        return new Response(JSON.stringify({ error: message }), { status: 400 });
+      }
+    }
 
     const reservationStatements: any[] = [];
     const stockStatements: any[] = [];
@@ -194,18 +219,24 @@ export async function onRequestPost(context: any) {
           });
         if (restoreStatements.length > 0) await env.MEYYA_DB.batch(restoreStatements);
         await env.MEYYA_DB.prepare("UPDATE orders SET status = 'CANCELLED' WHERE id = ?").bind(orderId).run();
+        if (voucher_code) {
+          await env.MEYYA_DB.batch([
+            env.MEYYA_DB.prepare("DELETE FROM voucher_usages WHERE order_id = ?").bind(orderId),
+            env.MEYYA_DB.prepare("UPDATE vouchers SET used_count = CASE WHEN used_count > 0 THEN used_count - 1 ELSE 0 END WHERE code = ?").bind(voucher_code)
+          ]);
+        }
         return new Response(JSON.stringify({ error: 'Some items are no longer available. Please refresh your cart.' }), { status: 409 });
       }
       await env.MEYYA_DB.batch([...reservationStatements, ...movementStatements]);
     }
 
-    // If voucher code is used, record it in voucher_usages and increment used_count
-    if (voucher_code) {
-        await env.MEYYA_DB.batch([
-            env.MEYYA_DB.prepare(`INSERT INTO voucher_usages (voucher_code, clerk_id, order_id) VALUES (?, ?, ?)`).bind(voucher_code, clerk_id, orderId),
-            env.MEYYA_DB.prepare(`UPDATE vouchers SET used_count = used_count + 1 WHERE code = ?`).bind(voucher_code)
-        ]);
-    }
+    await env.MEYYA_DB.prepare(`
+      UPDATE user_cart_snapshots
+      SET status = 'CONVERTED',
+          converted_order_id = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE clerk_id = ?
+    `).bind(orderId, clerk_id).run();
 
     await auditLog(env, clerk_id, 'CREATE_ORDER', 'order', orderId, { total_paid, item_count: items.length });
 

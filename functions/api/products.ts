@@ -77,10 +77,14 @@ export async function onRequestPost(context: any) {
     await ensureCommerceSchema(env);
     const body = await request.json();
     const { name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder, colors, sizes, attributes, images, variants, meta_title, meta_description, canonical_slug, og_image_url, low_stock_threshold } = body;
+    const cleanVariants = sanitizeVariants(variants);
+    const normalizedStock = is_preorder ? 0 : (cleanVariants.length > 0
+      ? cleanVariants.reduce((sum: number, variant: any) => sum + (variant.is_active ? Number(variant.stock || 0) : 0), 0)
+      : Number(stock || 0));
     
     const info = await env.MEYYA_DB.prepare(
       'INSERT INTO products (name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, last_stock_update, is_active, is_preorder, meta_title, meta_description, canonical_slug, og_image_url, low_stock_threshold) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(name, category_id, slug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder || 0, meta_title || null, meta_description || null, canonical_slug || slug || null, og_image_url || image_url || null, Number(low_stock_threshold || 5)).run();
+    ).bind(name, category_id, slug, description, image_url, base_price, production_cost, weight, normalizedStock, is_active, is_preorder || 0, meta_title || null, meta_description || null, canonical_slug || slug || null, og_image_url || image_url || null, Number(low_stock_threshold || 5)).run();
     
     // NOTE: last_row_id is the primary key of the last inserted row
     const lastRowId = info.meta.last_row_id;
@@ -118,7 +122,6 @@ export async function onRequestPost(context: any) {
       ));
     }
 
-    const cleanVariants = sanitizeVariants(variants);
     if (cleanVariants.length > 0) {
       await env.MEYYA_DB.batch(cleanVariants.map((variant: any) =>
         env.MEYYA_DB.prepare('INSERT INTO product_variants (product_id, color_name, size_name, option_signature, option_label, sku, stock, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
@@ -126,11 +129,11 @@ export async function onRequestPost(context: any) {
       ));
     }
 
-    if (Number(stock || 0) !== 0) {
+    if (normalizedStock !== 0) {
       await env.MEYYA_DB.prepare(`
         INSERT INTO stock_movements (product_id, change_qty, reason, note)
         VALUES (?, ?, 'INITIAL_STOCK', ?)
-      `).bind(lastRowId, Number(stock || 0), 'Produk dibuat').run();
+      `).bind(lastRowId, normalizedStock, 'Produk dibuat').run();
     }
 
     await auditLog(env, data?.clerkId || null, 'CREATE_PRODUCT', 'product', String(lastRowId), { name, slug });

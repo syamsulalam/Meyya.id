@@ -92,6 +92,10 @@ export async function onRequestPut(context: any) {
     await ensureCommerceSchema(env);
     const body = await request.json();
     const { name, category_id, slug: productSlug, description, image_url, base_price, production_cost, weight, stock, is_active, is_preorder, colors, sizes, attributes, images, variants, related_product_ids, meta_title, meta_description, canonical_slug, og_image_url, low_stock_threshold } = body;
+    const cleanVariants = sanitizeVariants(variants);
+    const normalizedStock = is_preorder ? 0 : (cleanVariants.length > 0
+      ? cleanVariants.reduce((sum: number, variant: any) => sum + (variant.is_active ? Number(variant.stock || 0) : 0), 0)
+      : Number(stock || 0));
     
     // In CF Pages, params is populated from the filename [xyz].ts
     // If it's not defined we fallback to URL parsing
@@ -104,12 +108,12 @@ export async function onRequestPut(context: any) {
 
     // Handle stock update
     const currentProduct = await env.MEYYA_DB.prepare('SELECT stock FROM products WHERE id = ?').bind(id).first();
-    if (currentProduct && currentProduct.stock !== stock) {
-      await env.MEYYA_DB.prepare('UPDATE products SET stock = ?, last_stock_update = CURRENT_TIMESTAMP WHERE id = ?').bind(stock, id).run();
+    if (currentProduct && Number(currentProduct.stock || 0) !== normalizedStock) {
+      await env.MEYYA_DB.prepare('UPDATE products SET stock = ?, last_stock_update = CURRENT_TIMESTAMP WHERE id = ?').bind(normalizedStock, id).run();
       await env.MEYYA_DB.prepare(`
         INSERT INTO stock_movements (product_id, change_qty, reason, note)
         VALUES (?, ?, 'MANUAL_ADJUSTMENT', ?)
-      `).bind(id, Number(stock || 0) - Number(currentProduct.stock || 0), 'Admin product form update').run();
+      `).bind(id, normalizedStock - Number(currentProduct.stock || 0), 'Admin product form update').run();
     }
     
     // Re-insert colors (delete then insert)
@@ -160,7 +164,6 @@ export async function onRequestPut(context: any) {
 
     if (variants) {
       await env.MEYYA_DB.prepare('DELETE FROM product_variants WHERE product_id = ?').bind(id).run();
-      const cleanVariants = sanitizeVariants(variants);
       if (cleanVariants.length > 0) {
         await env.MEYYA_DB.batch(cleanVariants.map((variant: any) =>
           env.MEYYA_DB.prepare('INSERT INTO product_variants (product_id, color_name, size_name, option_signature, option_label, sku, stock, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')

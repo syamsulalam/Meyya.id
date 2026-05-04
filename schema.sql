@@ -151,8 +151,14 @@ CREATE TABLE IF NOT EXISTS voucher_usages (
   voucher_code TEXT,
   clerk_id TEXT,
   order_id TEXT,
-  used_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  usage_type TEXT,
+  claim_year INTEGER
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_voucher_usages_birthday_year
+ON voucher_usages(clerk_id, claim_year)
+WHERE usage_type = 'BIRTHDAY';
 
 CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
@@ -219,6 +225,18 @@ CREATE TABLE IF NOT EXISTS user_events (
   campaign_tag TEXT,
   metadata TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_cart_snapshots (
+  clerk_id TEXT PRIMARY KEY,
+  item_count INTEGER DEFAULT 0,
+  subtotal INTEGER DEFAULT 0,
+  product_ids TEXT,
+  items TEXT,
+  status TEXT DEFAULT 'ACTIVE',
+  last_event_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  converted_order_id TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS stock_movements (

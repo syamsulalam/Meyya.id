@@ -345,25 +345,10 @@ export default function AdminProductForm() {
 
   const handleSubmit = async () => {
     try {
-      const payload = {
-        name: productName,
-        slug: slug || productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
-        description,
-        category_id: categoryId,
-        stock,
-        weight,
-        base_price: hargaJual,
-        production_cost: totalCostSatuan,
-        image_url: imageUrl || '', 
-        images: galleryImages.map((image, index) => ({
-          ...image,
-          alt_text: image.alt_text || productName,
-          is_primary: image.is_primary || index === 0,
-        })),
-        variants: productVariants
-          .map(variant => {
-            const optionValues = normalizeOptionValues(variant.option_values || {});
-            return {
+      const cleanVariants = productVariants
+        .map(variant => {
+          const optionValues = normalizeOptionValues(variant.option_values || {});
+          return {
             ...variant,
             color_name: String(optionValues.Warna || variant.color_name || '').trim() || 'Standar',
             size_name: String(optionValues.Ukuran || variant.size_name || '').trim() || 'Semua Ukuran',
@@ -374,8 +359,27 @@ export default function AdminProductForm() {
             stock: Number(variant.stock || 0),
             is_active: variant.is_active,
           };
-          })
-          .filter(variant => Object.keys(variant.option_values).length > 0),
+        })
+        .filter(variant => Object.keys(variant.option_values).length > 0);
+      const normalizedStock = isPreorder ? 0 : (cleanVariants.length > 0
+        ? cleanVariants.reduce((sum, variant) => sum + (variant.is_active ? Number(variant.stock || 0) : 0), 0)
+        : stock);
+      const payload = {
+        name: productName,
+        slug: slug || productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
+        description,
+        category_id: categoryId,
+        stock: normalizedStock,
+        weight,
+        base_price: hargaJual,
+        production_cost: totalCostSatuan,
+        image_url: imageUrl || '', 
+        images: galleryImages.map((image, index) => ({
+          ...image,
+          alt_text: image.alt_text || productName,
+          is_primary: image.is_primary || index === 0,
+        })),
+        variants: cleanVariants,
         related_product_ids: relatedProductIds,
         meta_title: metaTitle.trim() || productName,
         meta_description: metaDescription.trim(),
@@ -525,8 +529,8 @@ export default function AdminProductForm() {
                   <br/><span className="text-[10px] text-gray-500 opacity-60">Upd: {p.last_stock_update ? new Date(p.last_stock_update).toLocaleDateString() : '-'}</span>
                 </td>
                 <td className="py-4">
-                   <button onClick={() => handleEdit(p)} className="text-black/60 hover:text-ink flex items-center gap-1 font-medium bg-white px-3 py-1.5 rounded-lg border border-black/10 transition-colors">
-                     <Edit2 size={14} /> Edit
+                   <button onClick={() => handleEdit(p)} title="Edit produk" aria-label={`Edit produk ${p.name}`} className="text-black/60 hover:text-ink inline-flex items-center justify-center bg-white w-9 h-9 rounded-lg border border-black/10 transition-colors">
+                     <Edit2 size={15} />
                    </button>
                    <button onClick={() => deleteProduct(p.id)} className="text-red-500 hover:text-red-700 ml-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 transition-colors">
                      <Trash2 size={14} />
@@ -609,6 +613,13 @@ export default function AdminProductForm() {
           ...(hasSizes && selectedSizes.length > 0 ? [{ name: 'Ukuran', values: selectedSizes }] : []),
           ...catAttrs.map((attr: any) => ({ name: attr.name, values: attr.options })),
         ].filter(axis => axis.values.length > 0);
+        const galleryColorOptions = Array.from(new Set([
+          ...selectedColorNames,
+          ...galleryImages.map((image) => String(image.color_name || '').trim()).filter(Boolean),
+        ]));
+        const hasVariantStock = productVariants.length > 0;
+        const activeVariantStock = productVariants.reduce((sum, variant) => sum + (variant.is_active ? Number(variant.stock || 0) : 0), 0);
+        const stockInputDisabled = isPreorder || hasVariantStock;
 
         const generateVariantMatrix = () => {
           if (variantAxes.length === 0) {
@@ -671,7 +682,17 @@ export default function AdminProductForm() {
                        <button type="button" onClick={() => setGalleryImages(galleryImages.filter((_, i) => i !== index))} className="absolute -top-2 -right-2 bg-red-50 text-red-600 rounded-full p-1 opacity-0 group-hover/gallery:opacity-100 transition-opacity">
                          <X size={12} />
                        </button>
-                       <input value={image.color_name || ''} onChange={e => setGalleryImages(galleryImages.map((img, i) => i === index ? { ...img, color_name: e.target.value } : img))} placeholder="Bind warna" className="mt-1 w-full bg-white border border-black/10 rounded-lg px-2 py-1 text-[10px]" />
+                       <select
+                         value={image.color_name || ''}
+                         onChange={e => setGalleryImages(galleryImages.map((img, i) => i === index ? { ...img, color_name: e.target.value } : img))}
+                         disabled={galleryColorOptions.length === 0}
+                         className="mt-1 w-full bg-white border border-black/10 rounded-lg px-2 py-1 text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
+                       >
+                         <option value="">{galleryColorOptions.length === 0 ? 'Pilih warna dulu' : 'Semua warna'}</option>
+                         {galleryColorOptions.map((colorName) => (
+                           <option key={colorName} value={colorName}>{colorName}</option>
+                         ))}
+                       </select>
                      </div>
                    ))}
                  </div>
@@ -704,8 +725,9 @@ export default function AdminProductForm() {
                     <span className="text-[10px] uppercase font-bold text-ink/70">Sistem Pre-order</span>
                   </label>
                 </div>
-                <input type="number" disabled={isPreorder} value={isPreorder ? 0 : stock} onChange={e => setStock(Number(e.target.value))} placeholder="0" className={`w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm font-mono ${isPreorder ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                <input type="number" disabled={stockInputDisabled} value={isPreorder ? 0 : hasVariantStock ? activeVariantStock : stock} onChange={e => setStock(Number(e.target.value))} placeholder="0" className={`w-full bg-white/50 border border-black/10 rounded-xl py-3 px-4 focus:outline-none focus:border-black/50 text-sm font-mono ${stockInputDisabled ? 'opacity-50 cursor-not-allowed' : ''}`} />
                 {isPreorder && <p className="text-[10px] opacity-50 mt-1">Stok tidak dibatasi untuk pre-order</p>}
+                {!isPreorder && hasVariantStock && <p className="text-[10px] opacity-50 mt-1">Stok global otomatis dari total stok varian aktif: {activeVariantStock} pcs.</p>}
               </div>
               <div className="flex-1">
                  <label className="block text-xs uppercase tracking-widest opacity-60 mb-2">Berat / Gram</label>

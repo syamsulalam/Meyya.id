@@ -86,22 +86,31 @@ export async function onRequestGet(context: any) {
       GROUP BY clerk_id
     `).all();
 
+    phase = 'select-admin-user-cart-snapshots';
+    const { results: cartRows } = await env.MEYYA_DB.prepare(`
+      SELECT clerk_id, item_count, subtotal, product_ids, items, status, last_event_at, converted_order_id
+      FROM user_cart_snapshots
+    `).all();
+
     const favoriteSize = firstByClerkId(sizeRows, 'size_name');
     const favoriteDay = firstByClerkId(dayRows, 'day_index');
     const voucherCounts = numberByClerkId(voucherRows, 'voucher_count');
     const wishlistCounts = numberByClerkId(wishlistRows, 'wishlist_count');
     const returnCounts = numberByClerkId(returnRows, 'return_count');
     const eventStats = eventRowsByClerkId(eventRows);
+    const cartSnapshots = cartSnapshotsByClerkId(cartRows);
     const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
     const enrichedUsers = users.map((u: any) => {
       const events = eventStats[u.clerk_id] || {};
+      const cartSnapshot = cartSnapshots[u.clerk_id] || null;
       const birthday = getBirthdaySignal(u.birth_date);
-      const lastCartAt = events.lastCartAt || null;
+      const lastCartAt = cartSnapshot?.lastEventAt || events.lastCartAt || null;
       const lastOrderDate = u.last_order_date || null;
       const cartAgeHours = lastCartAt ? Math.floor((Date.now() - new Date(lastCartAt).getTime()) / 3600000) : null;
       const hasOrderAfterCart = lastCartAt && lastOrderDate && new Date(lastOrderDate).getTime() >= new Date(lastCartAt).getTime();
-      const abandonedCart = Boolean(lastCartAt && !hasOrderAfterCart && cartAgeHours !== null && cartAgeHours >= 4 && cartAgeHours <= 24 * 14);
+      const hasActiveCartSnapshot = Boolean(cartSnapshot && cartSnapshot.status === 'ACTIVE' && cartSnapshot.itemCount > 0);
+      const abandonedCart = Boolean(hasActiveCartSnapshot && lastCartAt && !hasOrderAfterCart && cartAgeHours !== null && cartAgeHours >= 4 && cartAgeHours <= 24 * 14);
       const orderCount = Number(u.orders || 0);
       const returnCount = returnCounts[u.clerk_id] || 0;
 
@@ -133,6 +142,7 @@ export async function onRequestGet(context: any) {
         campaignTouchCount: events.campaignTouchCount || 0,
         abandonedCart,
         cartAgeHours,
+        cartSnapshot,
       };
     });
 
@@ -145,6 +155,32 @@ export async function onRequestGet(context: any) {
       has_db_binding: Boolean(env.MEYYA_DB),
       d1: await getUsersDebugInfo(env),
     });
+  }
+}
+
+function cartSnapshotsByClerkId(rows: any[] = []) {
+  const result: Record<string, any> = {};
+  for (const row of rows) {
+    if (!row.clerk_id) continue;
+    result[row.clerk_id] = {
+      itemCount: Number(row.item_count || 0),
+      subtotal: Number(row.subtotal || 0),
+      productIds: parseJson(row.product_ids, []),
+      items: parseJson(row.items, []),
+      status: row.status || 'ACTIVE',
+      lastEventAt: row.last_event_at || null,
+      convertedOrderId: row.converted_order_id || null,
+    };
+  }
+  return result;
+}
+
+function parseJson(value: any, fallback: any) {
+  if (!value || typeof value !== 'string') return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
   }
 }
 

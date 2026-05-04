@@ -369,7 +369,12 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
                         <span className="text-[10px] text-left truncate">{cv.color} / {cv.size}</span>
                         <div className="flex items-center justify-between">
                           <button 
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); decreaseQuantity(originalCartIndex); }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              decreaseQuantity(originalCartIndex);
+                              trackEvent('CART_UPDATED', { product_id: product.id, metadata: { action: 'decrease', source: 'catalog_counter', quantity: Math.max(cv.quantity - 1, 0) } });
+                            }}
                             className="w-5 h-5 flex items-center justify-center rounded-full bg-white shadow-sm hover:bg-black/5 transition-colors"
                           >
                             <Minus size={10} />
@@ -392,6 +397,7 @@ export default function CatalogProductCard({ product, totalQuantityInCart, cartI
                                 weight: product.weight || 250,
                                 image_url: product.image_url
                               }); 
+                              trackEvent('CART_UPDATED', { product_id: product.id, metadata: { action: 'increase', source: 'catalog_counter', quantity: cv.quantity + 1 } });
                             }}
                             className="w-5 h-5 flex items-center justify-center rounded-full bg-white shadow-sm hover:bg-black/5 transition-colors"
                           >

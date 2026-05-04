@@ -155,6 +155,20 @@ export async function ensureCommerceSchema(env: any) {
     )
   `).run();
 
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS user_cart_snapshots (
+      clerk_id TEXT PRIMARY KEY,
+      item_count INTEGER DEFAULT 0,
+      subtotal INTEGER DEFAULT 0,
+      product_ids TEXT,
+      items TEXT,
+      status TEXT DEFAULT 'ACTIVE',
+      last_event_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      converted_order_id TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
   await addColumn(env, 'products', 'deleted_at', 'DATETIME');
   await addColumn(env, 'products', 'meta_title', 'TEXT');
   await addColumn(env, 'products', 'meta_description', 'TEXT');
@@ -182,6 +196,14 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'user_events', 'order_id', 'TEXT');
   await addColumn(env, 'user_events', 'campaign_tag', 'TEXT');
   await addColumn(env, 'user_events', 'metadata', 'TEXT');
+  await addColumn(env, 'user_cart_snapshots', 'item_count', 'INTEGER DEFAULT 0');
+  await addColumn(env, 'user_cart_snapshots', 'subtotal', 'INTEGER DEFAULT 0');
+  await addColumn(env, 'user_cart_snapshots', 'product_ids', 'TEXT');
+  await addColumn(env, 'user_cart_snapshots', 'items', 'TEXT');
+  await addColumn(env, 'user_cart_snapshots', 'status', "TEXT DEFAULT 'ACTIVE'");
+  await addColumn(env, 'user_cart_snapshots', 'last_event_at', 'DATETIME');
+  await addColumn(env, 'user_cart_snapshots', 'converted_order_id', 'TEXT');
+  await addColumn(env, 'user_cart_snapshots', 'updated_at', 'DATETIME');
 
   await env.MEYYA_DB.prepare(`
     INSERT OR IGNORE INTO message_templates (key, channel, title, body)

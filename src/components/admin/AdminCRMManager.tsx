@@ -339,7 +339,7 @@ export default function AdminCRMManager() {
                   <td className="p-6">
                     <div className="flex flex-wrap gap-1.5 max-w-48">
                       <span className="px-2 py-1 bg-black/5 rounded-full text-[10px] uppercase tracking-widest">Return {customer.returnRate || '0%'}</span>
-                      {customer.abandonedCart && <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-full text-[10px] uppercase tracking-widest">Abandoned cart</span>}
+                      {customer.abandonedCart && <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-full text-[10px] uppercase tracking-widest">Abandoned {customer.cartSnapshot?.itemCount || 0} item</span>}
                       {customer.birthday?.daysUntil <= 30 && <span className="px-2 py-1 bg-pink-50 text-pink-700 rounded-full text-[10px] uppercase tracking-widest">Birthday</span>}
                     </div>
                   </td>
