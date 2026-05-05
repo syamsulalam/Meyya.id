@@ -177,6 +177,22 @@ export default function AdminMarketingPanel() {
         />
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_0.9fr] gap-4">
+        <TrendChart
+          title="Tren Source"
+          subtitle="Event per source dalam 14 hari"
+          series={analyticsData?.sourceTrend || []}
+        />
+        <FunnelChart steps={analyticsData?.conversionFunnel || []} />
+      </div>
+
+      <TrendChart
+        title="Tren Campaign"
+        subtitle="Campaign dari UTM/campaign tag yang sudah masuk aggregate"
+        series={analyticsData?.campaignTrend || []}
+        emptyText="Belum ada campaign UTM/tag yang terekam."
+      />
+
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
         {/* Left Sidebar: Targets */}
         <div className="w-full lg:w-1/3 bg-white/40 border border-black/5 rounded-[2rem] p-4 flex flex-col overflow-hidden">
@@ -314,4 +330,85 @@ function formatNumber(value: any) {
 
 function formatEventType(value: any) {
   return String(value || '-').replace(/_/g, ' ').toLowerCase();
+}
+
+function TrendChart({ title, subtitle, series, emptyText = 'Belum ada data tren.' }: { title: string; subtitle: string; series: any[]; emptyText?: string }) {
+  const maxValue = Math.max(1, ...series.flatMap((item) => (item.points || []).map((point: any) => Number(point.events || 0))));
+  const colors = ['bg-ink', 'bg-emerald-500', 'bg-amber-500', 'bg-blue-500'];
+
+  return (
+    <div className="rounded-3xl bg-white/45 border border-black/5 p-5">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-widest text-ink">{title}</h3>
+          <p className="text-xs text-black/45 mt-1">{subtitle}</p>
+        </div>
+        <span className="text-[10px] uppercase tracking-widest text-black/35">Aggregate</span>
+      </div>
+      {series.length === 0 ? (
+        <div className="rounded-2xl bg-white/60 border border-dashed border-black/10 p-6 text-center text-sm text-black/45">{emptyText}</div>
+      ) : (
+        <div className="space-y-4">
+          {series.map((item, index) => (
+            <div key={item.label} className="space-y-2">
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <span className="font-semibold text-ink truncate">{item.label}</span>
+                <span className="font-mono text-black/45">{formatNumber(item.total)} event</span>
+              </div>
+              <div className="grid grid-flow-col auto-cols-fr gap-1 h-20 items-end rounded-2xl bg-white/60 border border-black/5 p-2">
+                {(item.points || []).map((point: any) => (
+                  <div key={`${item.label}-${point.date}`} className="flex h-full items-end" title={`${point.date}: ${formatNumber(point.events)} event`}>
+                    <div
+                      className={`w-full rounded-t-md min-h-[3px] ${colors[index % colors.length]}`}
+                      style={{ height: `${Math.max(3, (Number(point.events || 0) / maxValue) * 100)}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FunnelChart({ steps }: { steps: any[] }) {
+  const firstEvents = Number(steps?.[0]?.events || 0);
+
+  return (
+    <div className="rounded-3xl bg-white/45 border border-black/5 p-5">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-widest text-ink">Conversion Funnel</h3>
+          <p className="text-xs text-black/45 mt-1">Lihat produk sampai order dibuat</p>
+        </div>
+        <span className="text-[10px] uppercase tracking-widest text-black/35">Sederhana</span>
+      </div>
+      {steps.length === 0 || firstEvents === 0 ? (
+        <div className="rounded-2xl bg-white/60 border border-dashed border-black/10 p-6 text-center text-sm text-black/45">Belum ada event funnel yang cukup.</div>
+      ) : (
+        <div className="space-y-3">
+          {steps.map((step) => (
+            <div key={step.key} className="rounded-2xl bg-white/60 border border-black/5 p-3">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div>
+                  <p className="text-sm font-semibold text-ink">{step.label}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-black/35">{formatEventType(step.key)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono text-sm font-semibold">{formatNumber(step.events)}</p>
+                  <p className="text-[10px] text-black/40">{step.totalRate}% dari awal</p>
+                </div>
+              </div>
+              <div className="h-2 rounded-full bg-black/5 overflow-hidden">
+                <div className="h-full rounded-full bg-ink" style={{ width: `${Math.max(2, Number(step.totalRate || 0))}%` }} />
+              </div>
+              <p className="mt-2 text-[10px] text-black/40">Konversi dari step sebelumnya: {step.previousRate}%</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

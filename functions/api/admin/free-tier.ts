@@ -11,8 +11,24 @@ const LIMITS = {
   r2ClassBMonthly: 10_000_000,
 };
 
-export async function onRequestGet({ env }: any) {
+const CACHE_TTL_MS = 15 * 60 * 1000;
+let cachedUsage: { data: any; expiresAt: number } | null = null;
+
+export async function onRequestGet({ env, request }: any) {
   try {
+    const url = new URL(request.url);
+    const bypassCache = url.searchParams.get('refresh') === '1';
+    if (!bypassCache && cachedUsage && cachedUsage.expiresAt > Date.now()) {
+      return json({
+        ...cachedUsage.data,
+        cache: {
+          hit: true,
+          ttlSeconds: Math.max(0, Math.floor((cachedUsage.expiresAt - Date.now()) / 1000)),
+          note: 'Free-tier usage memakai cache 15 menit agar Cloudflare API/R2/D1 tidak dipanggil berulang.',
+        },
+      });
+    }
+
     await ensureCommerceSchema(env);
 
     const d1Storage = await getD1Storage(env);
@@ -23,7 +39,7 @@ export async function onRequestGet({ env }: any) {
     const databaseBytes = cloudflareD1.databaseBytes ?? d1Storage.bytes;
     const accountStorageBytes = cloudflareD1.accountStorageBytes ?? databaseBytes;
 
-    return json({
+    const data = {
       limits: LIMITS,
       clerk: {
         users: userCount,
@@ -60,7 +76,19 @@ export async function onRequestGet({ env }: any) {
         regionCacheRetentionDays: 14,
         auditLogRetentionDays: 365,
       },
-    });
+      cache: {
+        hit: false,
+        ttlSeconds: CACHE_TTL_MS / 1000,
+        note: 'Free-tier usage akan di-cache 15 menit di Cloudflare Function isolate.',
+      },
+    };
+
+    cachedUsage = {
+      data,
+      expiresAt: Date.now() + CACHE_TTL_MS,
+    };
+
+    return json(data);
   } catch (error: any) {
     return json({ error: error.message || 'Gagal membaca free tier usage' }, 500);
   }
@@ -99,6 +127,8 @@ export async function onRequestPost({ env, request }: any) {
       includeAuditLogs,
       changes,
     });
+
+    cachedUsage = null;
 
     return json({ success: true, changes });
   } catch (error: any) {

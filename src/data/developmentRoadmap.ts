@@ -53,4 +53,5 @@ export const developmentRoadmap: RoadmapItem[] = [
   { title: 'Provider WhatsApp/email', status: 'planned', area: 'Marketing', note: 'Template pesan belum terkirim otomatis dari provider resmi.' },
   { title: 'Analytics event lebih detail', status: 'done', area: 'Marketing', note: 'Event menyimpan source, medium, campaign, device, page path, referrer, session, dan anonymous id secara terstruktur.' },
   { title: 'Agregasi analytics harian', status: 'done', area: 'Marketing', note: 'Dashboard marketing membaca aggregate harian dan user event summary, bukan scan raw user_events untuk metrik umum.' },
+  { title: 'Chart tren source/campaign dan funnel', status: 'done', area: 'Marketing', note: 'Panel marketing menampilkan chart tren source, campaign, dan conversion funnel dari analytics aggregate.' },
 ];

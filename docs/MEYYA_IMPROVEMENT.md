@@ -8,16 +8,86 @@ Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, c
 
 Yang paling masuk akal dikerjakan berikutnya:
 
-1. Set environment production Cloudflare Pages agar panel `Limit Free Tier` bisa membaca ukuran D1 dari Cloudflare API:
-   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, dan `CLOUDFLARE_D1_DATABASE_ID`.
-2. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih. Status: ditunda karena perlu keputusan third-party provider.
-3. Setelah analytics aggregate punya data beberapa hari, tambah chart tren source/campaign dan conversion funnel sederhana.
+1. Buat Cloudflare Worker maintenance untuk auto pruning bulanan data operasional yang lebih lama dari 3 tahun, dengan dry-run dan audit log.
+2. Rancang integrasi Duitku sandbox: migration payment gateway fields, create transaction, callback signature, check transaction, dan idempotency.
+3. Inventory server Oracle GOWA yang sudah pernah disetup: base URL, versi, auth, device id, session login, test endpoint `/devices`, `/send/message`, dan format payload webhook message asli.
+4. Set env production `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`, lalu arahkan GOWA webhook ke `/api/webhooks/gowa?secret=...`.
+5. Rancang sinkron Google Contacts untuk nomor WA terverifikasi jika nanti kontak harus tersimpan juga di phonebook bersama, bukan hanya D1.
+6. Tambah messaging outbox untuk WhatsApp/email agar integrasi GOWA dan Sendy bisa dry-run, retry, dan diaudit sebelum auto-send.
+7. Tambah backfill analytics aggregate manual per window tanggal jika ingin histori raw event lama ikut masuk chart.
 
 Catatan fungsi next action nomor 2:
 
 - Template pesan sekarang sudah rapi dan tervalidasi, tetapi masih dipakai manual untuk disalin/dibuka ke WhatsApp Web.
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
+
+## Batch Riset GOWA WhatsApp dan Sendy Email 2026-05-06 00:18:00 +07:00
+
+Checklist:
+
+- [x] Dokumentasi rencana integrasi GOWA WhatsApp dan Sendy email dibuat di `docs/GOWA_WHATSAPP_SENDY_EMAIL_INTEGRATION_PLAN.md`.
+- [x] Feasibility GOWA dipetakan: layak untuk operasional/semi otomatis volume rendah, tetapi tetap unofficial dan berisiko logout/limit/ban.
+- [x] Arsitektur disarankan: GOWA tetap self-hosted di Oracle/VPS, Meyya.id di Cloudflare Pages hanya memanggil API HTTPS.
+- [x] Sendy + Amazon SES dipetakan sebagai kanal email murah untuk newsletter/list management, dengan catatan direct SES mungkin lebih cocok untuk transactional email ketat.
+- [x] Rencana `message_outbox` dan `message_delivery_logs` dicatat agar WhatsApp/email bisa dry-run, retry, dan diaudit.
+- [x] Belum ada perubahan runtime aplikasi, sesuai permintaan dokumentasi dulu.
+
+Catatan:
+
+- GOWA v8 memakai multi-device; call REST yang device-scoped perlu `X-Device-Id` header atau `device_id` query.
+- Endpoint GOWA yang paling relevan untuk MVP adalah `/devices`, `/devices/{device_id}/status`, dan `/send/message`.
+- Integrasi berikutnya sebaiknya dimulai dari dry-run dan tombol test admin sebelum pesan otomatis dinyalakan.
+
+## Batch Verifikasi Nomor WhatsApp Profil 2026-05-06 00:44:07 +07:00
+
+Checklist:
+
+- [x] `/profil` menampilkan status nomor WhatsApp terverifikasi/belum terverifikasi.
+- [x] Tombol `Verifikasi Nomor` membuat kode `MEYYA-WA-xxxxxx` dan membuka `web.whatsapp.com` ke nomor Meyya dengan pesan berisi kode, nama, email, dan nomor akun.
+- [x] API `POST /api/user/phone-verification` menyiapkan kode verifikasi 30 menit dari nomor WhatsApp yang sudah disimpan user.
+- [x] Webhook `POST /api/webhooks/gowa` menerima pesan masuk GOWA, membaca kode, mencocokkan nomor pengirim dengan `users.phone_wa`, lalu mengisi `users.phone_wa_verified_at`.
+- [x] Jika user mengganti nomor WhatsApp di profil, status verified dan kode lama otomatis dihapus.
+- [x] Migration helper `migrations/2026-05-06_whatsapp_phone_verification.sql` ditambahkan jika ingin patch remote secara manual.
+- [x] `.env.example` menambahkan `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`.
+
+Catatan:
+
+- Ini menyimpan status trusted di database Meyya. Menyimpan kontak ke Google Contacts/phonebook bersama belum diimplementasi karena butuh integrasi OAuth Google Contacts terpisah.
+- GOWA akan otomatis punya chat incoming dari user karena user yang mengirim duluan, tetapi itu berbeda dari menyimpan nomor permanen ke phonebook.
+- Webhook dibuat cukup fleksibel untuk beberapa bentuk payload GOWA, tetapi payload asli dari server Oracle tetap perlu diverifikasi saat setup.
+
+## Batch Chart Analytics dan Funnel 2026-05-06 00:10:35 +07:00
+
+Checklist:
+
+- [x] Endpoint `/api/admin/analytics?days=14` mengirim `sourceTrend`, `campaignTrend`, dan `conversionFunnel` dari aggregate harian.
+- [x] Panel WhatsApp Marketing CRM menampilkan chart tren source 14 hari.
+- [x] Panel WhatsApp Marketing CRM menampilkan chart tren campaign dari UTM/campaign tag yang terekam.
+- [x] Panel WhatsApp Marketing CRM menampilkan conversion funnel sederhana: lihat produk, masuk keranjang, mulai checkout, order dibuat.
+- [x] Chart dibuat tanpa dependency baru agar bundle tetap ringan.
+- [x] Roadmap admin menandai chart tren source/campaign dan funnel sebagai done.
+
+Catatan:
+
+- Funnel memakai event count aggregate, bukan unique customer absolut. Ini cukup untuk indikasi awal, tetapi funnel cohort presisi nanti butuh aggregate khusus per session/user.
+- Chart hanya akan ramai setelah event baru terkumpul pasca deploy aggregate.
+
+## Batch Riset Maintenance, PDF, dan Duitku 2026-05-05 23:57:12 +07:00
+
+Checklist:
+
+- [x] Riset auto pruning 3 tahun ditulis di `docs/AUTO_PRUNING_AND_PDF_COMPRESSION_RESEARCH.md`.
+- [x] Riset PDF compression Cloudinary ditulis di `docs/AUTO_PRUNING_AND_PDF_COMPRESSION_RESEARCH.md`.
+- [x] Riset awal Duitku Payment Gateway ditulis di `docs/DUITKU_PAYMENT_GATEWAY_RESEARCH.md`.
+- [x] Belum ada integrasi kode Duitku/Cloudinary/cron baru, sesuai instruksi.
+
+Catatan:
+
+- Auto pruning paling rapi memakai Cloudflare Worker Cron Trigger terpisah dengan binding D1/R2 yang sama.
+- External cron gratis seperti cron-job.org atau GitHub Actions hanya fallback jika tidak ingin Worker terpisah.
+- Cloudinary bisa dipertimbangkan untuk PDF nanti, tetapi PDF optimization tidak diasumsikan gratis/tersedia penuh untuk free tier.
+- Duitku harus diintegrasikan server-side; callback wajib signature verification dan idempotency.
 
 ## Batch Agregasi Analytics Harian 2026-05-05 23:23:18 +07:00
 
@@ -37,6 +107,22 @@ Catatan:
 
 - Aggregate mulai terisi dari event baru setelah deploy. Raw `user_events` lama tetap ada, tetapi tidak otomatis di-backfill ke aggregate agar dashboard tidak melakukan scan besar diam-diam.
 - Jika nanti ingin melihat histori lama di aggregate, lakukan backfill manual terkontrol dari raw event pada window tanggal tertentu.
+
+## Batch Free Tier Cache Guard 2026-05-05 23:30:49 +07:00
+
+Checklist:
+
+- [x] Panel `Limit Free Tier` tidak lagi auto revalidate saat browser focus/reconnect.
+- [x] SWR free-tier memakai dedupe interval 15 menit agar dashboard dan tab detail tidak memanggil endpoint berulang dalam waktu dekat.
+- [x] Endpoint `/api/admin/free-tier` punya cache in-memory 15 menit di Cloudflare Function isolate.
+- [x] Tombol `Refresh` di tab detail tetap bisa bypass cache lewat `?refresh=1`.
+- [x] Setelah pruning, cache free-tier di-clear agar angka berikutnya bisa diperbarui.
+
+Catatan biaya:
+
+- Endpoint free-tier hanya dipanggil oleh admin UI, bukan visitor public.
+- Saat cache miss, endpoint membaca D1 count/PRAGMA, list R2 object, dan maksimal dua call Cloudflare D1 API untuk database detail serta list database.
+- Dengan cache 15 menit dan auto revalidate dimatikan, angka free-tier cukup untuk monitoring tanpa membebani API/billing.
 
 ## Batch Analytics Event Detail 2026-05-05 08:54:26 +07:00
 

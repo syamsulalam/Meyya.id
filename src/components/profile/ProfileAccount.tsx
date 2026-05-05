@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { User, Phone, Mail, Gift } from 'lucide-react';
+import { CheckCircle2, Gift, Mail, Phone, Send, ShieldCheck, User } from 'lucide-react';
 import { useBlocker } from 'react-router-dom';
 import { useStore } from '../../store';
 import { useUser } from '@clerk/react';
@@ -26,6 +26,10 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
   const [isSaved, setIsSaved] = useState(true);
   const [profileName, setProfileName] = useState(user?.name || user?.fullName || '');
   const [profilePhone, setProfilePhone] = useState('');
+  const [savedPhoneWa, setSavedPhoneWa] = useState('');
+  const [phoneWaVerifiedAt, setPhoneWaVerifiedAt] = useState('');
+  const [verificationExpiresAt, setVerificationExpiresAt] = useState('');
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [birthDate, setBirthDate] = useState('');
   const [savedBirthDate, setSavedBirthDate] = useState('');
   const [canSyncNameToClerk, setCanSyncNameToClerk] = useState(false);
@@ -44,6 +48,9 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
             const cc = COUNTRY_CODES.find(c => phone.startsWith(c.code))?.code || '+62';
             setCountryCode(cc);
             setProfilePhone(formatPhoneDigits(phone.replace(cc, '')));
+            setSavedPhoneWa(phone);
+            setPhoneWaVerifiedAt(data.user.phone_wa_verified_at || '');
+            setVerificationExpiresAt(data.user.phone_wa_verification_expires_at || '');
             setBirthDate(data.user.birth_date || '');
             setSavedBirthDate(data.user.birth_date || '');
             setTimeout(() => setIsSaved(true), 10);
@@ -72,10 +79,12 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
 
   const persistProfile = async () => {
     try {
+      const nextPhoneWa = countryCode + profilePhone.replace(/\s/g, '');
+      const phoneChanged = nextPhoneWa !== savedPhoneWa;
       const res = await authFetch(`/api/user/profile/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: profileName, phone_wa: countryCode + profilePhone.replace(/\s/g, ''), birth_date: birthDate || null })
+        body: JSON.stringify({ name: profileName, phone_wa: nextPhoneWa, birth_date: birthDate || null })
       });
       
       if (!res.ok) throw new Error("Gagal menyimpan data");
@@ -95,6 +104,11 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       }
       
       setIsSaved(true);
+      setSavedPhoneWa(nextPhoneWa);
+      if (phoneChanged) {
+        setPhoneWaVerifiedAt('');
+        setVerificationExpiresAt('');
+      }
       setSavedBirthDate(birthDate || savedBirthDate);
       addToast('Perubahan data profil berhasil disimpan!', 'success');
       if (blocker.state === 'blocked') {
@@ -102,6 +116,37 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
       }
     } catch (e: any) {
       addToast(e.message, 'error');
+    }
+  };
+
+  const handleVerifyPhone = async () => {
+    const nextPhoneWa = countryCode + profilePhone.replace(/\s/g, '');
+    if (!profilePhone.replace(/\s/g, '')) {
+      addToast('Isi nomor WhatsApp terlebih dahulu.', 'error');
+      return;
+    }
+    if (nextPhoneWa !== savedPhoneWa) {
+      addToast('Simpan nomor WhatsApp terlebih dahulu sebelum verifikasi.', 'info');
+      return;
+    }
+
+    setIsVerifyingPhone(true);
+    try {
+      const res = await authFetch('/api/user/phone-verification', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal membuat link verifikasi WhatsApp.');
+      if (data.verified) {
+        setPhoneWaVerifiedAt(data.phone_wa_verified_at || new Date().toISOString());
+        addToast('Nomor WhatsApp sudah terverifikasi.', 'success');
+        return;
+      }
+      setVerificationExpiresAt(data.expires_at || '');
+      window.open(data.whatsapp_url, '_blank', 'noopener,noreferrer');
+      addToast('WhatsApp Web dibuka. Kirim pesan tanpa mengubah isi kode verifikasi.', 'success');
+    } catch (e: any) {
+      addToast(e.message, 'error');
+    } finally {
+      setIsVerifyingPhone(false);
     }
   };
 
@@ -226,6 +271,41 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
                   placeholder="Contoh: 8123 4567 890"
                   className="w-full bg-transparent border-none outline-none py-3 pl-12 pr-4 text-sm"
                 />
+              </div>
+            </div>
+            <div className="mt-3 rounded-2xl border border-black/10 bg-white/50 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <span className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${phoneWaVerifiedAt ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {phoneWaVerifiedAt ? <CheckCircle2 size={17} /> : <ShieldCheck size={17} />}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-ink">
+                      {phoneWaVerifiedAt ? 'Nomor WhatsApp terverifikasi' : 'Verifikasi nomor WhatsApp'}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-black/55">
+                      {phoneWaVerifiedAt
+                        ? `Terverifikasi pada ${new Date(phoneWaVerifiedAt).toLocaleString('id-ID')}.`
+                        : 'Klik verifikasi untuk membuka WhatsApp Web dan kirim kode ke nomor Meyya tanpa mengubah isi pesan.'}
+                    </p>
+                    {!phoneWaVerifiedAt && verificationExpiresAt && (
+                      <p className="mt-1 text-[11px] text-black/45">
+                        Kode terakhir berlaku sampai {new Date(verificationExpiresAt).toLocaleString('id-ID')}.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {!phoneWaVerifiedAt && (
+                  <button
+                    type="button"
+                    onClick={handleVerifyPhone}
+                    disabled={isVerifyingPhone}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0b8f6f] px-5 py-2.5 text-xs font-semibold uppercase tracking-widest text-white transition-colors hover:bg-[#08765c] disabled:cursor-wait disabled:bg-black/30"
+                  >
+                    <Send size={14} />
+                    {isVerifyingPhone ? 'Membuat Kode' : 'Verifikasi Nomor'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

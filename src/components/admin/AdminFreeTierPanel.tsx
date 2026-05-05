@@ -16,7 +16,11 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
   const { isLoaded, isSignedIn } = useAuth();
   const authReady = isLoaded && isSignedIn;
   const { addToast } = useStore();
-  const { data, error, isLoading, mutate } = useSWR(authReady ? '/api/admin/free-tier' : null, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(authReady ? '/api/admin/free-tier' : null, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 15 * 60 * 1000,
+  });
   const [isPruning, setIsPruning] = useState(false);
   const [includeAuditLogs, setIncludeAuditLogs] = useState(false);
 
@@ -99,7 +103,11 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
           </h2>
           <p className="text-sm font-light text-black/60">Pantau pemakaian Cloudflare D1, R2, dan Clerk dari data yang bisa dibaca aplikasi.</p>
         </div>
-        <button type="button" onClick={() => mutate()} className="px-4 py-2 rounded-full bg-white border border-black/10 text-xs uppercase tracking-widest hover:bg-black/5 transition-colors">
+        <button
+          type="button"
+          onClick={() => mutate(fetcher('/api/admin/free-tier?refresh=1'), { revalidate: false })}
+          className="px-4 py-2 rounded-full bg-white border border-black/10 text-xs uppercase tracking-widest hover:bg-black/5 transition-colors"
+        >
           Refresh
         </button>
       </div>
@@ -121,7 +129,7 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
               </div>
             ))}
           </div>
-          <p className="text-xs text-black/45 mt-4">Ukuran D1 memprioritaskan Cloudflare API, lalu fallback ke `PRAGMA page_count * page_size`; row read/write harian resmi tetap dicek dari Cloudflare dashboard.</p>
+          <p className="text-xs text-black/45 mt-4">Ukuran D1 memprioritaskan Cloudflare API, lalu fallback ke `PRAGMA page_count * page_size`. Data panel ini di-cache 15 menit agar API tidak dipanggil berulang.</p>
         </div>
 
         <div className="bg-white/40 border border-black/5 rounded-3xl p-6">

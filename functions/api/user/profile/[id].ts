@@ -52,14 +52,36 @@ export async function onRequestPut(context: any) {
 
     // Update user info
     if (body.name !== undefined || body.phone_wa !== undefined || body.birth_date !== undefined) {
-      const existing = await env.MEYYA_DB.prepare('SELECT birth_date FROM users WHERE clerk_id = ?').bind(id).first();
+      const existing = await env.MEYYA_DB.prepare('SELECT birth_date, phone_wa FROM users WHERE clerk_id = ?').bind(id).first();
       const nextBirthDate = cleanBirthDate(body.birth_date);
       if (existing?.birth_date && nextBirthDate && existing.birth_date !== nextBirthDate) {
         return new Response(JSON.stringify({ error: 'Tanggal lahir sudah tersimpan dan tidak bisa diubah.' }), { status: 400 });
       }
+      const nextPhoneWa = cleanPhoneWa(body.phone_wa);
+      const existingPhoneWa = cleanPhoneWa(existing?.phone_wa);
+      const phoneChanged = nextPhoneWa !== existingPhoneWa;
       await env.MEYYA_DB.prepare(`
-         UPDATE users SET first_name = ?, last_name = ?, phone_wa = ?, birth_date = ? WHERE clerk_id = ?
-      `).bind(firstName, lastName, body.phone_wa || '', existing?.birth_date || nextBirthDate, id).run();
+         UPDATE users SET
+           first_name = ?,
+           last_name = ?,
+           phone_wa = ?,
+           phone_wa_verified_at = CASE WHEN ? THEN NULL ELSE phone_wa_verified_at END,
+           phone_wa_verification_code = CASE WHEN ? THEN NULL ELSE phone_wa_verification_code END,
+           phone_wa_verification_requested_at = CASE WHEN ? THEN NULL ELSE phone_wa_verification_requested_at END,
+           phone_wa_verification_expires_at = CASE WHEN ? THEN NULL ELSE phone_wa_verification_expires_at END,
+           birth_date = ?
+         WHERE clerk_id = ?
+      `).bind(
+        firstName,
+        lastName,
+        nextPhoneWa,
+        phoneChanged ? 1 : 0,
+        phoneChanged ? 1 : 0,
+        phoneChanged ? 1 : 0,
+        phoneChanged ? 1 : 0,
+        existing?.birth_date || nextBirthDate,
+        id
+      ).run();
     }
 
     return new Response(JSON.stringify({ success: true, message: 'Profile updated' }), {
@@ -75,4 +97,12 @@ function cleanBirthDate(value: any) {
   if (!value) return null;
   const clean = String(value).trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(clean) ? clean : null;
+}
+
+function cleanPhoneWa(value: any) {
+  if (!value) return '';
+  const raw = String(value).trim();
+  if (!raw) return '';
+  if (raw.startsWith('+')) return `+${raw.slice(1).replace(/\D/g, '')}`;
+  return raw.replace(/[^\d+]/g, '');
 }
