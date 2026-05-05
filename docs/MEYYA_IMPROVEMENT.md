@@ -22,6 +22,23 @@ Catatan fungsi next action nomor 2:
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
 
+## Batch Guard Checkout Stok Keranjang 2026-05-06 01:32:00 +07:00
+
+Checklist:
+
+- [x] Validator stok keranjang server-side ditambahkan agar cart guest/local dan order checkout memakai aturan stok yang sama.
+- [x] Endpoint publik `POST /api/cart/validate` memeriksa produk aktif, stok global produk, stok varian aktif, dan total quantity agregat per produk/varian.
+- [x] Cart preview mengecek stok saat refresh/focus dan sebelum tombol checkout mengarahkan ke halaman checkout.
+- [x] Halaman cart mengecek stok saat refresh/focus dan men-disable tombol checkout jika ada item habis atau quantity melebihi stok.
+- [x] Halaman checkout mengecek stok saat refresh/focus dan sekali lagi saat tombol buat pesanan diklik.
+- [x] `POST /api/orders` memakai validator yang sama sebelum order, voucher usage, dan reservasi stok dibuat.
+
+Catatan:
+
+- Pre-order tetap dikecualikan dari blokir stok seperti behavior produk existing.
+- Jika stok berubah setelah produk masuk keranjang, UI menampilkan item bermasalah dan meminta customer mengurangi/menghapus item sebelum checkout.
+- Guard final tetap berada di backend order API, jadi direct request ke `/api/orders` juga tidak bisa membuat pesanan out of stock.
+
 ## Batch Riset GOWA WhatsApp dan Sendy Email 2026-05-06 00:18:00 +07:00
 
 Checklist:

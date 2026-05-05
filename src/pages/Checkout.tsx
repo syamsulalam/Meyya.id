@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import { useStore } from '../store';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useUser } from '@clerk/react';
 import { useAuthFetch, useAuthFetcher } from '../hooks/useAuthFetch';
 import { useTrackEvent } from '../hooks/useTrackEvent';
+import { useCartStockValidation } from '../hooks/useCartStockValidation';
 import {
   AdminFeeTooltip,
   ExplainedLabel,
@@ -32,6 +33,13 @@ export default function Checkout() {
   const authFetch = useAuthFetch();
   const authFetcher = useAuthFetcher();
   const trackEvent = useTrackEvent();
+  const {
+    validation: stockValidation,
+    hasStockIssue,
+    isCheckingStock,
+    stockCheckError,
+    refreshStockValidation,
+  } = useCartStockValidation(cart);
   const { data: dbAddresses } = useSWR(clerkUser?.id ? `/api/user/addresses/${clerkUser.id}` : null, authFetcher);
   const d1SavedAddresses = React.useMemo(() => Array.isArray(dbAddresses) ? dbAddresses.map((a, idx) => ({
     id: String(a.id),
@@ -224,6 +232,16 @@ export default function Checkout() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    try {
+      const latestStockValidation = await refreshStockValidation();
+      if (!latestStockValidation.valid) {
+        return addToast(latestStockValidation.unavailableItems[0]?.message || 'Beberapa produk di keranjang sudah tidak tersedia.', 'error');
+      }
+    } catch (error: any) {
+      return addToast(error?.message || 'Gagal memeriksa stok keranjang.', 'error');
+    }
+
     let finalAddressSnapshot = '';
     let destinationVillageCode = '';
 
@@ -605,8 +623,10 @@ export default function Checkout() {
           <h2 className="text-xl font-medium mb-6">Ringkasan Pesanan</h2>
           
           <div className="space-y-4 mb-6 max-h-[30vh] overflow-y-auto pr-2">
-            {cart.map((item, index) => (
-              <div key={index} className="flex gap-4 items-center">
+            {cart.map((item, index) => {
+              const stockIssue = stockValidation.unavailableItems.find((issue) => issue.lineIndex === index);
+              return (
+              <div key={index} className={`flex gap-4 items-center rounded-xl p-2 -mx-2 ${stockIssue ? 'bg-red-50 border border-red-100' : ''}`}>
                 <div className="w-12 h-16 rounded-lg overflow-hidden bg-black/5 flex-shrink-0 flex items-center justify-center">
                   {item.image_url ? (
                     <img src={item.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -625,15 +645,35 @@ export default function Checkout() {
                       {Object.entries(item.variant_options).filter(([key]) => key !== 'Warna' && key !== 'Ukuran').map(([key, value]) => `${key}: ${value}`).join(' / ')}
                     </p>
                   )}
+                  {stockIssue && (
+                    <p className="text-[10px] font-semibold text-red-600 mt-1">{stockIssue.message}</p>
+                  )}
                 </div>
                 <div className="text-xs font-semibold">
                   Rp {(item.price * item.quantity).toLocaleString('id-ID')}
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
           <div className="border-t border-black/5 pt-6 space-y-4 text-sm mt-4">
+            {(hasStockIssue || stockCheckError) && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-xs">Pesanan belum bisa dibuat.</p>
+                    <p className="text-xs mt-1">{stockValidation.unavailableItems[0]?.message || stockCheckError?.message || 'Stok keranjang perlu dicek ulang.'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {isCheckingStock && !hasStockIssue && (
+              <div className="rounded-xl border border-black/10 bg-white/60 p-3 text-xs text-gray-500 flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin" />
+                Memeriksa stok terbaru...
+              </div>
+            )}
             
             {/* Promo Area */}
             {appliedVoucher ? (
@@ -737,10 +777,10 @@ export default function Checkout() {
           <button 
             type="submit"
             form="checkout-form"
-            disabled={loading || !selectedCourier}
+            disabled={loading || !selectedCourier || hasStockIssue || isCheckingStock}
             className="w-full bg-ink text-white py-4 rounded-full text-xs font-bold tracking-[0.2em] uppercase mt-8 disabled:opacity-40 hover:bg-black/80 transition-colors shadow-2xl"
           >
-            {loading ? 'Memvalidasi Pesanan...' : 'Buat Pesanan & Bayar Sekarang'}
+            {loading ? 'Memvalidasi Pesanan...' : isCheckingStock ? 'Memeriksa Stok...' : hasStockIssue ? 'Stok Tidak Tersedia' : 'Buat Pesanan & Bayar Sekarang'}
           </button>
         </div>
       </div>

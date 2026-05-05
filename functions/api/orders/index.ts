@@ -1,4 +1,5 @@
 import { auditLog, cancelOrderAndReleaseReservations, ensureCommerceSchema, expirePendingOrders } from '../_commerce';
+import { validateCartStock } from '../_cartValidation';
 import { ensureVoucherSchema, validateVoucherForCart } from '../_vouchers';
 
 export async function onRequestPost(context: any) {
@@ -29,9 +30,6 @@ export async function onRequestPost(context: any) {
       items 
     } = body;
     
-    // server-side generation of unique code
-    const unique_code = Math.floor(Math.random() * 900) + 100;
-    
     if (!items || !items.length) {
       return new Response(JSON.stringify({ error: 'Missing requirements' }), { status: 400 });
     }
@@ -39,6 +37,20 @@ export async function onRequestPost(context: any) {
     if (payment_method !== 'TRANSFER') {
       return new Response(JSON.stringify({ error: 'Payment method is not available' }), { status: 400 });
     }
+
+    const stockValidation = await validateCartStock(env, items);
+    if (!stockValidation.valid) {
+      return new Response(JSON.stringify({
+        error: stockValidation.unavailableItems[0]?.message || 'Beberapa produk di keranjang sudah tidak tersedia.',
+        unavailableItems: stockValidation.unavailableItems,
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 409,
+      });
+    }
+
+    // server-side generation of unique code
+    const unique_code = Math.floor(Math.random() * 900) + 100;
 
     const paymentSettings = await env.MEYYA_DB.prepare('SELECT transfer_admin_fee, payment_expiry_minutes FROM payment_settings WHERE id = 1').first();
     const finalAdminFee = Number(paymentSettings?.transfer_admin_fee || 0);

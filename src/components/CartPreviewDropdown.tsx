@@ -1,8 +1,9 @@
-import { ShoppingBag, ChevronDown, ChevronUp, Plus, Minus, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { AlertTriangle, Loader2, ShoppingBag, ChevronDown, ChevronUp, Plus, Minus, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
 import { useState, useRef, useEffect } from 'react';
 import { useUser } from '@clerk/react';
+import { useCartStockValidation } from '../hooks/useCartStockValidation';
 
 type GroupedCartItem = {
   product_id: number;
@@ -22,10 +23,19 @@ type GroupedCartItem = {
 };
 
 export default function CartPreviewDropdown() {
-  const { cart, addToCart, decreaseQuantity, removeFromCart, user: localUser } = useStore();
+  const { cart, addToCart, decreaseQuantity, removeFromCart, user: localUser, addToast } = useStore();
   const { user: clerkUser } = useUser();
+  const navigate = useNavigate();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const {
+    validation,
+    issueLineIndexes,
+    hasStockIssue,
+    isCheckingStock,
+    stockCheckError,
+    refreshStockValidation,
+  } = useCartStockValidation(cart);
   
   const [scrollInterval, setScrollInterval] = useState<number | null>(null);
 
@@ -48,6 +58,19 @@ export default function CartPreviewDropdown() {
   useEffect(() => {
     return () => stopScroll();
   }, [scrollInterval]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCheckoutClick = async () => {
+    try {
+      const stockValidation = await refreshStockValidation();
+      if (!stockValidation.valid) {
+        addToast(stockValidation.unavailableItems[0]?.message || 'Beberapa produk di keranjang sudah tidak tersedia.', 'error');
+        return;
+      }
+      navigate('/checkout');
+    } catch (error: any) {
+      addToast(error?.message || 'Gagal memeriksa stok keranjang.', 'error');
+    }
+  };
 
   // Group items by product_id
   const groupedCart: GroupedCartItem[] = [];
@@ -150,8 +173,10 @@ export default function CartPreviewDropdown() {
                         
                         {/* Variations map */}
                         <div className="mt-2 space-y-1">
-                          {product.variations.map((v, i) => (
-                            <div key={i} className="flex justify-between items-center text-[10px] bg-white/50 p-1 rounded">
+                          {product.variations.map((v, i) => {
+                            const stockIssue = validation.unavailableItems.find((issue) => issue.lineIndex === v.originalIndex);
+                            return (
+                            <div key={i} className={`flex justify-between items-center text-[10px] p-1 rounded ${stockIssue ? 'bg-red-50 text-red-700' : 'bg-white/50'}`}>
                               <span className="text-gray-500 truncate pr-2 flex items-center gap-1" title={`${v.color} / ${v.size}`}>
                                 {v.color_hex && <span className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: v.color_hex }} />}
                                 {v.color} / {v.size}
@@ -168,6 +193,7 @@ export default function CartPreviewDropdown() {
                                 <button 
                                   onClick={(e) => { 
                                     e.preventDefault(); 
+                                    if (issueLineIndexes.has(v.originalIndex)) return;
                                     addToCart({
                                       product_id: product.product_id,
                                       variant_id: v.variant_id,
@@ -181,7 +207,8 @@ export default function CartPreviewDropdown() {
                                       quantity: 1
                                     }); 
                                   }}
-                                  className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-white transition-colors"
+                                  disabled={issueLineIndexes.has(v.originalIndex)}
+                                  className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-white transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   <Plus size={8} />
                                 </button>
@@ -194,7 +221,7 @@ export default function CartPreviewDropdown() {
                                 </button>
                               </div>
                             </div>
-                          ))}
+                          )})}
                         </div>
 
                       </div>
@@ -218,6 +245,18 @@ export default function CartPreviewDropdown() {
 
           {groupedCart.length > 0 && (
             <div className="bg-white/50 border-t border-black/5">
+              {(hasStockIssue || stockCheckError) && (
+                <div className="mx-3 mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-[10px] text-red-700 flex items-start gap-2">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                  <span>{validation.unavailableItems[0]?.message || stockCheckError?.message || 'Stok keranjang perlu dicek ulang.'}</span>
+                </div>
+              )}
+              {isCheckingStock && !hasStockIssue && (
+                <div className="mx-3 mt-3 rounded-xl border border-black/10 bg-white p-2 text-[10px] text-gray-500 flex items-center gap-2">
+                  <Loader2 size={12} className="animate-spin" />
+                  Memeriksa stok...
+                </div>
+              )}
               <div className="p-3 pb-1 flex justify-between items-center text-xs">
                 <span className="font-light text-gray-500">Estimasi Total</span>
                 <span className="font-semibold text-sm">Rp {cart.reduce((sum, item) => sum + (item.price * item.quantity), 0).toLocaleString('id-ID')}</span>
@@ -226,9 +265,14 @@ export default function CartPreviewDropdown() {
                 <Link to="/cart" className="block w-full text-center py-2.5 bg-black/5 text-ink rounded-full text-[10px] uppercase font-semibold tracking-widest hover:bg-black/10 transition-colors">
                   Keranjang
                 </Link>
-                <Link to="/checkout" className="block w-full text-center py-2.5 bg-ink text-white rounded-full text-[10px] uppercase font-semibold tracking-widest hover:bg-black/80 transition-colors">
-                  Checkout
-                </Link>
+                <button
+                  type="button"
+                  onClick={handleCheckoutClick}
+                  disabled={hasStockIssue || isCheckingStock}
+                  className="block w-full text-center py-2.5 bg-ink text-white rounded-full text-[10px] uppercase font-semibold tracking-widest hover:bg-black/80 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isCheckingStock ? 'Cek Stok' : hasStockIssue ? 'Ditahan' : 'Checkout'}
+                </button>
               </div>
             </div>
           )}

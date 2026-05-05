@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Trash2, Plus, Minus } from 'lucide-react';
+import { AlertTriangle, Loader2, ShoppingBag, Trash2, Plus, Minus } from 'lucide-react';
 import { useStore } from '../store';
 import { useTrackEvent } from '../hooks/useTrackEvent';
+import { useCartStockValidation } from '../hooks/useCartStockValidation';
 
 type GroupedCartItem = {
   product_id: number;
@@ -21,9 +22,17 @@ type GroupedCartItem = {
 };
 
 export default function Cart() {
-  const { cart, removeFromCart, addToCart, decreaseQuantity } = useStore();
+  const { cart, removeFromCart, addToCart, decreaseQuantity, addToast } = useStore();
   const navigate = useNavigate();
   const trackEvent = useTrackEvent();
+  const {
+    validation,
+    issueLineIndexes,
+    hasStockIssue,
+    isCheckingStock,
+    stockCheckError,
+    refreshStockValidation,
+  } = useCartStockValidation(cart);
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
@@ -138,8 +147,10 @@ export default function Cart() {
                   
                   {/* Detailed Variations Map */}
                   <div className="mt-2 sm:mt-4 flex flex-col gap-2">
-                    {product.variations.map((v, i) => (
-                      <div key={i} className="flex flex-wrap sm:flex-nowrap justify-between items-center bg-white/50 border border-black/5 p-3 rounded-xl gap-3">
+                    {product.variations.map((v, i) => {
+                      const stockIssue = validation.unavailableItems.find((issue) => issue.lineIndex === v.originalIndex);
+                      return (
+                      <div key={i} className={`flex flex-wrap sm:flex-nowrap justify-between items-center border p-3 rounded-xl gap-3 ${stockIssue ? 'bg-red-50 border-red-200' : 'bg-white/50 border-black/5'}`}>
                         <div className="flex flex-col w-full sm:w-auto">
                           <span className="text-[10px] uppercase tracking-widest text-gray-500 mb-0.5">Varian {(i + 1).toString().padStart(2, '0')}</span>
                           <span className="text-xs font-semibold flex items-center gap-2">
@@ -150,6 +161,9 @@ export default function Cart() {
                             <span className="text-[10px] text-black/50 mt-1">
                               {Object.entries(v.variant_options).filter(([key]) => key !== 'Warna' && key !== 'Ukuran').map(([key, value]) => `${key}: ${value}`).join(' / ')}
                             </span>
+                          )}
+                          {stockIssue && (
+                            <span className="text-[10px] font-semibold text-red-600 mt-1">{stockIssue.message}</span>
                           )}
                         </div>
                         
@@ -169,6 +183,7 @@ export default function Cart() {
                             <button 
                               onClick={(e) => { 
                                 e.preventDefault(); 
+                                if (issueLineIndexes.has(v.originalIndex)) return;
                                 addToCart({
                                   product_id: product.product_id,
                                   variant_id: v.variant_id,
@@ -183,7 +198,8 @@ export default function Cart() {
                                 });
                                 trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'increase', source: 'cart', product_name: product.product_name, variant_id: v.variant_id, quantity: v.quantity + 1 } });
                               }}
-                              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white transition-colors"
+                              disabled={issueLineIndexes.has(v.originalIndex)}
+                              className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               <Plus size={12} />
                             </button>
@@ -205,7 +221,7 @@ export default function Cart() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )})}
                   </div>
 
                 </div>
@@ -219,6 +235,23 @@ export default function Cart() {
             <h2 className="text-xl font-medium mb-6">Ringkasan</h2>
             
             <div className="space-y-4 mb-6 text-sm">
+              {(hasStockIssue || stockCheckError) && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-semibold text-xs">Checkout ditahan karena stok berubah.</p>
+                      <p className="text-xs mt-1">{validation.unavailableItems[0]?.message || stockCheckError?.message || 'Refresh keranjang lalu cek kembali stok produk.'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {isCheckingStock && !hasStockIssue && (
+                <div className="rounded-xl border border-black/10 bg-white/60 p-3 text-xs text-gray-500 flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin" />
+                  Memeriksa stok terbaru...
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-500">Total Item</span>
                 <span>{cart.reduce((acc, curr) => acc + curr.quantity, 0)} Pcs</span>
@@ -238,7 +271,18 @@ export default function Cart() {
             </div>
             
             <button 
-              onClick={() => {
+              disabled={hasStockIssue || isCheckingStock}
+              onClick={async () => {
+                try {
+                  const stockValidation = await refreshStockValidation();
+                  if (!stockValidation.valid) {
+                    addToast(stockValidation.unavailableItems[0]?.message || 'Beberapa produk di keranjang sudah tidak tersedia.', 'error');
+                    return;
+                  }
+                } catch (error: any) {
+                  addToast(error?.message || 'Gagal memeriksa stok keranjang.', 'error');
+                  return;
+                }
                 trackEvent('CHECKOUT_STARTED', {
                   metadata: {
                     item_count: cart.reduce((acc, curr) => acc + curr.quantity, 0),
@@ -250,9 +294,9 @@ export default function Cart() {
                 });
                 navigate('/checkout');
               }}
-              className="w-full glass-button py-4 text-base"
+              className="w-full glass-button py-4 text-base disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Lanjutkan ke Checkout
+              {isCheckingStock ? 'Memeriksa Stok...' : hasStockIssue ? 'Checkout Tidak Tersedia' : 'Lanjutkan ke Checkout'}
             </button>
 
             {/* Trust Info */}
