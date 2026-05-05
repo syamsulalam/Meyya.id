@@ -121,7 +121,7 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
               </div>
             ))}
           </div>
-          <p className="text-xs text-black/45 mt-4">Ukuran D1 memakai `PRAGMA page_count * page_size`; row read/write harian resmi tetap dicek dari Cloudflare dashboard.</p>
+          <p className="text-xs text-black/45 mt-4">Ukuran D1 memprioritaskan Cloudflare API, lalu fallback ke `PRAGMA page_count * page_size`; row read/write harian resmi tetap dicek dari Cloudflare dashboard.</p>
         </div>
 
         <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
@@ -168,7 +168,7 @@ function buildUsageCards(data: any) {
       value: data?.d1?.databaseBytes ?? null,
       limit: Number(data?.d1?.databaseLimitBytes || 500 * 1024 * 1024),
       formatter: formatBytes,
-      note: data?.d1?.databaseBytes === null ? 'Ukuran database tidak tersedia dari runtime D1.' : 'Limit database Free: 500 MB.',
+      note: data?.d1?.databaseBytes === null ? d1UnavailableNote(data) : d1SourceNote(data, 'database'),
     },
     {
       icon: Archive,
@@ -181,10 +181,10 @@ function buildUsageCards(data: any) {
     {
       icon: HardDrive,
       label: 'D1 Account',
-      value: data?.d1?.databaseBytes ?? null,
+      value: data?.d1?.accountStorageBytes ?? null,
       limit: Number(data?.d1?.accountStorageLimitBytes || 5 * 1024 * 1024 * 1024),
       formatter: formatBytes,
-      note: data?.d1?.databaseBytes === null ? 'Ukuran database tidak tersedia dari runtime D1.' : 'Aplikasi menampilkan DB aktif sebagai bagian dari limit akun.',
+      note: data?.d1?.accountStorageBytes === null ? d1UnavailableNote(data) : d1SourceNote(data, 'account'),
     },
   ];
 }
@@ -222,4 +222,18 @@ function formatBytes(value: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} KB`;
   return `${bytes.toLocaleString('id-ID')} B`;
+}
+
+function d1SourceNote(data: any, scope: 'database' | 'account') {
+  if (data?.d1?.source === 'cloudflare_api') {
+    const name = data?.d1?.cloudflareApi?.databaseName;
+    return scope === 'account'
+      ? 'Total file_size semua D1 database dari Cloudflare API.'
+      : `Dibaca dari Cloudflare API${name ? `: ${name}` : ''}.`;
+  }
+  return 'Dibaca dari PRAGMA page_count * page_size runtime D1.';
+}
+
+function d1UnavailableNote(data: any) {
+  return data?.d1?.cloudflareApi?.note || data?.d1?.cloudflareApi?.error || 'Ukuran D1 belum tersedia.';
 }

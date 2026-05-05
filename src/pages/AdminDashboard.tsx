@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { Settings, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck, ClipboardList, ListChecks, HardDrive, Banknote } from 'lucide-react';
+import { LayoutDashboard, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck, ClipboardList, ListChecks, HardDrive, Banknote } from 'lucide-react';
 import AdminMetricsPanel from '../components/admin/AdminMetricsPanel';
 import AdminProductForm from '../components/admin/AdminProductForm';
 import AdminCategoryManager from '../components/admin/AdminCategoryManager';
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
                         : 'text-gray-600 hover:bg-black/5 hover:scale-110'
                     }`}
                   >
-                    <Settings size={20} />
+                    <LayoutDashboard size={20} />
                   </button>
                 </Tooltip>
                 <Tooltip content="Pelanggan (CRM)" position="right">

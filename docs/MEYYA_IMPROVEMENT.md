@@ -8,15 +8,47 @@ Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, c
 
 Yang paling masuk akal dikerjakan berikutnya:
 
-1. Tambah kompresi PDF untuk bukti transaksi/bukti transfer jika ukuran PDF mulai membesar.
-2. Tambah finance tahap 3: upload bukti transaksi manual ke folder finance khusus, closing period yang bisa diexport, dan dashboard arus kas.
-3. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih. Status: ditunda karena perlu keputusan third-party provider.
+1. Set environment production Cloudflare Pages agar panel `Limit Free Tier` bisa membaca ukuran D1 dari Cloudflare API:
+   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, dan `CLOUDFLARE_D1_DATABASE_ID`.
+2. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih. Status: ditunda karena perlu keputusan third-party provider.
+3. Cek ulang angka free-tier di production setelah env Cloudflare terset dan redeploy selesai.
 
 Catatan fungsi next action nomor 2:
 
 - Template pesan sekarang sudah rapi dan tervalidasi, tetapi masih dipakai manual untuk disalin/dibuka ke WhatsApp Web.
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
+
+## Batch Agent Policy, D1 API, Tooltip, dan Admin Icon 2026-05-05 07:22:58 +07:00
+
+Checklist:
+
+- [x] `AGENTS.md` dibuat sebagai panduan delegation/cost policy untuk session Codex berikutnya.
+- [x] Folder `.agents/subagents/` dibuat dengan job description per subagent pada 2026-05-05 07:37:15 +07:00.
+- [x] `AGENTS.md` membedakan pekerjaan yang harus tetap di primary frontier model dan pekerjaan aman untuk subagent lebih murah.
+- [x] Catatan model dibuat eksplisit: `gpt-5.4 nano` belum tersedia di model override workspace ini, jadi belum bisa dipakai.
+- [x] Endpoint `/api/admin/free-tier` sekarang mencoba membaca ukuran D1 database dari Cloudflare D1 API jika env Cloudflare tersedia.
+- [x] D1 account usage sekarang punya field `accountStorageBytes` dan mencoba menjumlahkan `file_size` semua D1 database dari Cloudflare API.
+- [x] UI `Limit Free Tier` membedakan sumber angka: Cloudflare API, runtime D1 PRAGMA, atau belum tersedia.
+- [x] `.env.example` menambahkan placeholder env Cloudflare dan Clerk secret tanpa memasukkan secret asli.
+- [x] Tooltip base component dipindah ke portal `document.body` dengan `z-[9999]`, `fixed`, `normal-case`, dan `tracking-normal` agar tidak ketutup parent serta tidak ikut uppercase parent.
+- [x] Tab Keuangan mendapat tooltip untuk laporan keuangan, transaksi manual, arus kas, tutup buku, packaging cost, dan ads cost.
+- [x] Icon tab Dashboard admin diganti dari `Settings` menjadi `LayoutDashboard` agar lebih representatif.
+
+Catatan setup D1 free-tier:
+
+- Cloudflare D1 API resmi menyediakan endpoint `GET /accounts/{account_id}/d1/database/{database_id}` dan mengembalikan `file_size`.
+- Cloudflare D1 API list database memakai `GET /accounts/{account_id}/d1/database`; aplikasi menjumlahkan `file_size` hasil list sebagai estimasi pemakaian D1 account.
+- Permission token minimal untuk pembacaan ini: `Account: D1: Read` pada account yang berisi database production.
+- Set env di Cloudflare Pages production, bukan hanya terminal lokal:
+  `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`.
+- Dari hasil `wrangler d1 list --json` sebelumnya, database production Meyya bernama `meyya-id` dengan database id `c668dd3a-b342-4f89-94fb-22dd4b74d489`.
+- Jika env belum diset di Pages production, UI tetap fallback ke `PRAGMA page_count * page_size`; jika runtime tidak memberi angka, UI menampilkan `Belum tersedia`, bukan `0 B`.
+
+Referensi Cloudflare:
+
+- Get D1 Database: https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/get/
+- List D1 Databases: https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/list/
 
 ## Batch Free Tier Accuracy dan Admin Nav Scroll 2026-05-05 04:16:43 +07:00
 
@@ -32,7 +64,7 @@ Checklist:
 Catatan:
 
 - Angka users di free-tier tetap memakai proxy dari tabel D1 `users`, bukan angka billing resmi Clerk.
-- Angka D1 database size bergantung pada kemampuan runtime D1 membaca `PRAGMA page_count/page_size`. Jika Cloudflare runtime tidak mengembalikan ukuran, nilai akan ditandai belum tersedia.
+- Angka D1 database size sekarang memprioritaskan Cloudflare D1 API jika env production tersedia, lalu fallback ke runtime D1 `PRAGMA page_count/page_size`.
 
 ## Batch Finance Tahap 2 dan Biaya Per Order 2026-05-05
 

@@ -202,3 +202,27 @@ export const ApiCoIdTooltip = (props: TermTooltipProps) => (
 export const WishlistTooltip = (props: TermTooltipProps) => (
   <TermHint {...props} content="Daftar produk yang disimpan pelanggan untuk dilihat atau dibeli nanti." />
 );
+
+export const FinanceStatementTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Laporan ringkas laba rugi dari order valid, HPP, voucher, fee transaksi, packaging, ads, dan transaksi manual." />
+);
+
+export const ManualTransactionTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Catatan uang masuk atau keluar di luar order otomatis, misalnya beli packaging, biaya ads, refund manual, atau modal masuk." />
+);
+
+export const ClosingPeriodTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Tutup buku mengunci snapshot periode bulanan agar angka laporan bulan itu bisa disimpan sebagai arsip." />
+);
+
+export const CashFlowTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Arus kas sederhana memperlihatkan perkiraan uang masuk dan keluar pada periode yang dipilih." />
+);
+
+export const PackagingCostTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Biaya packaging dari transaksi manual kategori Packaging. Dipakai untuk menajamkan estimasi profit bersih." />
+);
+
+export const AdsCostTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Biaya iklan dari transaksi manual kategori Ads. Dipakai untuk melihat profit setelah biaya akuisisi pelanggan." />
+);

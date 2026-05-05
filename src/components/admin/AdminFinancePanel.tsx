@@ -6,6 +6,15 @@ import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
 import { buildImageUploadFormData } from '../../lib/imageCompression';
 import { buildPdfAwareUploadFormData } from '../../lib/pdfCompression';
+import {
+  AdsCostTooltip,
+  CashFlowTooltip,
+  ClosingPeriodTooltip,
+  ExplainedLabel,
+  FinanceStatementTooltip,
+  ManualTransactionTooltip,
+  PackagingCostTooltip,
+} from '../term-tooltips';
 
 const emptyForm = {
   transaction_date: new Date().toISOString().slice(0, 10),
@@ -172,7 +181,7 @@ export default function AdminFinancePanel() {
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div>
           <h2 className="text-2xl font-light mb-2 flex items-center gap-2">
-            <Banknote size={24} /> Keuangan
+            <Banknote size={24} /> <ExplainedLabel tooltip={<FinanceStatementTooltip />}>Keuangan</ExplainedLabel>
           </h2>
           <p className="text-sm font-light text-black/60">Laporan laba rugi sederhana dari order, HPP, voucher, fee transaksi, dan transaksi manual.</p>
         </div>
@@ -188,6 +197,7 @@ export default function AdminFinancePanel() {
           <button type="button" onClick={closeCurrentMonth} disabled={closingPeriod} className="px-4 py-2 rounded-full bg-ink text-white text-[10px] uppercase tracking-widest hover:bg-black/80 disabled:opacity-50 flex items-center gap-2">
             <Lock size={14} /> Tutup Buku
           </button>
+          <ClosingPeriodTooltip />
         </div>
       </div>
 
@@ -210,10 +220,10 @@ export default function AdminFinancePanel() {
             <SmallMetric label="Uang Masuk Manual" value={formatCurrency(statement.manualIncome)} />
             <SmallMetric label="Uang Keluar Manual" value={formatCurrency(statement.manualExpense)} />
             <SmallMetric label="Total Terbayar" value={formatCurrency(statement.totalPaidCollected)} />
-            <SmallMetric label="Packaging / Order" value={formatCurrency(statement.packagingCostPerOrder)} />
-            <SmallMetric label="Ads / Order" value={formatCurrency(statement.adsCostPerOrder)} />
-            <SmallMetric label="Total Packaging" value={formatCurrency(statement.packagingExpense)} />
-            <SmallMetric label="Total Ads" value={formatCurrency(statement.adsExpense)} />
+            <SmallMetric label="Packaging / Order" value={formatCurrency(statement.packagingCostPerOrder)} tooltip={<PackagingCostTooltip />} />
+            <SmallMetric label="Ads / Order" value={formatCurrency(statement.adsCostPerOrder)} tooltip={<AdsCostTooltip />} />
+            <SmallMetric label="Total Packaging" value={formatCurrency(statement.packagingExpense)} tooltip={<PackagingCostTooltip />} />
+            <SmallMetric label="Total Ads" value={formatCurrency(statement.adsExpense)} tooltip={<AdsCostTooltip />} />
           </div>
         </>
       )}
@@ -221,7 +231,7 @@ export default function AdminFinancePanel() {
       <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-6">
         <div className="bg-white/40 border border-black/5 rounded-3xl p-6 space-y-5">
           <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 flex items-center gap-2">
-            <Plus size={16} /> Transaksi Manual
+            <Plus size={16} /> <ExplainedLabel tooltip={<ManualTransactionTooltip />}>Transaksi Manual</ExplainedLabel>
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Tanggal">
@@ -271,7 +281,9 @@ export default function AdminFinancePanel() {
         </div>
 
         <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
-          <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Buku Kas Manual</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">
+            <ExplainedLabel tooltip={<ManualTransactionTooltip />}>Buku Kas Manual</ExplainedLabel>
+          </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-[10px] uppercase tracking-widest text-black/40 border-b border-black/5">
@@ -317,7 +329,9 @@ export default function AdminFinancePanel() {
       </div>
 
       <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Arus Kas Sederhana</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">
+          <ExplainedLabel tooltip={<CashFlowTooltip />}>Arus Kas Sederhana</ExplainedLabel>
+        </h3>
         <div className="space-y-3">
           {cashFlowRows.map((row) => (
             <div key={row.label} className="flex items-center justify-between gap-4 rounded-2xl bg-white/60 border border-black/5 px-4 py-3">
@@ -334,7 +348,9 @@ export default function AdminFinancePanel() {
       </div>
 
       <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Riwayat Tutup Buku</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">
+          <ExplainedLabel tooltip={<ClosingPeriodTooltip />}>Riwayat Tutup Buku</ExplainedLabel>
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {closings.map((closing: any) => (
             <div key={closing.id} className="rounded-2xl bg-white/60 border border-black/5 p-4">
@@ -367,10 +383,12 @@ function MetricCard({ label, value, note, tone = 'income' }: { label: string; va
   );
 }
 
-function SmallMetric({ label, value }: { label: string; value: string }) {
+function SmallMetric({ label, value, tooltip }: { label: string; value: string; tooltip?: ReactNode }) {
   return (
     <div className="rounded-2xl bg-white/50 border border-black/5 p-4">
-      <p className="text-[10px] uppercase tracking-widest text-black/40 font-bold">{label}</p>
+      <p className="text-[10px] uppercase tracking-widest text-black/40 font-bold">
+        {tooltip ? <ExplainedLabel tooltip={tooltip}>{label}</ExplainedLabel> : label}
+      </p>
       <p className="text-sm font-semibold text-ink mt-1">{value}</p>
     </div>
   );

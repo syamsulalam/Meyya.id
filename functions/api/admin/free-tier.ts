@@ -16,9 +16,12 @@ export async function onRequestGet({ env }: any) {
     await ensureCommerceSchema(env);
 
     const d1Storage = await getD1Storage(env);
+    const cloudflareD1 = await getCloudflareD1Usage(env);
     const tableStats = await getTableStats(env);
     const r2Storage = await getR2Storage(env);
     const userCount = await readTableCount(env, 'users');
+    const databaseBytes = cloudflareD1.databaseBytes ?? d1Storage.bytes;
+    const accountStorageBytes = cloudflareD1.accountStorageBytes ?? databaseBytes;
 
     return json({
       limits: LIMITS,
@@ -28,13 +31,16 @@ export async function onRequestGet({ env }: any) {
         source: 'D1 synced users proxy',
       },
       d1: {
-        databaseBytes: d1Storage.bytes,
+        databaseBytes,
+        accountStorageBytes,
         databaseLimitBytes: LIMITS.d1DatabaseBytes,
         accountStorageLimitBytes: LIMITS.d1AccountBytes,
         rowsReadDailyLimit: LIMITS.d1RowsReadDaily,
         rowsWrittenDailyLimit: LIMITS.d1RowsWrittenDaily,
         pageCount: d1Storage.pageCount,
         pageSize: d1Storage.pageSize,
+        source: cloudflareD1.databaseBytes !== null || cloudflareD1.accountStorageBytes !== null ? 'cloudflare_api' : d1Storage.bytes !== null ? 'd1_pragma' : 'unavailable',
+        cloudflareApi: cloudflareD1,
         tableStats,
       },
       r2: {
@@ -106,6 +112,69 @@ async function getD1Storage(env: any) {
   };
 }
 
+async function getCloudflareD1Usage(env: any) {
+  const token = String(env.CLOUDFLARE_API_TOKEN || '').trim();
+  const accountId = String(env.CLOUDFLARE_ACCOUNT_ID || '').trim();
+  const databaseId = String(env.CLOUDFLARE_D1_DATABASE_ID || '').trim();
+  const base = {
+    configured: Boolean(token && accountId && databaseId),
+    databaseBytes: null as number | null,
+    accountStorageBytes: null as number | null,
+    databaseId: databaseId || null,
+    databaseName: null as string | null,
+    error: null as string | null,
+    note: null as string | null,
+  };
+
+  if (!token || !accountId || !databaseId) {
+    return {
+      ...base,
+      note: 'Set CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, dan CLOUDFLARE_D1_DATABASE_ID agar ukuran D1 dibaca dari Cloudflare API.',
+    };
+  }
+
+  try {
+    const [databaseInfo, databaseList] = await Promise.all([
+      cloudflareApiGet(env, `/accounts/${accountId}/d1/database/${databaseId}`),
+      cloudflareApiGet(env, `/accounts/${accountId}/d1/database?per_page=100`),
+    ]);
+
+    const databaseResult = databaseInfo?.result || {};
+    const listResult = Array.isArray(databaseList?.result) ? databaseList.result : [];
+    const databaseBytes = readPositiveNumber(databaseResult.file_size);
+    const accountStorageBytes = listResult.reduce((sum: number, item: any) => sum + readPositiveNumber(item?.file_size), 0);
+
+    return {
+      ...base,
+      databaseBytes: databaseBytes || null,
+      accountStorageBytes: accountStorageBytes || databaseBytes || null,
+      databaseName: typeof databaseResult.name === 'string' ? databaseResult.name : null,
+      note: 'Dibaca dari Cloudflare D1 API.',
+    };
+  } catch (error: any) {
+    return {
+      ...base,
+      error: error.message || 'Cloudflare D1 API tidak bisa dibaca.',
+      note: 'Fallback ke PRAGMA D1 jika tersedia.',
+    };
+  }
+}
+
+async function cloudflareApiGet(env: any, path: string) {
+  const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
+    headers: {
+      Authorization: `Bearer ${String(env.CLOUDFLARE_API_TOKEN || '').trim()}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  const payload: any = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.success === false) {
+    const message = payload?.errors?.[0]?.message || `Cloudflare API error ${response.status}`;
+    throw new Error(message);
+  }
+  return payload;
+}
+
 async function getTableStats(env: any) {
   const tables = [
     'users',
@@ -163,6 +232,11 @@ function readNumberFromRow(row: any, preferredKeys: string[]) {
     if (Number.isFinite(numberValue) && numberValue > 0) return numberValue;
   }
   return 0;
+}
+
+function readPositiveNumber(value: any) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : 0;
 }
 
 async function getR2Storage(env: any) {
