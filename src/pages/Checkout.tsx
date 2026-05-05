@@ -7,6 +7,7 @@ import { useUser } from '@clerk/react';
 import { useAuthFetch, useAuthFetcher } from '../hooks/useAuthFetch';
 import { useTrackEvent } from '../hooks/useTrackEvent';
 import { useCartStockValidation } from '../hooks/useCartStockValidation';
+import { useDraftPersistence } from '../hooks/useDraftPersistence';
 import {
   AdminFeeTooltip,
   ExplainedLabel,
@@ -92,6 +93,39 @@ export default function Checkout() {
 
   const [loading, setLoading] = useState(false);
   const [orderComplete, setOrderComplete] = useState<any>(null);
+  const checkoutDraftKey = clerkUser?.id ? `meyya:draft:checkout:${clerkUser.id}` : 'meyya:draft:checkout:guest';
+  const clearCheckoutDraft = useDraftPersistence(
+    checkoutDraftKey,
+    {
+      address,
+      selectedProv,
+      selectedReg,
+      selectedDist,
+      selectedVill,
+      selectedAddressId,
+      isAddressCollapsed,
+      selectedCourier,
+      paymentMethod,
+      voucherCode,
+      orderBump,
+      orderNote,
+    },
+    (draft: any) => {
+      if (!draft || typeof draft !== 'object') return;
+      if (draft.address) setAddress({ name: draft.address.name || '', phone: draft.address.phone || '', street: draft.address.street || '' });
+      setSelectedProv(draft.selectedProv || null);
+      setSelectedReg(draft.selectedReg || null);
+      setSelectedDist(draft.selectedDist || null);
+      setSelectedVill(draft.selectedVill || null);
+      setSelectedAddressId(draft.selectedAddressId || '');
+      setIsAddressCollapsed(Boolean(draft.isAddressCollapsed));
+      setSelectedCourier(draft.selectedCourier || null);
+      setPaymentMethod(draft.paymentMethod || 'TRANSFER');
+      setVoucherCode(draft.voucherCode || '');
+      setOrderBump(Boolean(draft.orderBump));
+      setOrderNote(draft.orderNote || '');
+    }
+  );
 
   const { data: recommendationsData } = useSWR('/api/products?limit=3', fetcher);
   const { data: paymentOptions } = useSWR('/api/payment/options', fetcher);
@@ -314,6 +348,7 @@ export default function Checkout() {
         },
       });
       clearCart();
+      clearCheckoutDraft();
       // Redirect to new order page
       navigate(`/order/${data.orderId}`);
     } catch (e: any) {

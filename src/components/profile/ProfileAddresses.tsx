@@ -5,6 +5,7 @@ import { CheckCircle2, MapPin, Plus, Trash2 } from 'lucide-react';
 import AutoSuggest from './AutoSuggest';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
+import { useDraftPersistence } from '../../hooks/useDraftPersistence';
 
 const formatPhoneDigits = (value: string) => value.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ');
 
@@ -42,6 +43,37 @@ export default function ProfileAddresses({ user }: { user: any }) {
   const [selectedKecamatan, setSelectedKecamatan] = useState<{id: string, name: string} | null>(null);
   const [selectedKelurahan, setSelectedKelurahan] = useState<{id: string, name: string} | null>(null);
   const [alamatDetail, setAlamatDetail] = useState('');
+  const clearAddressDraft = useDraftPersistence(
+    user?.id ? `meyya:draft:profile-address:${user.id}` : '',
+    {
+      isAddingAddress,
+      addressLabel,
+      addressIcon,
+      addressRecipient,
+      addressPhone,
+      activeStep,
+      selectedProvinsi,
+      selectedKota,
+      selectedKecamatan,
+      selectedKelurahan,
+      alamatDetail,
+    },
+    (draft: any) => {
+      if (!draft || typeof draft !== 'object') return;
+      setIsAddingAddress(Boolean(draft.isAddingAddress));
+      if (draft.addressLabel) setAddressLabel(draft.addressLabel);
+      if (draft.addressIcon) setAddressIcon(draft.addressIcon);
+      setAddressRecipient(draft.addressRecipient || '');
+      setAddressPhone(draft.addressPhone || '');
+      setActiveStep(Number(draft.activeStep || 1));
+      setSelectedProvinsi(draft.selectedProvinsi || null);
+      setSelectedKota(draft.selectedKota || null);
+      setSelectedKecamatan(draft.selectedKecamatan || null);
+      setSelectedKelurahan(draft.selectedKelurahan || null);
+      setAlamatDetail(draft.alamatDetail || '');
+    },
+    { enabled: Boolean(user?.id) }
+  );
 
   useEffect(() => {
     if (savedAddresses.length > 0 && isAddingAddress && !addressRecipient && !alamatDetail) {
@@ -138,6 +170,7 @@ export default function ProfileAddresses({ user }: { user: any }) {
       setSelectedKelurahan(null);
       setAlamatDetail('');
       setActiveStep(1);
+      clearAddressDraft();
       addToast('Alamat berhasil ditambahkan!', 'success');
     } catch (e: any) {
       addToast(e.message, 'error');

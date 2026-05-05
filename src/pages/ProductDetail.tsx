@@ -7,6 +7,7 @@ import { useAuthFetch } from '../hooks/useAuthFetch';
 import { useUser } from '@clerk/react';
 import { useTrackEvent } from '../hooks/useTrackEvent';
 import { ExplainedLabel, ReturnExchangeTooltip } from '../components/term-tooltips';
+import { useDraftPersistence } from '../hooks/useDraftPersistence';
 
 const getVariantOptionValue = (variant: any, key: string) => {
   if (variant?.option_values && typeof variant.option_values === 'object' && variant.option_values[key]) {
@@ -53,6 +54,16 @@ export default function ProductDetail() {
   const [selectedImageUrl, setSelectedImageUrl] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
+  const clearReviewDraft = useDraftPersistence(
+    slug ? `meyya:draft:product-review:${slug}` : '',
+    { reviewRating, reviewText },
+    (draft: any) => {
+      if (!draft || typeof draft !== 'object') return;
+      setReviewRating(Number(draft.reviewRating || 5));
+      setReviewText(draft.reviewText || '');
+    },
+    { enabled: Boolean(slug) }
+  );
 
   useEffect(() => {
     fetch(`/api/products/${slug}`)
@@ -179,6 +190,7 @@ export default function ProductDetail() {
       });
       setReviewText('');
       setReviewRating(5);
+      clearReviewDraft();
       addToast('Review berhasil dikirim.', 'success');
     } catch (error: any) {
       addToast(error.message, 'error');

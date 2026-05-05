@@ -8,6 +8,7 @@ import { useAuthFetch } from '../hooks/useAuthFetch';
 import { ExplainedLabel, ReturnExchangeTooltip, TrackingNumberTooltip, UniqueCodeTooltip } from '../components/term-tooltips';
 import { buildImageUploadFormData } from '../lib/imageCompression';
 import { buildPdfAwareUploadFormData } from '../lib/pdfCompression';
+import { useDraftPersistence } from '../hooks/useDraftPersistence';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -20,6 +21,16 @@ export default function Order() {
   const [returnReason, setReturnReason] = useState('');
   const [returnEvidenceUrls, setReturnEvidenceUrls] = useState<string[]>([]);
   const [uploadingReturnEvidence, setUploadingReturnEvidence] = useState(false);
+  const clearReturnDraft = useDraftPersistence(
+    id ? `meyya:draft:return-request:${id}` : '',
+    { returnReason, returnEvidenceUrls },
+    (draft: any) => {
+      if (!draft || typeof draft !== 'object') return;
+      setReturnReason(draft.returnReason || '');
+      setReturnEvidenceUrls(Array.isArray(draft.returnEvidenceUrls) ? draft.returnEvidenceUrls : []);
+    },
+    { enabled: Boolean(id) }
+  );
   
   const { data: order, error, isLoading } = useSWR(id ? `/api/orders/${id}` : null, authFetcher);
   const { data: paymentOptions } = useSWR('/api/payment/options', fetcher);
@@ -73,6 +84,7 @@ export default function Order() {
       if (!res.ok) throw new Error(data.error || 'Gagal mengirim request');
       setReturnReason('');
       setReturnEvidenceUrls([]);
+      clearReturnDraft();
       addToast('Request berhasil dikirim ke admin.', 'success');
     } catch (error: any) {
       addToast(error.message, 'error');

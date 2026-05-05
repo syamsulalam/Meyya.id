@@ -6,6 +6,7 @@ import { useStore } from '../../store';
 import { useUser } from '@clerk/react';
 import { useAuthFetch } from '../../hooks/useAuthFetch';
 import { BirthdayTooltip, ExplainedLabel } from '../term-tooltips';
+import { useDraftPersistence } from '../../hooks/useDraftPersistence';
 
 const COUNTRY_CODES = [
   { code: '+62', flag: '🇮🇩', label: 'ID' },
@@ -33,6 +34,18 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
   const [birthDate, setBirthDate] = useState('');
   const [savedBirthDate, setSavedBirthDate] = useState('');
   const [canSyncNameToClerk, setCanSyncNameToClerk] = useState(false);
+  const clearProfileDraft = useDraftPersistence(
+    user?.id ? `meyya:draft:profile-account:${user.id}` : '',
+    { countryCode, profileName, profilePhone, birthDate },
+    (draft: any) => {
+      if (!draft || typeof draft !== 'object') return;
+      if (draft.countryCode) setCountryCode(draft.countryCode);
+      if (draft.profileName) setProfileName(draft.profileName);
+      if (draft.profilePhone) setProfilePhone(draft.profilePhone);
+      if (draft.birthDate) setBirthDate(draft.birthDate);
+    },
+    { enabled: Boolean(user?.id) }
+  );
 
   // Fetch Profile Data
   useEffect(() => {
@@ -53,6 +66,18 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
             setVerificationExpiresAt(data.user.phone_wa_verification_expires_at || '');
             setBirthDate(data.user.birth_date || '');
             setSavedBirthDate(data.user.birth_date || '');
+            const rawDraft = localStorage.getItem(`meyya:draft:profile-account:${user.id}`);
+            if (rawDraft) {
+              try {
+                const draft = JSON.parse(rawDraft);
+                if (draft.countryCode) setCountryCode(draft.countryCode);
+                if (draft.profileName) setProfileName(draft.profileName);
+                if (draft.profilePhone) setProfilePhone(draft.profilePhone);
+                if (draft.birthDate) setBirthDate(draft.birthDate);
+              } catch {
+                localStorage.removeItem(`meyya:draft:profile-account:${user.id}`);
+              }
+            }
             setTimeout(() => setIsSaved(true), 10);
           }
         });
@@ -110,6 +135,7 @@ export default function ProfileAccount({ user, setBlockerOpen }: { user: any, se
         setVerificationExpiresAt('');
       }
       setSavedBirthDate(birthDate || savedBirthDate);
+      clearProfileDraft();
       addToast('Perubahan data profil berhasil disimpan!', 'success');
       if (blocker.state === 'blocked') {
         blocker.proceed?.();

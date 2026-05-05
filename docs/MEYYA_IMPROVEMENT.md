@@ -8,19 +8,61 @@ Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, c
 
 Yang paling masuk akal dikerjakan berikutnya:
 
-1. Buat Cloudflare Worker maintenance untuk auto pruning bulanan data operasional yang lebih lama dari 3 tahun, dengan dry-run dan audit log.
-2. Rancang integrasi Duitku sandbox: migration payment gateway fields, create transaction, callback signature, check transaction, dan idempotency.
-3. Inventory server Oracle GOWA yang sudah pernah disetup: base URL, versi, auth, device id, session login, test endpoint `/devices`, `/send/message`, dan format payload webhook message asli.
-4. Set env production `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`, lalu arahkan GOWA webhook ke `/api/webhooks/gowa?secret=...`.
-5. Rancang sinkron Google Contacts untuk nomor WA terverifikasi jika nanti kontak harus tersimpan juga di phonebook bersama, bukan hanya D1.
-6. Tambah messaging outbox untuk WhatsApp/email agar integrasi GOWA dan Sendy bisa dry-run, retry, dan diaudit sebelum auto-send.
-7. Tambah backfill analytics aggregate manual per window tanggal jika ingin histori raw event lama ikut masuk chart.
+1. Rancang dan implementasikan review growth system: CTA review setelah order selesai, admin Reviews tab, admin reply, incentive murah, dan anti duplicate review.
+2. Buat Cloudflare Worker maintenance untuk auto pruning bulanan data operasional yang lebih lama dari 3 tahun, dengan dry-run dan audit log.
+3. Rancang integrasi Duitku sandbox: migration payment gateway fields, create transaction, callback signature, check transaction, dan idempotency.
+4. Inventory server Oracle GOWA yang sudah pernah disetup: base URL, versi, auth, device id, session login, test endpoint `/devices`, `/send/message`, dan format payload webhook message asli.
+5. Set env production `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`, lalu arahkan GOWA webhook ke `/api/webhooks/gowa?secret=...`.
+6. Rancang sinkron Google Contacts untuk nomor WA terverifikasi jika nanti kontak harus tersimpan juga di phonebook bersama, bukan hanya D1.
+7. Tambah messaging outbox untuk WhatsApp/email agar integrasi GOWA dan Sendy bisa dry-run, retry, dan diaudit sebelum auto-send.
+8. Tambah backfill analytics aggregate manual per window tanggal jika ingin histori raw event lama ikut masuk chart.
 
 Catatan fungsi next action nomor 2:
 
 - Template pesan sekarang sudah rapi dan tervalidasi, tetapi masih dipakai manual untuk disalin/dibuka ke WhatsApp Web.
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
+
+## Batch Review Journey dan Review Growth Brainstorm 2026-05-06
+
+Dokumen detail: `docs/MEYYA_REVIEW_JOURNEY_STRATEGY.md`.
+
+Status fitur saat ini:
+
+- [x] Tabel `product_reviews` sudah ada.
+- [x] `POST /api/reviews` sudah auth-gated dan mengecek user punya order selesai berisi produk tersebut.
+- [x] Product detail sudah menampilkan review published dan form rating/textarea.
+- [x] Template pesan `order_completed` sudah mengajak customer memberi review.
+- [x] Draft review product detail tersimpan lokal agar tidak hilang saat refresh.
+- [ ] Review belum punya admin center di `/admin`.
+- [ ] Admin belum bisa membalas review customer secara public.
+- [ ] Belum ada moderation queue yang lengkap.
+- [ ] Belum ada unique guard anti duplicate review per order/product/customer.
+- [ ] Belum ada CTA review di order selesai dan profile order history.
+- [ ] Belum ada insentif review seperti micro-voucher atau undian voucher bulanan.
+- [ ] Rating average/count masih dihitung dari review yang di-fetch, belum dari aggregate semua review published.
+- [ ] Belum ada strategi offload review lama ke R2/static JSON.
+
+Rencana pengadaan:
+
+- [ ] Tambah tab `/admin` Reviews/Ulasan untuk list, filter, detail drawer, publish/hide, admin reply, featured review, internal note, dan link ke order/customer.
+- [ ] Tambah endpoint admin review list/detail/update dengan audit log untuk semua action moderation.
+- [ ] Tambah public admin reply field agar customer bisa melihat balasan Meyya di product page.
+- [ ] Tambah unique constraint atau guard aplikasi untuk mencegah duplicate review pada kombinasi order, product, dan customer.
+- [ ] Tambah CTA `Tulis Review` di `/order/:id` saat order selesai dan di `/profil` riwayat order per item.
+- [ ] Tambah metadata review ringan untuk fashion: size dibeli, fit kecil/pas/besar, quality rating, dan consent marketing.
+- [ ] Tambah badge `Verified Buyer` dan histogram rating di product detail.
+- [ ] Tambah incentive workflow: review teks valid mendapat entry undian, review dengan foto/detail size mendapat extra entry atau micro-voucher dengan minimum spend.
+- [ ] Tambah panel admin untuk review incentive: eligible, rewarded, voucher code, raffle period, dan export pemenang.
+- [ ] Tambah `product_review_summaries` agar rating/count/histogram tidak menghitung raw review setiap product request.
+- [ ] Tambah R2/static JSON archive untuk review published lama, sementara D1 menyimpan review terbaru, featured, pending, dan aggregate.
+
+Catatan strategi:
+
+- Undian voucher bulanan adalah opsi paling murah dengan perceived value tinggi karena biaya fix dan tidak semua reviewer mendapat reward.
+- Micro-voucher cocok jika ingin review lebih konsisten, tetapi harus pakai minimum spend, expiry pendek, dan non-stackable agar biaya terkendali.
+- Review negatif jangan otomatis disembunyikan. Balasan admin yang rapi bisa meningkatkan trust lebih baik daripada hanya menampilkan review positif.
+- Archive review lama harus melalui dry-run dan audit log; jangan hapus raw D1 sebelum export, summary, dan public rendering terverifikasi.
 
 ## Batch Admin WhatsApp Verification, Admin UX, dan Site Map 2026-05-06 02:18:00 +07:00
 

@@ -123,6 +123,7 @@ Future sessions should skim the relevant docs before broad changes:
 - `docs/MEYYA_CRM.md`: CRM concepts and customer analytics.
 - `docs/MEYYA_FINANCE_FEATURES.md`: finance feature notes.
 - `docs/MEYYA_STORAGE.md`: storage and upload notes.
+- `docs/MEYYA_REVIEW_JOURNEY_STRATEGY.md`: customer review journey, review growth incentives, admin review center plan, and review archive strategy.
 - `docs/DUITKU_PAYMENT_GATEWAY_RESEARCH.md`: payment gateway research.
 - `docs/GOWA_WHATSAPP_SENDY_EMAIL_INTEGRATION_PLAN.md`: WhatsApp/email integration plan.
 - `docs/AUTO_PRUNING_AND_PDF_COMPRESSION_RESEARCH.md`: maintenance and compression research.

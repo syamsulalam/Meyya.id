@@ -151,6 +151,7 @@ Webhooks:
 
 - Main schema reference: `schema.sql`.
 - Production migrations live in `migrations/`.
+- Review journey, admin review center plan, incentive ideas, and review archive/offload strategy are documented in `docs/MEYYA_REVIEW_JOURNEY_STRATEGY.md`.
 - `ensureCommerceSchema`, `ensureUsersSchema`, and app setting helpers defensively create/patch tables at runtime, but production changes should still get explicit migration files.
 - Stock model: product global stock mirrors sum of active variants when variants exist; preorder bypasses stock block.
 - Order creation reserves stock at `PENDING`, consumes or releases later via status/expiry flows.
