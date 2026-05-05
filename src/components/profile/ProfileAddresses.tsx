@@ -13,7 +13,17 @@ export default function ProfileAddresses({ user }: { user: any }) {
   const fetcher = useAuthFetcher();
   const { addToast, showConfirm } = useStore();
   const { data: dbAddresses, mutate: mutateAddresses } = useSWR(user?.id ? `/api/user/addresses/${user.id}` : null, fetcher);
+  const { data: profileData } = useSWR(user?.id ? `/api/user/profile/${user.id}` : null, fetcher);
   const savedAddresses = Array.isArray(dbAddresses) ? dbAddresses : [];
+  const profileUser = profileData?.user || {};
+  const defaultRecipientName = (
+    profileUser.name ||
+    [profileUser.first_name, profileUser.last_name].filter(Boolean).join(' ') ||
+    user?.fullName ||
+    user?.name ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ')
+  ).trim();
+  const defaultRecipientPhone = formatPhoneDigits(profileUser.phone_wa || user?.unsafeMetadata?.meyya_phone_wa || '');
 
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [addressLabel, setAddressLabel] = useState('Rumah');
@@ -85,7 +95,10 @@ export default function ProfileAddresses({ user }: { user: any }) {
   }, [selectedKecamatan]);
 
   const handleSaveAddress = async () => {
-    if (activeStep < 5 || alamatDetail.length < 5 || !addressRecipient || !addressPhone) {
+    const effectiveRecipientName = addressRecipient.trim() || defaultRecipientName;
+    const effectiveRecipientPhone = (addressPhone || defaultRecipientPhone).replace(/\s/g, '');
+
+    if (activeStep < 5 || alamatDetail.length < 5 || !effectiveRecipientName || !effectiveRecipientPhone) {
       addToast('Mohon lengkapi semua form alamat pengiriman', 'error');
       return;
     }
@@ -93,8 +106,8 @@ export default function ProfileAddresses({ user }: { user: any }) {
     const newAddr = {
       label: addressLabel,
       icon: addressIcon,
-      recipient_name: addressRecipient,
-      recipient_phone: addressPhone.replace(/\s/g, ''),
+      recipient_name: effectiveRecipientName,
+      recipient_phone: effectiveRecipientPhone,
       street_address: alamatDetail,
       province_code: selectedProvinsi?.id || '',
       province_name: selectedProvinsi?.name || '',
@@ -226,11 +239,17 @@ export default function ProfileAddresses({ user }: { user: any }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Nama Penerima</label>
-              <input type="text" value={addressRecipient} onChange={e => setAddressRecipient(e.target.value)} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" />
+              <input type="text" value={addressRecipient} onChange={e => setAddressRecipient(e.target.value)} placeholder={defaultRecipientName || 'Nama penerima'} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" />
+              {defaultRecipientName && !addressRecipient && (
+                <p className="mt-1.5 text-[10px] text-black/45">Jika dikosongkan, penerima memakai nama profil: {defaultRecipientName}</p>
+              )}
             </div>
             <div>
               <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">No WA Penerima</label>
-              <input type="tel" value={addressPhone} onChange={(e) => setAddressPhone(formatPhoneDigits(e.target.value))} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" placeholder="Contoh: 0812 3456 7890" />
+              <input type="tel" value={addressPhone} onChange={(e) => setAddressPhone(formatPhoneDigits(e.target.value))} className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 focus:outline-none focus:border-black/30 transition-colors text-sm" placeholder={defaultRecipientPhone || 'Contoh: 0812 3456 7890'} />
+              {defaultRecipientPhone && !addressPhone && (
+                <p className="mt-1.5 text-[10px] text-black/45">Jika dikosongkan, nomor penerima memakai WA profil: {defaultRecipientPhone}</p>
+              )}
             </div>
           </div>
 
@@ -273,7 +292,7 @@ export default function ProfileAddresses({ user }: { user: any }) {
           </AddressStep>
 
           <div className="pt-4 border-t border-black/5 text-right">
-            <button type="button" onClick={handleSaveAddress} disabled={activeStep < 5 || alamatDetail.length < 5 || !addressRecipient || !addressPhone} className="px-6 py-2.5 bg-ink text-white rounded-full uppercase tracking-widest text-xs hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="button" onClick={handleSaveAddress} disabled={activeStep < 5 || alamatDetail.length < 5 || !(addressRecipient.trim() || defaultRecipientName) || !((addressPhone || defaultRecipientPhone).replace(/\s/g, ''))} className="px-6 py-2.5 bg-ink text-white rounded-full uppercase tracking-widest text-xs hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               Tambah Ke Daftar Alamat
             </button>
           </div>
