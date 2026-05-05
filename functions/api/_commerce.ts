@@ -159,6 +159,14 @@ export async function ensureCommerceSchema(env: any) {
       product_id INTEGER,
       order_id TEXT,
       campaign_tag TEXT,
+      source TEXT,
+      medium TEXT,
+      campaign TEXT,
+      device_type TEXT,
+      page_path TEXT,
+      referrer TEXT,
+      session_id TEXT,
+      anonymous_id TEXT,
       metadata TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -174,6 +182,59 @@ export async function ensureCommerceSchema(env: any) {
       status TEXT DEFAULT 'ACTIVE',
       last_event_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       converted_order_id TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS analytics_daily_metrics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      metric_date TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      source TEXT DEFAULT '',
+      medium TEXT DEFAULT '',
+      campaign TEXT DEFAULT '',
+      device_type TEXT DEFAULT '',
+      page_path TEXT DEFAULT '',
+      event_count INTEGER DEFAULT 0,
+      unique_users INTEGER DEFAULT 0,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(metric_date, event_type, source, medium, campaign, device_type, page_path)
+    )
+  `).run();
+
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS analytics_daily_metric_users (
+      metric_date TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      source TEXT DEFAULT '',
+      medium TEXT DEFAULT '',
+      campaign TEXT DEFAULT '',
+      device_type TEXT DEFAULT '',
+      page_path TEXT DEFAULT '',
+      clerk_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(metric_date, event_type, source, medium, campaign, device_type, page_path, clerk_id)
+    )
+  `).run();
+
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS user_event_summaries (
+      clerk_id TEXT PRIMARY KEY,
+      last_event_at DATETIME,
+      last_event_type TEXT,
+      last_source TEXT,
+      last_medium TEXT,
+      last_campaign TEXT,
+      last_device_type TEXT,
+      last_page_path TEXT,
+      last_referrer TEXT,
+      last_cart_at DATETIME,
+      last_product_view_at DATETIME,
+      last_checkout_at DATETIME,
+      campaign_touch_count INTEGER DEFAULT 0,
+      search_count INTEGER DEFAULT 0,
+      voucher_apply_count INTEGER DEFAULT 0,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
@@ -233,7 +294,18 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'user_events', 'product_id', 'INTEGER');
   await addColumn(env, 'user_events', 'order_id', 'TEXT');
   await addColumn(env, 'user_events', 'campaign_tag', 'TEXT');
+  await addColumn(env, 'user_events', 'source', 'TEXT');
+  await addColumn(env, 'user_events', 'medium', 'TEXT');
+  await addColumn(env, 'user_events', 'campaign', 'TEXT');
+  await addColumn(env, 'user_events', 'device_type', 'TEXT');
+  await addColumn(env, 'user_events', 'page_path', 'TEXT');
+  await addColumn(env, 'user_events', 'referrer', 'TEXT');
+  await addColumn(env, 'user_events', 'session_id', 'TEXT');
+  await addColumn(env, 'user_events', 'anonymous_id', 'TEXT');
   await addColumn(env, 'user_events', 'metadata', 'TEXT');
+  await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_user_events_clerk_created ON user_events(clerk_id, created_at)').run();
+  await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_user_events_type_created ON user_events(event_type, created_at)').run();
+  await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_user_events_campaign ON user_events(campaign)').run();
   await addColumn(env, 'user_cart_snapshots', 'item_count', 'INTEGER DEFAULT 0');
   await addColumn(env, 'user_cart_snapshots', 'subtotal', 'INTEGER DEFAULT 0');
   await addColumn(env, 'user_cart_snapshots', 'product_ids', 'TEXT');
@@ -242,6 +314,19 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'user_cart_snapshots', 'last_event_at', 'DATETIME');
   await addColumn(env, 'user_cart_snapshots', 'converted_order_id', 'TEXT');
   await addColumn(env, 'user_cart_snapshots', 'updated_at', 'DATETIME');
+  await addColumn(env, 'analytics_daily_metrics', 'page_path', 'TEXT DEFAULT ""');
+  await addColumn(env, 'analytics_daily_metrics', 'unique_users', 'INTEGER DEFAULT 0');
+  await addColumn(env, 'analytics_daily_metric_users', 'page_path', 'TEXT DEFAULT ""');
+  await addColumn(env, 'user_event_summaries', 'last_referrer', 'TEXT');
+  await addColumn(env, 'user_event_summaries', 'last_cart_at', 'DATETIME');
+  await addColumn(env, 'user_event_summaries', 'last_product_view_at', 'DATETIME');
+  await addColumn(env, 'user_event_summaries', 'last_checkout_at', 'DATETIME');
+  await addColumn(env, 'user_event_summaries', 'campaign_touch_count', 'INTEGER DEFAULT 0');
+  await addColumn(env, 'user_event_summaries', 'search_count', 'INTEGER DEFAULT 0');
+  await addColumn(env, 'user_event_summaries', 'voucher_apply_count', 'INTEGER DEFAULT 0');
+  await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_analytics_daily_date ON analytics_daily_metrics(metric_date)').run();
+  await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_analytics_daily_event ON analytics_daily_metrics(event_type, metric_date)').run();
+  await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_user_event_summaries_updated ON user_event_summaries(updated_at)').run();
   await addColumn(env, 'return_requests', 'evidence_urls', 'TEXT');
   await addColumn(env, 'return_requests', 'sla_due_at', 'DATETIME');
   await addColumn(env, 'return_requests', 'received_at', 'DATETIME');

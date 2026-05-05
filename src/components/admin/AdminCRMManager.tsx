@@ -42,7 +42,7 @@ export default function AdminCRMManager() {
 
   const exportCustomers = () => {
     const rows = [
-      ['name', 'email', 'phone_wa', 'birth_date', 'status', 'orders', 'ltv', 'return_rate', 'last_active', 'abandoned_cart'],
+      ['name', 'email', 'phone_wa', 'birth_date', 'status', 'orders', 'ltv', 'return_rate', 'last_active', 'last_source', 'last_device', 'last_campaign', 'abandoned_cart'],
       ...FILTERED_CUSTOMERS.map((customer: any) => [
         customer.name,
         customer.email,
@@ -53,6 +53,9 @@ export default function AdminCRMManager() {
         customer.ltv || 0,
         customer.returnRate || '0%',
         customer.lastActive || '',
+        customer.lastSource || '',
+        customer.lastDevice || '',
+        customer.lastCampaign || '',
         customer.abandonedCart ? 'yes' : 'no'
       ])
     ];
@@ -187,6 +190,25 @@ export default function AdminCRMManager() {
                         <ExplainedLabel tooltip={<CampaignTouchTooltip />}>Campaign Touch</ExplainedLabel>
                       </p>
                       <p className="font-medium">{selectedUser.campaignTouchCount || 0}x</p>
+                   </div>
+                   <div>
+                      <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Source Terakhir</p>
+                      <p className="font-medium">{selectedUser.lastSource || '-'}</p>
+                      <p className="text-[10px] text-black/40">{selectedUser.lastMedium || '-'}</p>
+                   </div>
+                   <div>
+                      <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Device Terakhir</p>
+                      <p className="font-medium">{selectedUser.lastDevice || '-'}</p>
+                      <p className="text-[10px] text-black/40">{selectedUser.latestEvent?.eventType || '-'}</p>
+                   </div>
+                   <div>
+                      <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Campaign Terakhir</p>
+                      <p className="font-medium">{selectedUser.lastCampaign || '-'}</p>
+                      <p className="text-[10px] text-black/40">{selectedUser.latestEvent?.pagePath || '-'}</p>
+                   </div>
+                   <div>
+                      <p className="text-[10px] uppercase tracking-widest text-black/50 mb-1">Search / Voucher</p>
+                      <p className="font-medium">{selectedUser.searchCount || 0} search / {selectedUser.voucherApplyCount || 0} voucher</p>
                    </div>
                 </div>
              </div>

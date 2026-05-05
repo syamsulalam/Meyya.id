@@ -77,7 +77,15 @@ export default function ProductDetail() {
            setSelectedImageUrl(data.image_url || data.images?.[0]?.image_url || '');
            trackEvent('PRODUCT_VIEW', {
              product_id: data.id,
-             metadata: { slug: data.slug, name: data.name, category: data.category_name },
+             metadata: {
+               slug: data.slug,
+               name: data.name,
+               category: data.category_name,
+               category_slug: data.category_slug,
+               price: data.base_price,
+               stock: data.stock,
+               variant_count: Array.isArray(data.variants) ? data.variants.length : 0,
+             },
            });
            document.title = data.meta_title || `${data.name} | MEYYA.ID`;
            const metaDescription = document.querySelector('meta[name="description"]') || document.head.appendChild(document.createElement('meta'));
@@ -144,6 +152,9 @@ export default function ProductDetail() {
         action: 'add',
         quantity: 1,
         product_name: product.name,
+        category: product.category_name,
+        price: product.base_price,
+        source: 'product_detail',
         variant_id: selectedVariant?.id,
         variant_options: selectedVariant?.option_values || selectedOptionValues,
       },
@@ -176,6 +187,15 @@ export default function ProductDetail() {
 
   const toggleWishlistSynced = async () => {
     toggleWishlist(product.id);
+    trackEvent('WISHLIST_UPDATED', {
+      product_id: product.id,
+      metadata: {
+        action: isWished ? 'remove' : 'add',
+        product_name: product.name,
+        category: product.category_name,
+        source: 'product_detail',
+      },
+    });
     if (!isSignedIn) return;
     await authFetch(isWished ? `/api/user/wishlist?product_id=${product.id}` : '/api/user/wishlist', {
       method: isWished ? 'DELETE' : 'POST',

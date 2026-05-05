@@ -121,14 +121,45 @@ export default function Checkout() {
        const data = await res.json();
        
        if (!res.ok) {
+          trackEvent('VOUCHER_FAILED', {
+            campaign_tag: voucherCode.toUpperCase(),
+            metadata: {
+              voucher_code: voucherCode.toUpperCase(),
+              error: data.error || 'Voucher tidak valid',
+              subtotal,
+              shipping_cost: shippingCost,
+              source: 'checkout',
+            },
+          });
           addToast('Gagal menggunakan voucher: ' + (data.error || 'Voucher tidak valid'), 'error');
           setAppliedVoucher(null);
           return;
        }
 
        setAppliedVoucher({ code: data.code, discount: data.discount });
+       trackEvent('VOUCHER_APPLIED', {
+         campaign_tag: data.code,
+         metadata: {
+           voucher_code: data.code,
+           discount: data.discount,
+           subtotal,
+           shipping_cost: shippingCost,
+           item_count: cart.reduce((acc, item) => acc + item.quantity, 0),
+           source: 'checkout',
+         },
+       });
        addToast('Voucher berhasil diaplikasikan!', 'success');
     } catch (e: any) {
+       trackEvent('VOUCHER_FAILED', {
+         campaign_tag: voucherCode.toUpperCase(),
+         metadata: {
+           voucher_code: voucherCode.toUpperCase(),
+           error: e?.message || 'network_error',
+           subtotal,
+           shipping_cost: shippingCost,
+           source: 'checkout',
+         },
+       });
        addToast('Terjadi kesalahan jaringan.', 'error');
     }
   };
@@ -172,6 +203,14 @@ export default function Checkout() {
           const data = await res.json();
           if (data.results) {
             setCouriers(data.results);
+            trackEvent('SHIPPING_OPTIONS_LOADED', {
+              metadata: {
+                destination_village_code: fetchVillCode,
+                weight_kg: totalWeightKilos > 0 ? totalWeightKilos : 1,
+                option_count: data.results.length,
+                source: 'checkout',
+              },
+            });
           }
         } catch (e) {
           console.error("Failed to load shipping");
@@ -242,7 +281,18 @@ export default function Checkout() {
         metadata: {
           item_count: cart.reduce((acc, item) => acc + item.quantity, 0),
           subtotal,
+          shipping_cost: shippingCost,
+          admin_fee: adminFee,
+          discount_amount: appliedVoucher?.discount || 0,
+          total_paid: totalAkhir,
           voucher_code: appliedVoucher?.code || null,
+          payment_method: paymentMethod,
+          courier_code: selectedCourier.courier_code,
+          courier_name: selectedCourier.courier_name,
+          courier_service: selectedCourier.service || selectedCourier.service_name || selectedCourier.courier_service || '',
+          order_bump: orderBump,
+          product_ids: Array.from(new Set(cart.map((item) => item.product_id))),
+          variant_count: cart.filter((item) => item.variant_id).length,
         },
       });
       clearCart();
@@ -463,7 +513,21 @@ export default function Checkout() {
                          className="hidden" 
                          name="courier" 
                          value={c.courier_code} 
-                         onChange={() => setSelectedCourier(c)} 
+                         onChange={() => {
+                           setSelectedCourier(c);
+                           trackEvent('SHIPPING_SELECTED', {
+                             metadata: {
+                               courier_code: c.courier_code,
+                               courier_name: c.courier_name,
+                               service: c.service || c.service_name || c.courier_service || '',
+                               price: c.price,
+                               estimation: c.estimation || '',
+                               weight_kg: totalWeightKilos,
+                               address_source: isAddressCollapsed ? 'saved_address' : 'new_address',
+                               source: 'checkout',
+                             },
+                           });
+                         }} 
                        />
                        <div className="flex items-center gap-3">
                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedCourier?.courier_code === c.courier_code && selectedCourier?.price === c.price ? 'border-white' : 'border-gray-300'}`}>
@@ -502,7 +566,11 @@ export default function Checkout() {
                         name="payment" 
                         value={pm.id} 
                         disabled={pm.id !== 'TRANSFER'}
-                        onChange={() => pm.id === 'TRANSFER' && setPaymentMethod(pm.id)} 
+                        onChange={() => {
+                          if (pm.id !== 'TRANSFER') return;
+                          setPaymentMethod(pm.id);
+                          trackEvent('PAYMENT_METHOD_SELECTED', { metadata: { payment_method: pm.id, source: 'checkout' } });
+                        }} 
                       />
                       <div className={`w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${paymentMethod === pm.id ? 'border-ink' : 'border-gray-300'}`}>
                         {paymentMethod === pm.id && <div className="w-2 h-2 bg-ink rounded-full" />}

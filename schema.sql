@@ -223,6 +223,14 @@ CREATE TABLE IF NOT EXISTS user_events (
   product_id INTEGER,
   order_id TEXT,
   campaign_tag TEXT,
+  source TEXT,
+  medium TEXT,
+  campaign TEXT,
+  device_type TEXT,
+  page_path TEXT,
+  referrer TEXT,
+  session_id TEXT,
+  anonymous_id TEXT,
   metadata TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -236,6 +244,53 @@ CREATE TABLE IF NOT EXISTS user_cart_snapshots (
   status TEXT DEFAULT 'ACTIVE',
   last_event_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   converted_order_id TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS analytics_daily_metrics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  metric_date TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  source TEXT DEFAULT '',
+  medium TEXT DEFAULT '',
+  campaign TEXT DEFAULT '',
+  device_type TEXT DEFAULT '',
+  page_path TEXT DEFAULT '',
+  event_count INTEGER DEFAULT 0,
+  unique_users INTEGER DEFAULT 0,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(metric_date, event_type, source, medium, campaign, device_type, page_path)
+);
+
+CREATE TABLE IF NOT EXISTS analytics_daily_metric_users (
+  metric_date TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  source TEXT DEFAULT '',
+  medium TEXT DEFAULT '',
+  campaign TEXT DEFAULT '',
+  device_type TEXT DEFAULT '',
+  page_path TEXT DEFAULT '',
+  clerk_id TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(metric_date, event_type, source, medium, campaign, device_type, page_path, clerk_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_event_summaries (
+  clerk_id TEXT PRIMARY KEY,
+  last_event_at DATETIME,
+  last_event_type TEXT,
+  last_source TEXT,
+  last_medium TEXT,
+  last_campaign TEXT,
+  last_device_type TEXT,
+  last_page_path TEXT,
+  last_referrer TEXT,
+  last_cart_at DATETIME,
+  last_product_view_at DATETIME,
+  last_checkout_at DATETIME,
+  campaign_touch_count INTEGER DEFAULT 0,
+  search_count INTEGER DEFAULT 0,
+  voucher_apply_count INTEGER DEFAULT 0,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -361,7 +416,19 @@ CREATE TABLE IF NOT EXISTS finance_transactions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_finance_transactions_date
-ON finance_transactions(transaction_date);
+  ON finance_transactions(transaction_date);
+CREATE INDEX IF NOT EXISTS idx_user_events_clerk_created
+  ON user_events(clerk_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_user_events_type_created
+  ON user_events(event_type, created_at);
+CREATE INDEX IF NOT EXISTS idx_user_events_campaign
+  ON user_events(campaign);
+CREATE INDEX IF NOT EXISTS idx_analytics_daily_date
+  ON analytics_daily_metrics(metric_date);
+CREATE INDEX IF NOT EXISTS idx_analytics_daily_event
+  ON analytics_daily_metrics(event_type, metric_date);
+CREATE INDEX IF NOT EXISTS idx_user_event_summaries_updated
+  ON user_event_summaries(updated_at);
 
 CREATE TABLE IF NOT EXISTS finance_period_closings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

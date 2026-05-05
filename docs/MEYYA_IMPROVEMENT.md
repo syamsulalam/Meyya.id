@@ -11,13 +11,50 @@ Yang paling masuk akal dikerjakan berikutnya:
 1. Set environment production Cloudflare Pages agar panel `Limit Free Tier` bisa membaca ukuran D1 dari Cloudflare API:
    `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, dan `CLOUDFLARE_D1_DATABASE_ID`.
 2. Hubungkan template pesan ke provider WhatsApp/email setelah provider dipilih. Status: ditunda karena perlu keputusan third-party provider.
-3. Cek ulang angka free-tier di production setelah env Cloudflare terset dan redeploy selesai.
+3. Setelah analytics aggregate punya data beberapa hari, tambah chart tren source/campaign dan conversion funnel sederhana.
 
 Catatan fungsi next action nomor 2:
 
 - Template pesan sekarang sudah rapi dan tervalidasi, tetapi masih dipakai manual untuk disalin/dibuka ke WhatsApp Web.
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
+
+## Batch Agregasi Analytics Harian 2026-05-05 23:23:18 +07:00
+
+Checklist:
+
+- [x] Tabel `analytics_daily_metrics` ditambahkan untuk menyimpan event count dan unique users per hari, event type, source, medium, campaign, device, dan page path.
+- [x] Tabel `analytics_daily_metric_users` ditambahkan sebagai dedupe unique user harian per dimensi aggregate.
+- [x] Tabel `user_event_summaries` ditambahkan agar `/api/admin/users` membaca ringkasan event per pelanggan, bukan scan/group raw `user_events`.
+- [x] Insert event publik dan admin campaign touch sekarang otomatis mengupdate daily aggregate dan user summary.
+- [x] Endpoint admin baru `/api/admin/analytics?days=14` membaca data dari `analytics_daily_metrics`.
+- [x] Panel WhatsApp Marketing CRM menampilkan ringkasan 14 hari: total event, user aktif harian, source teratas, dan event teratas.
+- [x] Free-tier pruning ikut bisa memangkas dedupe key `analytics_daily_metric_users` lama agar aggregate tidak membengkak.
+- [x] Migration helper `migrations/2026-05-05_daily_analytics_aggregates.sql` ditambahkan sebagai opsi manual; deploy biasa juga aman karena `ensureCommerceSchema` self-heal.
+- [x] Roadmap admin menandai `Agregasi analytics harian` sebagai done.
+
+Catatan:
+
+- Aggregate mulai terisi dari event baru setelah deploy. Raw `user_events` lama tetap ada, tetapi tidak otomatis di-backfill ke aggregate agar dashboard tidak melakukan scan besar diam-diam.
+- Jika nanti ingin melihat histori lama di aggregate, lakukan backfill manual terkontrol dari raw event pada window tanggal tertentu.
+
+## Batch Analytics Event Detail 2026-05-05 08:54:26 +07:00
+
+Checklist:
+
+- [x] `user_events` diperluas dengan field terstruktur: `source`, `medium`, `campaign`, `device_type`, `page_path`, `referrer`, `session_id`, dan `anonymous_id`.
+- [x] `ensureCommerceSchema` melakukan self-heal kolom analytics baru dan membuat index event penting.
+- [x] Migration helper `migrations/2026-05-05_detailed_analytics_events.sql` ditambahkan sebagai opsi one-time manual jika ingin patch schema sebelum traffic masuk.
+- [x] `useTrackEvent` otomatis menambahkan UTM/click id/referrer, device type, viewport, language, timezone, session id, anonymous id, page path, dan page title ke metadata analytics.
+- [x] Event checkout diperinci: voucher applied/failed, shipping options loaded, shipping selected, payment method selected, dan order created dengan shipping/admin fee/discount/total/courier/product ids.
+- [x] Event katalog diperinci: category filter click, search performed, search suggestion clicked, wishlist updated, product view detail, dan cart update dengan varian.
+- [x] Admin CRM menampilkan source/device/campaign/event terakhir serta jumlah search dan voucher applied per pelanggan.
+- [x] Roadmap admin menandai `Analytics event lebih detail` sebagai done.
+
+Catatan:
+
+- Event masih hanya dicatat untuk user yang sudah login karena `/api/events` dilindungi Clerk. Ini sengaja aman untuk MVP dan menghindari anonymous event spam.
+- Raw event sekarang lebih kaya, tetapi untuk volume traffic besar sebaiknya tahap berikutnya membuat tabel agregat harian per source/campaign/event agar D1 read tetap hemat.
 
 ## Batch Agent Policy, D1 API, Tooltip, dan Admin Icon 2026-05-05 07:22:58 +07:00
 

@@ -51,5 +51,6 @@ export const developmentRoadmap: RoadmapItem[] = [
   { title: 'Finance tahap 3', status: 'done', area: 'Admin', note: 'Bukti finance masuk folder R2 khusus, closing period bisa export CSV, dan arus kas sederhana tersedia.' },
   { title: 'Kompresi PDF API agresif', status: 'planned', area: 'Data', note: 'Evaluasi CloudConvert, iLoveAPI, PDF.co, atau provider khusus jika volume PDF mulai besar.' },
   { title: 'Provider WhatsApp/email', status: 'planned', area: 'Marketing', note: 'Template pesan belum terkirim otomatis dari provider resmi.' },
-  { title: 'Analytics event lebih detail', status: 'planned', area: 'Marketing', note: 'Metadata event belum memuat device/source campaign secara rapi.' },
+  { title: 'Analytics event lebih detail', status: 'done', area: 'Marketing', note: 'Event menyimpan source, medium, campaign, device, page path, referrer, session, dan anonymous id secara terstruktur.' },
+  { title: 'Agregasi analytics harian', status: 'done', area: 'Marketing', note: 'Dashboard marketing membaca aggregate harian dan user event summary, bukan scan raw user_events untuk metrik umum.' },
 ];

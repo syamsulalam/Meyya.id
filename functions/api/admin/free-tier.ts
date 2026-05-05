@@ -56,6 +56,7 @@ export async function onRequestGet({ env }: any) {
         eventRetentionDays: 120,
         convertedCartRetentionDays: 30,
         staleCartRetentionDays: 90,
+        analyticsUserKeyRetentionDays: 180,
         regionCacheRetentionDays: 14,
         auditLogRetentionDays: 365,
       },
@@ -72,12 +73,14 @@ export async function onRequestPost({ env, request }: any) {
     const eventRetentionDays = clampDays(body.eventRetentionDays, 30, 3650, 120);
     const convertedCartRetentionDays = clampDays(body.convertedCartRetentionDays, 7, 3650, 30);
     const staleCartRetentionDays = clampDays(body.staleCartRetentionDays, 30, 3650, 90);
+    const analyticsUserKeyRetentionDays = clampDays(body.analyticsUserKeyRetentionDays, 30, 3650, 180);
     const regionCacheRetentionDays = clampDays(body.regionCacheRetentionDays, 1, 3650, 14);
     const auditLogRetentionDays = clampDays(body.auditLogRetentionDays, 180, 3650, 365);
     const includeAuditLogs = Boolean(body.includeAuditLogs);
 
     const changes: Record<string, number> = {};
     changes.user_events = await deleteOlderThan(env, 'user_events', 'created_at', eventRetentionDays);
+    changes.analytics_daily_metric_users = await deleteOlderThan(env, 'analytics_daily_metric_users', 'created_at', analyticsUserKeyRetentionDays);
     changes.converted_cart_snapshots = await deleteConvertedCartSnapshots(env, convertedCartRetentionDays);
     changes.stale_empty_cart_snapshots = await deleteStaleEmptyCartSnapshots(env, staleCartRetentionDays);
     changes.region_cache = await deleteOlderThan(env, 'region_cache', 'cached_at', regionCacheRetentionDays);
@@ -90,6 +93,7 @@ export async function onRequestPost({ env, request }: any) {
       eventRetentionDays,
       convertedCartRetentionDays,
       staleCartRetentionDays,
+      analyticsUserKeyRetentionDays,
       regionCacheRetentionDays,
       auditLogRetentionDays,
       includeAuditLogs,
@@ -187,6 +191,9 @@ async function getTableStats(env: any) {
     'vouchers',
     'voucher_usages',
     'user_events',
+    'analytics_daily_metrics',
+    'analytics_daily_metric_users',
+    'user_event_summaries',
     'user_cart_snapshots',
     'region_cache',
     'audit_logs',

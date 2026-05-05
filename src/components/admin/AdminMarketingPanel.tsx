@@ -19,6 +19,7 @@ export default function AdminMarketingPanel() {
   const { isLoaded, isSignedIn } = useAuth();
   const authReady = isLoaded && isSignedIn;
   const { data: dbUsers, isLoading, mutate } = useSWR(authReady ? '/api/admin/users' : null, fetcher);
+  const { data: analyticsData } = useSWR(authReady ? '/api/admin/analytics?days=14' : null, fetcher);
   
   const [selectedTarget, setSelectedTarget] = useState<any | null>(null);
   const [customMessage, setCustomMessage] = useState('');
@@ -153,6 +154,29 @@ export default function AdminMarketingPanel() {
         </div>
       )}
 
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <AnalyticsCard
+          label="Event 14 Hari"
+          value={sumMetric(analyticsData?.eventsByType, 'events')}
+          note="Dari agregat harian"
+        />
+        <AnalyticsCard
+          label="User Aktif"
+          value={sumMetric(analyticsData?.daily, 'users')}
+          note="Unique per hari"
+        />
+        <AnalyticsCard
+          label="Source Teratas"
+          value={analyticsData?.topSources?.[0]?.source || '-'}
+          note={`${formatNumber(analyticsData?.topSources?.[0]?.events || 0)} event`}
+        />
+        <AnalyticsCard
+          label="Event Teratas"
+          value={formatEventType(analyticsData?.eventsByType?.[0]?.event_type)}
+          note={`${formatNumber(analyticsData?.eventsByType?.[0]?.events || 0)} event`}
+        />
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
         {/* Left Sidebar: Targets */}
         <div className="w-full lg:w-1/3 bg-white/40 border border-black/5 rounded-[2rem] p-4 flex flex-col overflow-hidden">
@@ -268,4 +292,26 @@ function getLeadCartItem(cartSnapshot: any) {
   return [...items].sort((a: any, b: any) =>
     (Number(b.price || 0) * Number(b.quantity || 0)) - (Number(a.price || 0) * Number(a.quantity || 0))
   )[0];
+}
+
+function AnalyticsCard({ label, value, note }: { label: string; value: any; note: string }) {
+  return (
+    <div className="rounded-2xl bg-white/50 border border-black/5 p-4">
+      <p className="text-[10px] uppercase tracking-widest text-black/40 font-bold mb-1">{label}</p>
+      <p className="text-lg font-semibold text-ink truncate">{typeof value === 'number' ? formatNumber(value) : value}</p>
+      <p className="text-xs text-black/45 mt-1">{note}</p>
+    </div>
+  );
+}
+
+function sumMetric(rows: any[] = [], key: string) {
+  return rows.reduce((sum, row) => sum + Number(row?.[key] || 0), 0);
+}
+
+function formatNumber(value: any) {
+  return Number(value || 0).toLocaleString('id-ID');
+}
+
+function formatEventType(value: any) {
+  return String(value || '-').replace(/_/g, ' ').toLowerCase();
 }

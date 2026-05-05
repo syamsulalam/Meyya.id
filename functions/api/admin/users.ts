@@ -73,17 +73,25 @@ export async function onRequestGet(context: any) {
       GROUP BY clerk_id
     `).all();
 
-    phase = 'select-admin-user-event-stats';
-    const { results: eventRows } = await env.MEYYA_DB.prepare(`
+    phase = 'select-admin-user-event-summaries';
+    const { results: eventSummaryRows } = await env.MEYYA_DB.prepare(`
       SELECT
         clerk_id,
-        MAX(CASE WHEN event_type = 'CART_UPDATED' THEN created_at ELSE NULL END) AS last_cart_at,
-        MAX(CASE WHEN event_type = 'PRODUCT_VIEW' THEN created_at ELSE NULL END) AS last_product_view_at,
-        MAX(CASE WHEN event_type = 'CHECKOUT_STARTED' THEN created_at ELSE NULL END) AS last_checkout_at,
-        SUM(CASE WHEN event_type = 'CAMPAIGN_TOUCH' THEN 1 ELSE 0 END) AS campaign_touch_count
-      FROM user_events
-      WHERE clerk_id IS NOT NULL
-      GROUP BY clerk_id
+        last_event_at,
+        last_event_type,
+        last_source,
+        last_medium,
+        last_campaign,
+        last_device_type,
+        last_page_path,
+        last_referrer,
+        last_cart_at,
+        last_product_view_at,
+        last_checkout_at,
+        campaign_touch_count,
+        search_count,
+        voucher_apply_count
+      FROM user_event_summaries
     `).all();
 
     phase = 'select-admin-user-cart-snapshots';
@@ -97,12 +105,13 @@ export async function onRequestGet(context: any) {
     const voucherCounts = numberByClerkId(voucherRows, 'voucher_count');
     const wishlistCounts = numberByClerkId(wishlistRows, 'wishlist_count');
     const returnCounts = numberByClerkId(returnRows, 'return_count');
-    const eventStats = eventRowsByClerkId(eventRows);
+    const eventStats = eventSummariesByClerkId(eventSummaryRows);
     const cartSnapshots = cartSnapshotsByClerkId(cartRows);
     const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
     const enrichedUsers = users.map((u: any) => {
       const events = eventStats[u.clerk_id] || {};
+      const latestEvent = events.latestEvent || null;
       const cartSnapshot = cartSnapshots[u.clerk_id] || null;
       const birthday = getBirthdaySignal(u.birth_date);
       const lastCartAt = cartSnapshot?.lastEventAt || events.lastCartAt || null;
@@ -140,6 +149,13 @@ export async function onRequestGet(context: any) {
         lastProductViewAt: events.lastProductViewAt || null,
         lastCheckoutAt: events.lastCheckoutAt || null,
         campaignTouchCount: events.campaignTouchCount || 0,
+        searchCount: events.searchCount || 0,
+        voucherApplyCount: events.voucherApplyCount || 0,
+        latestEvent,
+        lastSource: latestEvent?.source || '-',
+        lastMedium: latestEvent?.medium || '-',
+        lastCampaign: latestEvent?.campaign || '-',
+        lastDevice: latestEvent?.deviceType || '-',
         abandonedCart,
         cartAgeHours,
         cartSnapshot,
@@ -184,7 +200,7 @@ function parseJson(value: any, fallback: any) {
   }
 }
 
-function eventRowsByClerkId(rows: any[] = []) {
+function eventSummariesByClerkId(rows: any[] = []) {
   const result: Record<string, any> = {};
   for (const row of rows) {
     if (!row.clerk_id) continue;
@@ -193,6 +209,18 @@ function eventRowsByClerkId(rows: any[] = []) {
       lastProductViewAt: row.last_product_view_at || null,
       lastCheckoutAt: row.last_checkout_at || null,
       campaignTouchCount: Number(row.campaign_touch_count || 0),
+      searchCount: Number(row.search_count || 0),
+      voucherApplyCount: Number(row.voucher_apply_count || 0),
+      latestEvent: {
+        eventType: row.last_event_type || null,
+        source: row.last_source || null,
+        medium: row.last_medium || null,
+        campaign: row.last_campaign || null,
+        deviceType: row.last_device_type || null,
+        pagePath: row.last_page_path || null,
+        referrer: row.last_referrer || null,
+        createdAt: row.last_event_at || null,
+      },
     };
   }
   return result;

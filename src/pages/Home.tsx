@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import CatalogProductCard from '../components/CatalogProductCard';
 import CategorySlider from '../components/CategorySlider';
 import { useProductCategories } from '../hooks/useProductCategories';
+import { useTrackEvent } from '../hooks/useTrackEvent';
 
 export default function Home() {
   const [searchParams] = useSearchParams();
@@ -14,6 +15,7 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
   const { categories } = useProductCategories();
+  const trackEvent = useTrackEvent();
 
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
@@ -93,7 +95,13 @@ export default function Home() {
           
           {/* Category Filter */}
           <div className="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
-            <Link to="/#katalog" className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${!category ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}>Semua</Link>
+            <Link
+              to="/#katalog"
+              onClick={() => trackEvent('CATEGORY_FILTER_CLICKED', { metadata: { category: 'Semua', category_slug: 'all', source: 'home_filter', product_count: products.length } })}
+              className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${!category ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}
+            >
+              Semua
+            </Link>
             {categories.map((item) => {
               const slug = item.slug || String(item.id);
               const active = category?.toLowerCase() === slug.toLowerCase() || category?.toLowerCase() === item.name.toLowerCase();
@@ -101,6 +109,7 @@ export default function Home() {
                 <Link
                   key={item.id}
                   to={`/?kategori=${encodeURIComponent(slug)}#katalog`}
+                  onClick={() => trackEvent('CATEGORY_FILTER_CLICKED', { metadata: { category: item.name, category_slug: slug, source: 'home_filter' } })}
                   className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors ${active ? 'bg-black text-white' : 'glass-panel hover:bg-white/60'}`}
                 >
                   {item.name}

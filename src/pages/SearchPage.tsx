@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Search as SearchIcon, AlertCircle } from 'lucide-react';
 import CatalogProductCard from '../components/CatalogProductCard';
 import { useStore } from '../store';
+import { useTrackEvent } from '../hooks/useTrackEvent';
 
 export default function SearchPage() {
   const { cart } = useStore();
+  const trackEvent = useTrackEvent();
   const [query, setQuery] = useState('');
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,20 @@ export default function SearchPage() {
       .map(([term]) => term);
   }, [products]);
 
+  useEffect(() => {
+    if (loading || error || normalizedQuery.length < 2) return;
+    const timeout = window.setTimeout(() => {
+      trackEvent('SEARCH_PERFORMED', {
+        metadata: {
+          query: normalizedQuery,
+          result_count: searchResults.length,
+          source: 'search_page',
+        },
+      });
+    }, 700);
+    return () => window.clearTimeout(timeout);
+  }, [error, loading, normalizedQuery, searchResults.length, trackEvent]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-16 w-full flex-1">
       <div className="mb-12">
@@ -102,7 +118,10 @@ export default function SearchPage() {
             {popularSearches.map(term => (
               <button 
                 key={term} 
-                onClick={() => setQuery(term)}
+                onClick={() => {
+                  setQuery(term);
+                  trackEvent('SEARCH_SUGGESTION_CLICKED', { metadata: { query: term, source: 'popular_search' } });
+                }}
                 className="px-4 py-2 rounded-full border border-black/10 text-sm hover:bg-black hover:text-white transition-colors"
               >
                 {term}

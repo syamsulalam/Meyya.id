@@ -1,4 +1,5 @@
 import { ensureCommerceSchema } from './_commerce';
+import { cleanText, normalizeAnalyticsEvent, updateAnalyticsAggregates } from './_analytics';
 
 export async function onRequestPost(context: any) {
   const { env, request, data } = context;
@@ -11,18 +12,33 @@ export async function onRequestPost(context: any) {
     if (!eventType) {
       return new Response(JSON.stringify({ error: 'event_type is required' }), { status: 400 });
     }
+    const analytics = normalizeAnalyticsEvent(body, request);
+    const campaignTag = cleanText(body.campaign_tag || analytics.campaign, 120);
 
     await env.MEYYA_DB.prepare(`
-      INSERT INTO user_events (clerk_id, event_type, product_id, order_id, campaign_tag, metadata)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO user_events (
+        clerk_id, event_type, product_id, order_id, campaign_tag,
+        source, medium, campaign, device_type, page_path, referrer, session_id, anonymous_id, metadata
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       clerkId,
       eventType,
       body.product_id ? Number(body.product_id) : null,
-      body.order_id || null,
-      body.campaign_tag || null,
-      JSON.stringify(body.metadata || {})
+      cleanText(body.order_id, 120),
+      campaignTag,
+      analytics.source,
+      analytics.medium,
+      analytics.campaign,
+      analytics.deviceType,
+      analytics.pagePath,
+      analytics.referrer,
+      analytics.sessionId,
+      analytics.anonymousId,
+      analytics.metadataJson
     ).run();
+
+    await updateAnalyticsAggregates(env, clerkId, eventType, analytics);
 
     if (clerkId && eventType === 'CART_UPDATED') {
       const snapshot = normalizeCartSnapshot(body.metadata?.cart_snapshot);

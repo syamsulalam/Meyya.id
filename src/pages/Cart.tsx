@@ -159,7 +159,7 @@ export default function Cart() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 decreaseQuantity(v.originalIndex);
-                                trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'decrease', source: 'cart', quantity: Math.max(v.quantity - 1, 0) } });
+                                trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'decrease', source: 'cart', product_name: product.product_name, variant_id: v.variant_id, quantity: Math.max(v.quantity - 1, 0) } });
                               }}
                               className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white transition-colors"
                             >
@@ -181,7 +181,7 @@ export default function Cart() {
                                   image_url: product.image_url,
                                   quantity: 1
                                 });
-                                trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'increase', source: 'cart', quantity: v.quantity + 1 } });
+                                trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'increase', source: 'cart', product_name: product.product_name, variant_id: v.variant_id, quantity: v.quantity + 1 } });
                               }}
                               className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white transition-colors"
                             >
@@ -195,7 +195,7 @@ export default function Cart() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 removeFromCart(v.originalIndex);
-                                trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'remove', source: 'cart', quantity: 0 } });
+                                trackEvent('CART_UPDATED', { product_id: product.product_id, metadata: { action: 'remove', source: 'cart', product_name: product.product_name, variant_id: v.variant_id, quantity: 0 } });
                               }}
                               className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors flex-shrink-0"
                               title="Hapus variasi ini"
@@ -243,6 +243,9 @@ export default function Cart() {
                   metadata: {
                     item_count: cart.reduce((acc, curr) => acc + curr.quantity, 0),
                     subtotal,
+                    product_ids: Array.from(new Set(cart.map((item) => item.product_id))),
+                    variant_count: cart.filter((item) => item.variant_id).length,
+                    source: 'cart',
                   },
                 });
                 navigate('/checkout');
