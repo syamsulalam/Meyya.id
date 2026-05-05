@@ -1,3 +1,5 @@
+import { createClerkClient } from '@clerk/backend';
+
 const USER_COLUMNS: Record<string, string> = {
   clerk_id: 'TEXT',
   email: 'TEXT',
@@ -150,4 +152,29 @@ export async function markUserAsAdmin(env: any, clerkId: string, clerkUser?: any
     INSERT INTO users (clerk_id, email, first_name, last_name, role)
     VALUES (?, ?, ?, ?, 'admin')
   `).bind(clerkId, email, firstName, lastName).run();
+}
+
+export async function syncUserProfileToClerk(env: any, clerkId: string, profile: {
+  firstName?: string;
+  lastName?: string;
+  phoneWa?: string;
+  phoneWaVerifiedAt?: string | null;
+}) {
+  if (!env.CLERK_SECRET_KEY) {
+    return { synced: false, warning: 'CLERK_SECRET_KEY tidak tersedia; D1 sudah diperbarui tetapi Clerk tidak disinkronkan.' };
+  }
+
+  const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+  const clerkUser: any = await clerkClient.users.getUser(clerkId);
+  const unsafeMetadata: Record<string, any> = {
+    ...(clerkUser?.unsafeMetadata || {}),
+  };
+  if (profile.phoneWa !== undefined) unsafeMetadata.meyya_phone_wa = profile.phoneWa || '';
+  if (profile.phoneWaVerifiedAt !== undefined) unsafeMetadata.meyya_phone_wa_verified_at = profile.phoneWaVerifiedAt || null;
+  const updatePayload: any = { unsafeMetadata };
+  if (profile.firstName !== undefined) updatePayload.firstName = profile.firstName || '';
+  if (profile.lastName !== undefined) updatePayload.lastName = profile.lastName || '';
+
+  await clerkClient.users.updateUser(clerkId, updatePayload);
+  return { synced: true };
 }

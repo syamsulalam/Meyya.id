@@ -1,3 +1,5 @@
+import { trackExternalApiCall } from '../_externalApiUsage';
+
 export async function onRequestGet(context: any) {
   const { env, request, params } = context;
   const rawPath = params.path || [];
@@ -50,6 +52,7 @@ export async function onRequestGet(context: any) {
         'x-api-co-id': env.API_CO_ID_KEY
       }
     });
+    await trackExternalApiCall(env, 'api.co.id', 'regional');
 
     const data = await response.json();
     const payload = JSON.stringify(data);

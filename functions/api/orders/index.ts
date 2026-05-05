@@ -1,5 +1,11 @@
 import { auditLog, cancelOrderAndReleaseReservations, ensureCommerceSchema, expirePendingOrders } from '../_commerce';
 import { validateCartStock } from '../_cartValidation';
+import {
+  buildShippingQuoteCacheKey,
+  getCachedShippingQuote,
+  setCachedShippingQuote,
+  trackExternalApiCall,
+} from '../_externalApiUsage';
 import { ensureVoucherSchema, validateVoucherForCart } from '../_vouchers';
 
 export async function onRequestPost(context: any) {
@@ -291,23 +297,34 @@ async function resolveShippingCost(env: any, quote: any) {
     throw new Error('Shipping origin not configured');
   }
 
-  const apiResponse = await fetch(`https://use.api.co.id/expedition/shipping-cost?origin_village_code=${settings.origin_village_code}&destination_village_code=${quote.destination_village_code}&weight=${weight}`, {
-    method: 'GET',
-    headers: { 'x-api-co-id': env.API_CO_ID_KEY || '' }
-  });
-
-  if (!apiResponse.ok) {
-    throw new Error('Failed to validate shipping cost');
-  }
-
-  const apiData = await apiResponse.json();
   const activeCouriers = JSON.parse(settings.active_couriers || '["JNE", "SICEPAT", "JNT"]');
+  const cacheKey = buildShippingQuoteCacheKey({
+    originVillageCode: settings.origin_village_code,
+    destinationVillageCode: quote.destination_village_code,
+    weight,
+    activeCouriers,
+  });
+  let apiData = await getCachedShippingQuote(env, cacheKey);
+  if (!apiData) {
+    const apiResponse = await fetch(`https://use.api.co.id/expedition/shipping-cost?origin_village_code=${settings.origin_village_code}&destination_village_code=${quote.destination_village_code}&weight=${weight}`, {
+      method: 'GET',
+      headers: { 'x-api-co-id': env.API_CO_ID_KEY || '' }
+    });
+
+    if (!apiResponse.ok) {
+      throw new Error('Failed to validate shipping cost');
+    }
+
+    apiData = await apiResponse.json();
+    await trackExternalApiCall(env, 'api.co.id', 'expedition_shipping_cost');
+    await setCachedShippingQuote(env, cacheKey, { results: apiData.results || [] });
+  }
   const selectedPrice = Number(quote.shipping_price || 0);
   const selectedCode = String(quote.courier_code || '').toUpperCase();
   const selectedName = String(quote.courier_name || '').toUpperCase();
   const selectedService = String(quote.courier_service || '').toUpperCase();
 
-  const candidates = (apiData.results || []).filter((option: any) => {
+  const candidates = (apiData?.results || []).filter((option: any) => {
     const optionName = String(option.courier_name || '').toUpperCase();
     const optionCode = String(option.courier_code || '').toUpperCase();
     const optionService = String(option.service || option.service_name || option.courier_service || '').toUpperCase();

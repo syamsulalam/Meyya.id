@@ -1,9 +1,18 @@
 import { useState } from 'react';
 import useSWR from 'swr';
-import { Archive, Database, HardDrive, RefreshCw, Scissors, Users } from 'lucide-react';
+import { Activity, Archive, Database, HardDrive, RefreshCw, Scissors, Users } from 'lucide-react';
 import { useAuth } from '@clerk/react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
+import {
+  ClerkUsersTooltip,
+  ApiCoIdFreeTierTooltip,
+  D1StorageTooltip,
+  ExplainedLabel,
+  FreeTierGuardTooltip,
+  R2StorageTooltip,
+  SafePruningTooltip,
+} from '../term-tooltips';
 
 type FreeTierPanelProps = {
   compact?: boolean;
@@ -76,7 +85,9 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
       <div className="bg-white/40 border border-black/5 rounded-3xl p-6 mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400">Free Tier Guard</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400">
+              <ExplainedLabel tooltip={<FreeTierGuardTooltip />}>Free Tier Guard</ExplainedLabel>
+            </h3>
             <p className="text-xs text-black/50 mt-1">Pantau Clerk, D1, dan R2 supaya operasional tetap efisien.</p>
           </div>
           {onNavigate && (
@@ -99,7 +110,8 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div>
           <h2 className="text-2xl font-light mb-2 flex items-center gap-2">
-            <HardDrive size={24} /> Limit Free Tier
+            <HardDrive size={24} />
+            <ExplainedLabel tooltip={<FreeTierGuardTooltip />}>Limit Free Tier</ExplainedLabel>
           </h2>
           <p className="text-sm font-light text-black/60">Pantau pemakaian Cloudflare D1, R2, dan Clerk dari data yang bisa dibaca aplikasi.</p>
         </div>
@@ -118,9 +130,41 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
         ))}
       </div>
 
+      <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
+        <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
+          <Activity size={16} />
+          <ExplainedLabel tooltip={<ApiCoIdFreeTierTooltip />}>API.CO.ID Free Tier</ExplainedLabel>
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {(data?.externalApis?.usage || []).map((api: any) => (
+            <div key={`${api.provider}-${api.product}`} className="rounded-2xl bg-white/60 border border-black/5 p-4">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-black/40 font-bold">{api.label}</p>
+                  <p className="text-xl font-semibold text-ink">{Number(api.calls || 0).toLocaleString('id-ID')} / {Number(api.limit || 0).toLocaleString('id-ID')} hit</p>
+                </div>
+                <span className="text-[10px] rounded-full bg-black/5 px-2 py-1 text-black/50">{api.period}</span>
+              </div>
+              <div className="h-2 rounded-full bg-black/5 overflow-hidden">
+                <div className={`h-full rounded-full ${api.percentage > 80 ? 'bg-red-500' : api.percentage > 60 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${api.percentage}%` }} />
+              </div>
+              <p className="text-xs text-black/45 mt-3">{api.note}</p>
+              <p className="text-[10px] text-black/35 mt-1">Sisa bulan ini: {Number(api.remaining || 0).toLocaleString('id-ID')} hit • limit {api.rpsLimit} rps</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 rounded-2xl bg-black/5 p-4 text-xs text-black/55 space-y-1">
+          {(data?.externalApis?.strategy || []).map((line: string) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_0.9fr] gap-6">
         <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
-          <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Tabel Terbesar Berdasarkan Row</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">
+            <ExplainedLabel tooltip={<D1StorageTooltip />}>Tabel Terbesar Berdasarkan Row</ExplainedLabel>
+          </h3>
           <div className="space-y-2">
             {(data?.d1?.tableStats || []).slice(0, 10).map((row: any) => (
               <div key={row.table} className="flex items-center justify-between rounded-2xl bg-white/60 px-4 py-3 text-sm">
@@ -134,7 +178,8 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
 
         <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
           <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
-            <Scissors size={16} /> Pruning Aman
+            <Scissors size={16} />
+            <ExplainedLabel tooltip={<SafePruningTooltip />}>Pruning Aman</ExplainedLabel>
           </h3>
           <p className="text-sm text-black/60 leading-relaxed mb-5">
             Pruning menghapus event lama, snapshot cart lama yang sudah converted, snapshot cart kosong yang stale, dan cache wilayah lama. Data order, user, alamat, stok, voucher usage, dan retur tidak dihapus.
@@ -199,6 +244,7 @@ function buildUsageCards(data: any) {
 
 function UsageCard({ icon: Icon, label, value, limit, formatter, note, compact = false }: any) {
   const percentage = value === null ? 0 : Math.min(100, (Number(value || 0) / Number(limit || 1)) * 100);
+  const tooltip = getUsageTooltip(label);
   return (
     <div className="rounded-2xl bg-white/60 border border-black/5 p-4">
       <div className="flex items-center gap-3 mb-3">
@@ -206,7 +252,9 @@ function UsageCard({ icon: Icon, label, value, limit, formatter, note, compact =
           <Icon size={17} />
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-black/40 font-bold">{label}</p>
+          <p className="text-[10px] uppercase tracking-widest text-black/40 font-bold">
+            {tooltip ? <ExplainedLabel tooltip={tooltip}>{label}</ExplainedLabel> : label}
+          </p>
           <p className={`${compact ? 'text-lg' : 'text-xl'} font-semibold text-ink`}>
             {value === null ? 'Belum tersedia' : `${formatter(value)} / ${formatter(limit)}`}
           </p>
@@ -218,6 +266,13 @@ function UsageCard({ icon: Icon, label, value, limit, formatter, note, compact =
       {!compact && <p className="text-xs text-black/45 mt-3">{note}</p>}
     </div>
   );
+}
+
+function getUsageTooltip(label: string) {
+  if (label === 'Clerk Users') return <ClerkUsersTooltip />;
+  if (label === 'D1 Database' || label === 'D1 Account') return <D1StorageTooltip />;
+  if (label === 'R2 Storage') return <R2StorageTooltip />;
+  return null;
 }
 
 function formatNumber(value: number) {

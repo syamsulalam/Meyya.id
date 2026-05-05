@@ -1,3 +1,10 @@
+import {
+  buildShippingQuoteCacheKey,
+  getCachedShippingQuote,
+  setCachedShippingQuote,
+  trackExternalApiCall,
+} from '../_externalApiUsage';
+
 export async function onRequestPost(context: any) {
   const { env, request } = context;
 
@@ -21,9 +28,24 @@ export async function onRequestPost(context: any) {
 
     const origin_village_code = settings.origin_village_code;
     const active_couriers = JSON.parse(settings.active_couriers || '["JNE", "SICEPAT", "JNT"]'); // uppercase check
+    const normalizedWeight = Math.max(1, Math.ceil(Number(weight || 1)));
+    const cacheKey = buildShippingQuoteCacheKey({
+      originVillageCode: origin_village_code,
+      destinationVillageCode: destination_village_code,
+      weight: normalizedWeight,
+      activeCouriers: active_couriers,
+    });
+
+    const cached = await getCachedShippingQuote(env, cacheKey);
+    if (cached) {
+      return new Response(JSON.stringify({ ...cached, cached: true }), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=300' },
+        status: 200,
+      });
+    }
 
     // 2. Fetch from api.co.id
-    const apiUrl = `https://use.api.co.id/expedition/shipping-cost?origin_village_code=${origin_village_code}&destination_village_code=${destination_village_code}&weight=${weight}`;
+    const apiUrl = `https://use.api.co.id/expedition/shipping-cost?origin_village_code=${origin_village_code}&destination_village_code=${destination_village_code}&weight=${normalizedWeight}`;
     
     const apiResponse = await fetch(apiUrl, {
       method: 'GET',
@@ -35,11 +57,14 @@ export async function onRequestPost(context: any) {
     if (!apiResponse.ok) {
         return new Response(JSON.stringify({ error: 'Failed to calculate shipping from API' }), { status: 502 });
     }
+    await trackExternalApiCall(env, 'api.co.id', 'expedition_shipping_cost');
     
     const data = await apiResponse.json();
 
     if (!data.results || !data.results.length) {
-       return new Response(JSON.stringify({ results: [] }), { headers: { 'Content-Type': 'application/json' } });
+       const emptyPayload = { results: [] };
+       await setCachedShippingQuote(env, cacheKey, emptyPayload);
+       return new Response(JSON.stringify(emptyPayload), { headers: { 'Content-Type': 'application/json' } });
     }
 
     // 3. Filter couriers based on admin settings active couriers
@@ -52,7 +77,10 @@ export async function onRequestPost(context: any) {
         return active_couriers.some((active: string) => c.courier_name.toUpperCase().includes(active.toUpperCase()));
     });
 
-    return new Response(JSON.stringify({ results: filteredResults }), {
+    const payload = { results: filteredResults };
+    await setCachedShippingQuote(env, cacheKey, payload);
+
+    return new Response(JSON.stringify(payload), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,
     });

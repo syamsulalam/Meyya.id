@@ -1,4 +1,4 @@
-import { ensureUsersSchema } from '../../_users';
+import { ensureUsersSchema, syncUserProfileToClerk } from '../../_users';
 
 export async function onRequestGet(context: any) {
   const { env, request, params, data } = context;
@@ -82,6 +82,17 @@ export async function onRequestPut(context: any) {
         existing?.birth_date || nextBirthDate,
         id
       ).run();
+
+      try {
+        await syncUserProfileToClerk(env, id, {
+          firstName,
+          lastName,
+          phoneWa: nextPhoneWa,
+          phoneWaVerifiedAt: phoneChanged ? null : undefined,
+        });
+      } catch {
+        // D1 remains the source of truth; Clerk metadata sync is best-effort.
+      }
     }
 
     return new Response(JSON.stringify({ success: true, message: 'Profile updated' }), {

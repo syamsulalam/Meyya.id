@@ -1,7 +1,6 @@
 import { ensureUsersSchema } from '../_users';
 import { jsonResponse } from '../_debug';
-
-const DEFAULT_SUPPORT_WHATSAPP = '6281234567890';
+import { getSupportWhatsapp, normalizePhone } from '../_appSettings';
 
 export async function onRequestPost(context: any) {
   const { env, data } = context;
@@ -39,7 +38,7 @@ export async function onRequestPost(context: any) {
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Pelanggan Meyya';
     const email = user.email || '-';
-    const supportPhone = normalizePhone(env.MEYYA_SUPPORT_WHATSAPP || DEFAULT_SUPPORT_WHATSAPP);
+    const supportPhone = await getSupportWhatsapp(env);
     const message = [
       'VERIFIKASI NOMOR WHATSAPP MEYYA.ID',
       `Kode: ${code}`,
@@ -71,14 +70,6 @@ export async function onRequestPost(context: any) {
   } catch (error: any) {
     return jsonResponse({ error: error.message || 'Gagal membuat verifikasi WhatsApp.' }, 500);
   }
-}
-
-function normalizePhone(value: any) {
-  const digits = String(value || '').replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
-  if (digits.startsWith('8')) return `62${digits}`;
-  return digits;
 }
 
 function randomCode(length: number) {

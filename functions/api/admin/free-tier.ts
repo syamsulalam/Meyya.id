@@ -1,4 +1,5 @@
 import { auditLog, ensureCommerceSchema } from '../_commerce';
+import { ensureExternalApiUsageSchema, getExternalApiUsageSummary } from '../_externalApiUsage';
 
 const LIMITS = {
   clerkUsers: 50000,
@@ -9,6 +10,7 @@ const LIMITS = {
   d1RowsWrittenDaily: 100_000,
   r2ClassAMonthly: 1_000_000,
   r2ClassBMonthly: 10_000_000,
+  apiCoIdMonthlyHits: 3000,
 };
 
 const CACHE_TTL_MS = 15 * 60 * 1000;
@@ -30,11 +32,13 @@ export async function onRequestGet({ env, request }: any) {
     }
 
     await ensureCommerceSchema(env);
+    await ensureExternalApiUsageSchema(env);
 
     const d1Storage = await getD1Storage(env);
     const cloudflareD1 = await getCloudflareD1Usage(env);
     const tableStats = await getTableStats(env);
     const r2Storage = await getR2Storage(env);
+    const externalApis = await getExternalApiUsageSummary(env);
     const userCount = await readTableCount(env, 'users');
     const databaseBytes = cloudflareD1.databaseBytes ?? d1Storage.bytes;
     const accountStorageBytes = cloudflareD1.accountStorageBytes ?? databaseBytes;
@@ -68,12 +72,14 @@ export async function onRequestGet({ env, request }: any) {
         available: r2Storage.available,
         note: r2Storage.note,
       },
+      externalApis,
       pruningDefaults: {
         eventRetentionDays: 120,
         convertedCartRetentionDays: 30,
         staleCartRetentionDays: 90,
         analyticsUserKeyRetentionDays: 180,
         regionCacheRetentionDays: 14,
+        shippingQuoteCacheRetentionDays: 2,
         auditLogRetentionDays: 365,
       },
       cache: {
@@ -103,6 +109,7 @@ export async function onRequestPost({ env, request }: any) {
     const staleCartRetentionDays = clampDays(body.staleCartRetentionDays, 30, 3650, 90);
     const analyticsUserKeyRetentionDays = clampDays(body.analyticsUserKeyRetentionDays, 30, 3650, 180);
     const regionCacheRetentionDays = clampDays(body.regionCacheRetentionDays, 1, 3650, 14);
+    const shippingQuoteCacheRetentionDays = clampDays(body.shippingQuoteCacheRetentionDays, 1, 3650, 2);
     const auditLogRetentionDays = clampDays(body.auditLogRetentionDays, 180, 3650, 365);
     const includeAuditLogs = Boolean(body.includeAuditLogs);
 
@@ -112,6 +119,7 @@ export async function onRequestPost({ env, request }: any) {
     changes.converted_cart_snapshots = await deleteConvertedCartSnapshots(env, convertedCartRetentionDays);
     changes.stale_empty_cart_snapshots = await deleteStaleEmptyCartSnapshots(env, staleCartRetentionDays);
     changes.region_cache = await deleteOlderThan(env, 'region_cache', 'cached_at', regionCacheRetentionDays);
+    changes.shipping_quote_cache = await deleteOlderThan(env, 'shipping_quote_cache', 'cached_at', shippingQuoteCacheRetentionDays);
 
     if (includeAuditLogs) {
       changes.audit_logs = await deleteOlderThan(env, 'audit_logs', 'created_at', auditLogRetentionDays);
@@ -123,6 +131,7 @@ export async function onRequestPost({ env, request }: any) {
       staleCartRetentionDays,
       analyticsUserKeyRetentionDays,
       regionCacheRetentionDays,
+      shippingQuoteCacheRetentionDays,
       auditLogRetentionDays,
       includeAuditLogs,
       changes,
@@ -226,6 +235,8 @@ async function getTableStats(env: any) {
     'user_event_summaries',
     'user_cart_snapshots',
     'region_cache',
+    'shipping_quote_cache',
+    'external_api_usage_monthly',
     'audit_logs',
     'return_requests',
     'stock_movements',

@@ -226,3 +226,35 @@ export const PackagingCostTooltip = (props: TermTooltipProps) => (
 export const AdsCostTooltip = (props: TermTooltipProps) => (
   <TermHint {...props} content="Biaya iklan dari transaksi manual kategori Ads. Dipakai untuk melihat profit setelah biaya akuisisi pelanggan." />
 );
+
+export const WhatsAppVerificationTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Status nomor WhatsApp dipercaya untuk akun pelanggan. Admin bisa verifikasi manual jika webhook GOWA sedang bermasalah." />
+);
+
+export const SupportWhatsAppTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Nomor WhatsApp Meyya yang menjadi tujuan pesan verifikasi pelanggan. Disimpan di D1 agar bisa diganti tanpa ubah environment." />
+);
+
+export const FreeTierGuardTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Panel pemantauan batas layanan gratis seperti Clerk, Cloudflare D1, dan R2 agar operasional tidak melewati limit." />
+);
+
+export const ClerkUsersTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Estimasi jumlah akun customer/admin yang tersinkron dari Clerk ke database D1." />
+);
+
+export const D1StorageTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Perkiraan ukuran database Cloudflare D1. Panel memakai Cloudflare API jika tersedia, lalu fallback ke PRAGMA runtime." />
+);
+
+export const R2StorageTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Perkiraan pemakaian object storage Cloudflare R2 untuk file upload seperti bukti pembayaran atau gambar." />
+);
+
+export const SafePruningTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Penghapusan data operasional lama yang tidak kritikal. Data order, user, stok, voucher usage, dan retur tidak ikut dihapus." />
+);
+
+export const ApiCoIdFreeTierTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="API.CO.ID memberi free tier 3.000 hit/bulan per produk yang dipakai Meyya: regional dan ongkir. Panel ini menghitung request yang benar-benar keluar dari server Meyya ke API.CO.ID." />
+);

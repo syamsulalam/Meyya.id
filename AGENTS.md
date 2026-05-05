@@ -14,6 +14,8 @@ Primary operator responsibilities:
 - Keep edits scoped and avoid unrelated refactors.
 - Protect user changes in the worktree; never revert unrelated edits.
 - Own final integration, lint/build verification, and user-facing summary.
+- Do not start or test with the local dev server; manual browser testing is done directly on production at `https://meyya.id`.
+- Do not run `npx wrangler d1 execute` for remote D1 migrations unless the user explicitly asks Codex to execute it; provide the exact command and let the user run it manually by default.
 - Decide whether a task is safe to delegate.
 
 ## Subagents
@@ -106,3 +108,23 @@ Use cheaper subagents for repetitive UI patches, docs, read-only audits, and ind
 - Tell subagents they are not alone in the codebase and must not revert others' edits.
 - Review subagent changes before finalizing.
 - Keep secrets out of prompts, docs, and committed files.
+
+## Repository Documentation Index
+
+Future sessions should skim the relevant docs before broad changes:
+
+- `docs/MEYYA_SITE_MAP.md`: full site map, component map, API Function map, tech stack, and operational edge cases.
+- `docs/MEYYA_IMPROVEMENT.md`: active improvement notes, completed batches, and known follow-up risks.
+- `docs/PROGRESS_AND_GUIDES.md`: implementation progress and general guides.
+- `docs/CHECKOUT_DESIGN.md`: checkout UX and flow notes.
+- `docs/CLOUDFLARE_D1_ARCHITECTURE.md`: database architecture reference.
+- `docs/CONNECT_CLERK_D1.md`: Clerk and D1 sync notes.
+- `docs/CLERK_SETUP.md` and `docs/CLERK_DOCS.md`: Clerk setup/reference.
+- `docs/MEYYA_CRM.md`: CRM concepts and customer analytics.
+- `docs/MEYYA_FINANCE_FEATURES.md`: finance feature notes.
+- `docs/MEYYA_STORAGE.md`: storage and upload notes.
+- `docs/DUITKU_PAYMENT_GATEWAY_RESEARCH.md`: payment gateway research.
+- `docs/GOWA_WHATSAPP_SENDY_EMAIL_INTEGRATION_PLAN.md`: WhatsApp/email integration plan.
+- `docs/AUTO_PRUNING_AND_PDF_COMPRESSION_RESEARCH.md`: maintenance and compression research.
+- `docs/FEATURE_GAP_ANALYSIS.md`: older feature gap reference.
+- `docs/MARKETING_STRATEGY.md`: marketing strategy notes.

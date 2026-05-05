@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
 import { LayoutDashboard, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck, ClipboardList, ListChecks, HardDrive, Banknote } from 'lucide-react';
@@ -21,6 +21,7 @@ export default function AdminDashboard() {
   const { user: localUser } = useStore();
   const { user: clerkUser, isLoaded } = useUser();
   const navigate = useNavigate();
+  const contentRef = useRef<HTMLDivElement>(null);
   
   type AdminTab = 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'payment' | 'shipping' | 'orders' | 'roadmap' | 'free-tier' | 'finance';
 
@@ -31,6 +32,8 @@ export default function AdminDashboard() {
   const setActiveTab = (tab: AdminTab) => {
     setActiveTabState(tab);
     localStorage.setItem('adminActiveTab', tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (contentRef.current) contentRef.current.scrollTop = 0;
   };
 
   useEffect(() => {
@@ -206,7 +209,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 min-w-0 bg-white/60 rounded-[24px] md:rounded-[36px] p-6 lg:p-12 border border-black/5 min-h-[600px] flex flex-col">
+        <div ref={contentRef} className="flex-1 min-w-0 bg-white/60 rounded-[24px] md:rounded-[36px] p-6 lg:p-12 border border-black/5 min-h-[600px] flex flex-col">
           {activeTab === 'dashboard' && <AdminMetricsPanel onNavigate={(tab) => setActiveTab(tab)} />}
           {activeTab === 'crm' && <AdminCRMManager />}
           {activeTab === 'marketing' && <AdminMarketingPanel />}

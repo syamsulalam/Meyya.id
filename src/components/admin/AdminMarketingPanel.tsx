@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { MessageSquare, ExternalLink, RefreshCw, Send, Users, AlertCircle, Bug } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { MessageSquare, ExternalLink, RefreshCw, Send, Users, AlertCircle, Bug, Phone, Save } from 'lucide-react';
 import useSWR from 'swr';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
+import { useStore } from '../../store';
 import {
   AbandonedCartTooltip,
   BirthdayTooltip,
@@ -11,6 +12,7 @@ import {
   DebugDataTooltip,
   ExplainedLabel,
   LtvTooltip,
+  SupportWhatsAppTooltip,
 } from '../term-tooltips';
 
 export default function AdminMarketingPanel() {
@@ -18,12 +20,30 @@ export default function AdminMarketingPanel() {
   const authFetch = useAuthFetch();
   const { isLoaded, isSignedIn } = useAuth();
   const authReady = isLoaded && isSignedIn;
+  const { addToast } = useStore();
   const { data: dbUsers, isLoading, mutate } = useSWR(authReady ? '/api/admin/users' : null, fetcher);
   const { data: analyticsData } = useSWR(authReady ? '/api/admin/analytics?days=14' : null, fetcher);
+  const { data: verificationSettings, mutate: mutateVerificationSettings } = useSWR(authReady ? '/api/admin/verification-settings' : null, fetcher);
   
   const [selectedTarget, setSelectedTarget] = useState<any | null>(null);
   const [customMessage, setCustomMessage] = useState('');
   const [showDebug, setShowDebug] = useState(false);
+  const [supportWhatsappInput, setSupportWhatsappInput] = useState('');
+  const [contactWhatsappInput, setContactWhatsappInput] = useState('');
+  const [contactUsesSupportWhatsapp, setContactUsesSupportWhatsapp] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
+  useEffect(() => {
+    if (verificationSettings?.support_whatsapp) {
+      setSupportWhatsappInput(verificationSettings.support_whatsapp);
+    }
+    if (verificationSettings?.contact_whatsapp) {
+      setContactWhatsappInput(verificationSettings.contact_whatsapp);
+    }
+    if (verificationSettings?.contact_uses_support_whatsapp !== undefined) {
+      setContactUsesSupportWhatsapp(Boolean(verificationSettings.contact_uses_support_whatsapp));
+    }
+  }, [verificationSettings?.support_whatsapp, verificationSettings?.contact_whatsapp, verificationSettings?.contact_uses_support_whatsapp]);
 
   const rawTargets = Array.isArray(dbUsers) ? dbUsers : [];
   
@@ -76,6 +96,7 @@ export default function AdminMarketingPanel() {
         name: u.name,
         email: u.email,
         phone: cleanPhone,
+        phoneVerified: Boolean(u.phoneWaVerifiedAt),
         birthDate: u.birthDate,
         cartSnapshot: u.cartSnapshot,
         ...scenario
@@ -118,6 +139,7 @@ export default function AdminMarketingPanel() {
           metadata: {
             channel: 'WHATSAPP',
             message: customMessage,
+            phone_verified: Boolean(selectedTarget.phoneVerified),
           },
         }),
       });
@@ -127,6 +149,32 @@ export default function AdminMarketingPanel() {
     }
     const url = `https://wa.me/${selectedTarget.phone}?text=${encodeURIComponent(customMessage)}`;
     window.open(url, '_blank');
+  };
+
+  const saveVerificationSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      const res = await authFetch('/api/admin/verification-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          support_whatsapp: supportWhatsappInput,
+          contact_whatsapp: contactUsesSupportWhatsapp ? supportWhatsappInput : contactWhatsappInput,
+          contact_uses_support_whatsapp: contactUsesSupportWhatsapp,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Gagal menyimpan nomor verifikasi.');
+      setSupportWhatsappInput(payload.support_whatsapp || supportWhatsappInput);
+      setContactWhatsappInput(payload.contact_whatsapp || contactWhatsappInput);
+      setContactUsesSupportWhatsapp(Boolean(payload.contact_uses_support_whatsapp));
+      await mutateVerificationSettings();
+      addToast('Nomor WhatsApp Meyya disimpan.', 'success');
+    } catch (error: any) {
+      addToast(error.message || 'Gagal menyimpan nomor verifikasi.', 'error');
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   return (
@@ -153,6 +201,57 @@ export default function AdminMarketingPanel() {
            {!authReady ? 'Waiting for admin session...' : isLoading ? 'Loading users from D1...' : JSON.stringify(rawTargets, null, 2)}
         </div>
       )}
+
+      <div className="rounded-3xl bg-white/45 border border-black/5 p-5">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-ink flex items-center gap-2">
+              <Phone size={16} />
+              <ExplainedLabel tooltip={<SupportWhatsAppTooltip />}>Nomor Verifikasi Meyya</ExplainedLabel>
+            </h3>
+            <p className="text-xs text-black/50 mt-1">Nomor verifikasi customer dan nomor kontak resmi publik bisa sama atau dipisah.</p>
+          </div>
+          <div className="flex flex-col gap-2 w-full lg:w-[420px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                value={supportWhatsappInput}
+                onChange={(event) => {
+                  setSupportWhatsappInput(event.target.value);
+                  if (contactUsesSupportWhatsapp) setContactWhatsappInput(event.target.value);
+                }}
+                placeholder="WA verifikasi 62812..."
+                className="w-full bg-white border border-black/10 rounded-full px-4 py-2.5 text-sm outline-none focus:border-ink"
+              />
+              <input
+                value={contactUsesSupportWhatsapp ? supportWhatsappInput : contactWhatsappInput}
+                onChange={(event) => setContactWhatsappInput(event.target.value)}
+                disabled={contactUsesSupportWhatsapp}
+                placeholder="WA kontak resmi 62812..."
+                className="w-full bg-white border border-black/10 rounded-full px-4 py-2.5 text-sm outline-none focus:border-ink disabled:opacity-60"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs text-black/55">
+              <input
+                type="checkbox"
+                checked={contactUsesSupportWhatsapp}
+                onChange={(event) => {
+                  setContactUsesSupportWhatsapp(event.target.checked);
+                  if (event.target.checked) setContactWhatsappInput(supportWhatsappInput);
+                }}
+              />
+              Pakai nomor verifikasi sebagai nomor kontak resmi.
+            </label>
+            <button
+              type="button"
+              onClick={saveVerificationSettings}
+              disabled={settingsSaving || !supportWhatsappInput}
+              className="px-5 py-2.5 rounded-full bg-ink text-white text-[10px] uppercase tracking-widest hover:bg-black/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Save size={13} /> Simpan
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <AnalyticsCard
@@ -222,6 +321,9 @@ export default function AdminMarketingPanel() {
                    </span>
                  </div>
                  <p className="text-xs text-black/60 font-medium mb-2">{target.phone}</p>
+                 <span className={`inline-flex mb-2 px-2 py-0.5 rounded-full text-[9px] uppercase tracking-widest font-bold ${target.phoneVerified ? 'bg-emerald-50 text-emerald-700' : 'bg-yellow-50 text-yellow-700'}`}>
+                   {target.phoneVerified ? 'WA verified' : 'WA unverified'}
+                 </span>
                  <p className="text-[10px] text-gray-500 bg-black/5 p-2 rounded-lg italic flex items-center gap-1.5 line-clamp-2">
                   <AlertCircle size={12} className="shrink-0" />
                   {target.context}
@@ -246,7 +348,7 @@ export default function AdminMarketingPanel() {
                  </div>
                  <div>
                    <h3 className="font-semibold text-sm text-[#111b21]">{selectedTarget.name}</h3>
-                   <p className="text-xs text-gray-500">{selectedTarget.phone}</p>
+                   <p className="text-xs text-gray-500">{selectedTarget.phone} • {selectedTarget.phoneVerified ? 'verified' : 'unverified'}</p>
                  </div>
               </div>
 

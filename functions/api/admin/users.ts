@@ -1,6 +1,7 @@
-import { ensureUsersSchema, getUsersDebugInfo } from '../_users';
+import { ensureUsersSchema, getUsersDebugInfo, syncUserProfileToClerk } from '../_users';
 import { debugErrorResponse, jsonResponse } from '../_debug';
-import { ensureCommerceSchema } from '../_commerce';
+import { auditLog, ensureCommerceSchema } from '../_commerce';
+import { normalizePhone } from '../_appSettings';
 
 export async function onRequestGet(context: any) {
   const { env } = context;
@@ -173,6 +174,114 @@ export async function onRequestGet(context: any) {
       has_db_binding: Boolean(env.MEYYA_DB),
       d1: await getUsersDebugInfo(env),
     });
+  }
+}
+
+export async function onRequestPatch(context: any) {
+  const { env, request, data } = context;
+
+  try {
+    await ensureUsersSchema(env);
+    const body = await request.json();
+    const clerkId = String(body.clerk_id || '').trim();
+    const action = String(body.action || '').trim();
+
+    if (!clerkId) return jsonResponse({ error: 'clerk_id wajib diisi.' }, 400);
+
+    const user = await env.MEYYA_DB.prepare(`
+      SELECT clerk_id, phone_wa, phone_wa_verified_at
+      FROM users
+      WHERE clerk_id = ?
+      LIMIT 1
+    `).bind(clerkId).first();
+
+    if (!user) return jsonResponse({ error: 'User tidak ditemukan.' }, 404);
+
+    if (action === 'update_phone') {
+      const phone = normalizePhone(body.phone_wa);
+      if (!phone || phone.length < 10) return jsonResponse({ error: 'Nomor WhatsApp tidak valid.' }, 400);
+      const shouldVerify = Boolean(body.mark_verified);
+      await env.MEYYA_DB.prepare(`
+        UPDATE users
+        SET
+          phone_wa = ?,
+          phone_wa_verified_at = ${shouldVerify ? 'CURRENT_TIMESTAMP' : 'NULL'},
+          phone_wa_verification_code = NULL,
+          phone_wa_verification_requested_at = NULL,
+          phone_wa_verification_expires_at = NULL
+        WHERE clerk_id = ?
+      `).bind(phone, clerkId).run();
+
+      await auditLog(env, data?.clerkId || null, shouldVerify ? 'ADMIN_UPDATE_AND_VERIFY_PHONE_WA' : 'ADMIN_UPDATE_PHONE_WA', 'user', clerkId, {
+        phone_suffix: phone.slice(-4),
+      });
+
+      const clerkSync = await safeSyncPhoneToClerk(env, clerkId, phone, shouldVerify ? new Date().toISOString() : null);
+      return jsonResponse({ success: true, phone_wa: phone, phone_wa_verified_at: shouldVerify ? new Date().toISOString() : null, clerk_sync: clerkSync });
+    }
+
+    if (action === 'verify_phone') {
+      const phone = normalizePhone(body.phone_wa || user.phone_wa);
+      if (!phone) return jsonResponse({ error: 'User belum punya nomor WhatsApp.' }, 400);
+
+      await env.MEYYA_DB.prepare(`
+        UPDATE users
+        SET
+          phone_wa = ?,
+          phone_wa_verified_at = CURRENT_TIMESTAMP,
+          phone_wa_verification_code = NULL,
+          phone_wa_verification_requested_at = NULL,
+          phone_wa_verification_expires_at = NULL
+        WHERE clerk_id = ?
+      `).bind(phone, clerkId).run();
+
+      await auditLog(env, data?.clerkId || null, 'ADMIN_VERIFY_PHONE_WA', 'user', clerkId, {
+        phone_suffix: phone.slice(-4),
+      });
+
+      const clerkSync = await safeSyncPhoneToClerk(env, clerkId, phone, new Date().toISOString());
+      return jsonResponse({ success: true, phone_wa: phone, phone_wa_verified_at: new Date().toISOString(), clerk_sync: clerkSync });
+    }
+
+    if (action === 'clear_phone_verification') {
+      await env.MEYYA_DB.prepare(`
+        UPDATE users
+        SET
+          phone_wa_verified_at = NULL,
+          phone_wa_verification_code = NULL,
+          phone_wa_verification_requested_at = NULL,
+          phone_wa_verification_expires_at = NULL
+        WHERE clerk_id = ?
+      `).bind(clerkId).run();
+
+      await auditLog(env, data?.clerkId || null, 'ADMIN_CLEAR_PHONE_WA_VERIFICATION', 'user', clerkId, {});
+
+      const clerkSync = await safeSyncPhoneToClerk(env, clerkId, normalizePhone(user.phone_wa), null);
+      return jsonResponse({ success: true, phone_wa_verified_at: null, clerk_sync: clerkSync });
+    }
+
+    return jsonResponse({ error: 'Action tidak dikenal.' }, 400);
+  } catch (error: any) {
+    return debugErrorResponse(error, 500, {
+      endpoint: '/api/admin/users',
+      method: 'PATCH',
+      phase: 'admin-update-user-phone-verification',
+      has_db_binding: Boolean(env.MEYYA_DB),
+    });
+  }
+}
+
+async function safeSyncPhoneToClerk(env: any, clerkId: string, phone: string, verifiedAt: string | null) {
+  try {
+    return await syncUserProfileToClerk(env, clerkId, {
+      phoneWa: phone,
+      phoneWaVerifiedAt: verifiedAt,
+    });
+  } catch (error: any) {
+    return {
+      synced: false,
+      warning: error.message || 'D1 sudah diperbarui tetapi sync ke Clerk gagal.',
+    };
   }
 }
 

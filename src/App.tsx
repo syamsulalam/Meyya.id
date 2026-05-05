@@ -17,6 +17,7 @@ import SearchPage from './pages/SearchPage';
 import ErrorBoundaryPage from './pages/ErrorBoundaryPage';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import Contact from './pages/Contact';
 import { AuthenticateWithRedirectCallback } from '@clerk/react';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -68,14 +69,7 @@ const router = createBrowserRouter([
       )},
       { path: "/terms-of-service", element: <TermsOfService /> },
       { path: "/privacy-policy", element: <PrivacyPolicy /> },
-      { path: "/contact", element: (
-        <StaticPage title="Hubungi Kami">
-          <p>Kami sangat antusias untuk mendengar pengalaman berbelanja Anda.</p>
-          <p><strong>Email:</strong> help@meyya.id</p>
-          <p><strong>WhatsApp:</strong> +62 812 3456 7890</p>
-          <p>Tim dukungan pelanggan (<i>customer care</i>) kami akan siap melayani Anda mulai Hari Senin-Jumat, pukul 9 pagi hingga 5 sore WIB.</p>
-        </StaticPage>
-      )},
+      { path: "/contact", element: <Contact /> },
       { path: "*", element: <Home /> }
     ]
   }

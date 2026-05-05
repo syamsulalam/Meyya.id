@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Search, ChevronLeft, Calendar, FileText, ShoppingBag, ArrowUpRight, Award, Download } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Search, ChevronLeft, Calendar, FileText, ShoppingBag, ArrowUpRight, Award, Download, Phone, Save, ShieldCheck, ShieldX } from 'lucide-react';
 import useSWR from 'swr';
-import { useAuthFetcher } from '../../hooks/useAuthFetch';
+import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
 import { useStore } from '../../store';
 import {
@@ -14,17 +14,22 @@ import {
   ExplainedLabel,
   LtvTooltip,
   ReturnRateTooltip,
+  WhatsAppVerificationTooltip,
 } from '../term-tooltips';
 
 export default function AdminCRMManager() {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
+  const [markPhoneVerified, setMarkPhoneVerified] = useState(true);
+  const [phoneSaving, setPhoneSaving] = useState(false);
   const fetcher = useAuthFetcher();
+  const authFetch = useAuthFetch();
   const { addToast } = useStore();
   const { isLoaded, isSignedIn } = useAuth();
   const authReady = isLoaded && isSignedIn;
 
-  const { data: dbUsers, error, isLoading } = useSWR(authReady ? '/api/admin/users' : null, fetcher);
+  const { data: dbUsers, error, isLoading, mutate } = useSWR(authReady ? '/api/admin/users' : null, fetcher);
   const { data: selectedOrders, isLoading: selectedOrdersLoading } = useSWR(
     authReady && selectedUser ? `/api/admin/users/${encodeURIComponent(selectedUser.id)}/orders` : null,
     fetcher
@@ -39,6 +44,49 @@ export default function AdminCRMManager() {
   });
   const errorInfo = (error as any)?.info;
   const orders = Array.isArray(selectedOrders) ? selectedOrders : [];
+
+  useEffect(() => {
+    setPhoneInput(selectedUser?.phone_wa || '');
+    setMarkPhoneVerified(!selectedUser?.phoneWaVerifiedAt);
+  }, [selectedUser]);
+
+  const refreshSelectedUser = async (fallback: any) => {
+    const nextUsers = await mutate();
+    const updatedUser = (Array.isArray(nextUsers) ? nextUsers : []).find((user: any) => user.id === selectedUser?.id);
+    setSelectedUser(updatedUser || fallback);
+  };
+
+  const updatePhoneVerification = async (action: 'update_phone' | 'verify_phone' | 'clear_phone_verification') => {
+    if (!selectedUser) return;
+    setPhoneSaving(true);
+    try {
+      const res = await authFetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clerk_id: selectedUser.id,
+          action,
+          phone_wa: phoneInput,
+          mark_verified: markPhoneVerified,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Gagal memperbarui verifikasi WhatsApp.');
+
+      const optimisticUser = {
+        ...selectedUser,
+        phone_wa: payload.phone_wa ?? selectedUser.phone_wa,
+        phoneWaVerifiedAt: payload.phone_wa_verified_at ?? (action === 'clear_phone_verification' ? null : selectedUser.phoneWaVerifiedAt),
+      };
+      setSelectedUser(optimisticUser);
+      await refreshSelectedUser(optimisticUser);
+      addToast(payload.clerk_sync?.warning || 'Status WhatsApp pelanggan diperbarui.', payload.clerk_sync?.warning ? 'info' : 'success');
+    } catch (error: any) {
+      addToast(error.message || 'Gagal memperbarui verifikasi WhatsApp.', 'error');
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
 
   const exportCustomers = () => {
     const rows = [
@@ -252,6 +300,64 @@ export default function AdminCRMManager() {
           </div>
 
           <div className="space-y-8">
+            <div className="bg-white/40 border border-black/5 p-6 rounded-[2rem]">
+              <h3 className="font-heading font-semibold uppercase tracking-widest text-xs mb-5 flex items-center gap-2">
+                <Phone size={16} />
+                <ExplainedLabel tooltip={<WhatsAppVerificationTooltip />}>Verifikasi WhatsApp</ExplainedLabel>
+              </h3>
+              <div className={`rounded-2xl border p-4 mb-4 ${selectedUser.phoneWaVerifiedAt ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-amber-50 border-amber-100 text-amber-800'}`}>
+                <p className="text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
+                  {selectedUser.phoneWaVerifiedAt ? <ShieldCheck size={14} /> : <ShieldX size={14} />}
+                  {selectedUser.phoneWaVerifiedAt ? 'Nomor terverifikasi' : 'Belum terverifikasi'}
+                </p>
+                <p className="text-xs mt-1">
+                  {selectedUser.phoneWaVerifiedAt ? new Date(selectedUser.phoneWaVerifiedAt).toLocaleString('id-ID') : 'Gunakan tombol manual jika GOWA/webhook sedang bermasalah.'}
+                </p>
+              </div>
+              <label className="block text-[10px] uppercase tracking-widest text-black/45 font-bold mb-2">Nomor WhatsApp Pelanggan</label>
+              <input
+                value={phoneInput}
+                onChange={(event) => setPhoneInput(event.target.value)}
+                placeholder="62812..."
+                className="w-full bg-white border border-black/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-ink"
+              />
+              <label className="mt-3 flex items-start gap-2 text-xs text-black/60">
+                <input
+                  type="checkbox"
+                  checked={markPhoneVerified}
+                  onChange={(event) => setMarkPhoneVerified(event.target.checked)}
+                  className="mt-0.5"
+                />
+                Tandai nomor ini langsung verified setelah disimpan.
+              </label>
+              <div className="grid grid-cols-1 gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => updatePhoneVerification('update_phone')}
+                  disabled={phoneSaving}
+                  className="w-full py-2.5 rounded-full bg-ink text-white text-[10px] uppercase tracking-widest hover:bg-black/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Save size={13} /> Simpan Nomor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updatePhoneVerification('verify_phone')}
+                  disabled={phoneSaving || !phoneInput}
+                  className="w-full py-2.5 rounded-full bg-emerald-600 text-white text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck size={13} /> Verifikasi Manual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updatePhoneVerification('clear_phone_verification')}
+                  disabled={phoneSaving}
+                  className="w-full py-2.5 rounded-full bg-white border border-black/10 text-[10px] uppercase tracking-widest hover:bg-black/5 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <ShieldX size={13} /> Hapus Status Verified
+                </button>
+              </div>
+            </div>
+
             {/* The Journey Timeline */}
             <div className="bg-white/40 border border-black/5 p-6 rounded-[2rem]">
               <h3 className="font-heading font-semibold uppercase tracking-widest text-xs mb-6 flex items-center gap-2"><Calendar size={16}/> Journey Timeline</h3>

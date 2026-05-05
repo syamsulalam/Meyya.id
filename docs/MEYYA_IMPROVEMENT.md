@@ -22,6 +22,51 @@ Catatan fungsi next action nomor 2:
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
 
+## Batch Admin WhatsApp Verification, Admin UX, dan Site Map 2026-05-06 02:18:00 +07:00
+
+Checklist:
+
+- [x] Admin CRM detail user sekarang punya panel Verifikasi WhatsApp untuk simpan nomor, verifikasi manual, dan hapus status verified.
+- [x] `PATCH /api/admin/users` ditambahkan untuk update nomor WA user, manual verify, dan clear verification dengan audit log.
+- [x] Nomor WhatsApp tujuan verifikasi Meyya bisa diubah dari tab WhatsApp Marketing CRM.
+- [x] `GET/PUT /api/admin/verification-settings` dan helper `app_settings` ditambahkan agar setting nomor verifikasi tersimpan di D1 dengan fallback env `MEYYA_SUPPORT_WHATSAPP`.
+- [x] `POST /api/user/phone-verification` sekarang membaca nomor support dari setting D1 sebelum membuat link WhatsApp.
+- [x] Migration production `migrations/2026-05-06_app_settings_support_whatsapp.sql` dan `schema.sql` ditambahkan untuk tabel `app_settings`.
+- [x] Pindah tab di `/admin` sekarang melakukan scroll-to-top pada window dan content container.
+- [x] Tooltip tambahan dipasang di tab Free Tier dan istilah verifikasi WhatsApp/support number.
+- [x] Dokumentasi peta situs lengkap dibuat di `docs/MEYYA_SITE_MAP.md`.
+- [x] `AGENTS.md` menambahkan index dokumentasi repo agar sesi berikutnya cepat menemukan konteks.
+
+Edge case / follow-up yang ditemukan:
+
+- [x] Static page `/contact` tidak lagi hardcoded; nomor kontak resmi dibaca dari setting publik dan bisa diatur dari admin.
+- [x] WhatsApp Marketing tetap boleh kirim ke nomor belum verified, tetapi setiap target diberi label `WA verified` atau `WA unverified` agar keputusan tetap di admin.
+- [x] Update nomor WA D1 dari admin mencoba sync best-effort ke Clerk metadata (`unsafeMetadata`) agar dashboard Clerk tetap punya cermin data Meyya.
+- [x] Setting `app_settings.support_whatsapp` disiapkan dengan migration D1 remote; patch remote perlu dijalankan saat deploy/maintenance.
+
+## Batch Contact WA, API.CO.ID Free Tier, dan Clerk Sync 2026-05-06 03:05:00 +07:00
+
+Checklist:
+
+- [x] `/contact` sekarang memakai halaman React `Contact` yang mengambil nomor WhatsApp publik dari `/api/settings/public`.
+- [x] Setting admin WhatsApp dipisah menjadi nomor verifikasi Meyya dan nomor kontak resmi, dengan checkbox untuk memakai nomor yang sama.
+- [x] Endpoint `GET/PUT /api/admin/verification-settings` menyimpan `support_whatsapp`, `contact_whatsapp`, dan `contact_uses_support_whatsapp`.
+- [x] `GET /api/settings/public` ditambahkan untuk expose nomor kontak/verifikasi yang aman dibaca publik.
+- [x] Target WhatsApp Marketing menampilkan label `WA verified` atau `WA unverified`, tetapi tidak memblokir pengiriman ke nomor unverified.
+- [x] Manual update/verifikasi nomor WA dari admin melakukan best-effort sync ke Clerk `unsafeMetadata`.
+- [x] Update profil customer juga melakukan best-effort sync nama dan nomor WA ke Clerk agar data lintas platform lebih konsisten.
+- [x] API.CO.ID free tier diriset: Regional API dan Expedition Shipping Cost sama-sama free 3.000 hits/bulan, 20 rps, 0 points/hit.
+- [x] Miss ke API.CO.ID dicatat di `external_api_usage_monthly`; regional cache hit tidak dihitung sebagai external hit.
+- [x] Quote ongkir API.CO.ID di-cache di `shipping_quote_cache` selama 6 jam per origin/destination/weight/kurir aktif.
+- [x] Tab Free Tier menampilkan pemakaian API.CO.ID regional dan ongkir bulan berjalan beserta sisa kuota.
+- [x] Migration `migrations/2026-05-06_app_settings_support_whatsapp.sql` diperluas untuk `app_settings`, `external_api_usage_monthly`, dan `shipping_quote_cache`.
+
+Catatan sumber API.CO.ID:
+
+- Product page API.CO.ID menyebut Regional API gratis 3.000 hits/bulan dan 0 points/hit.
+- Product page API.CO.ID juga menyebut Expedition Shipping Cost API gratis 3.000 hits/bulan dan 0 points/hit.
+- Reverse Geocoding page API.CO.ID menjelaskan pola Standard free 3.000 hits/bulan dan 20 req/sec; angka rps ini dipakai sebagai acuan guard panel untuk produk gratis API.CO.ID yang dipakai Meyya.
+
 ## Batch Guard Checkout Stok Keranjang 2026-05-06 01:32:00 +07:00
 
 Checklist:
