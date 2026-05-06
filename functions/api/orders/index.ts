@@ -166,16 +166,24 @@ export async function onRequestPost(context: any) {
       try {
         await env.MEYYA_DB.batch([
           env.MEYYA_DB.prepare(`
-            INSERT INTO voucher_usages (voucher_code, clerk_id, order_id, usage_type, claim_year)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO voucher_usages (voucher_code, clerk_id, order_id, usage_type, claim_year, coupon_entitlement_id)
+            VALUES (?, ?, ?, ?, ?, ?)
           `).bind(
             voucher_code,
             clerk_id,
             orderId,
-            voucherValidation?.isBirthdayVoucher ? 'BIRTHDAY' : null,
-            voucherValidation?.birthdayClaimYear || null
+            voucherValidation?.isBirthdayVoucher ? 'BIRTHDAY' : (voucherValidation?.entitlementSourceType || null),
+            voucherValidation?.birthdayClaimYear || null,
+            voucherValidation?.entitlementId || null
           ),
-          env.MEYYA_DB.prepare(`UPDATE vouchers SET used_count = used_count + 1 WHERE code = ?`).bind(voucher_code)
+          env.MEYYA_DB.prepare(`UPDATE vouchers SET used_count = used_count + 1 WHERE code = ?`).bind(voucher_code),
+          ...(voucherValidation?.entitlementId ? [
+            env.MEYYA_DB.prepare(`
+              UPDATE coupon_entitlements
+              SET status = 'USED', used_order_id = ?, used_at = CURRENT_TIMESTAMP
+              WHERE id = ? AND clerk_id = ? AND status = 'AVAILABLE'
+            `).bind(orderId, voucherValidation.entitlementId, clerk_id)
+          ] : [])
         ]);
       } catch (error: any) {
         await env.MEYYA_DB.prepare("UPDATE orders SET status = 'CANCELLED' WHERE id = ?").bind(orderId).run();
@@ -240,7 +248,14 @@ export async function onRequestPost(context: any) {
         if (voucher_code) {
           await env.MEYYA_DB.batch([
             env.MEYYA_DB.prepare("DELETE FROM voucher_usages WHERE order_id = ?").bind(orderId),
-            env.MEYYA_DB.prepare("UPDATE vouchers SET used_count = CASE WHEN used_count > 0 THEN used_count - 1 ELSE 0 END WHERE code = ?").bind(voucher_code)
+            env.MEYYA_DB.prepare("UPDATE vouchers SET used_count = CASE WHEN used_count > 0 THEN used_count - 1 ELSE 0 END WHERE code = ?").bind(voucher_code),
+            ...(voucherValidation?.entitlementId ? [
+              env.MEYYA_DB.prepare(`
+                UPDATE coupon_entitlements
+                SET status = 'AVAILABLE', used_order_id = NULL, used_at = NULL
+                WHERE id = ? AND clerk_id = ?
+              `).bind(voucherValidation.entitlementId, clerk_id)
+            ] : [])
           ]);
         }
         return new Response(JSON.stringify({ error: 'Some items are no longer available. Please refresh your cart.' }), { status: 409 });

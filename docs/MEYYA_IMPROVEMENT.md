@@ -8,14 +8,16 @@ Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, c
 
 Yang paling masuk akal dikerjakan berikutnya:
 
-1. Rancang dan implementasikan review growth system: CTA review setelah order selesai, admin Reviews tab, admin reply, incentive murah, dan anti duplicate review.
-2. Buat Cloudflare Worker maintenance untuk auto pruning bulanan data operasional yang lebih lama dari 3 tahun, dengan dry-run dan audit log.
-3. Rancang integrasi Duitku sandbox: migration payment gateway fields, create transaction, callback signature, check transaction, dan idempotency.
-4. Inventory server Oracle GOWA yang sudah pernah disetup: base URL, versi, auth, device id, session login, test endpoint `/devices`, `/send/message`, dan format payload webhook message asli.
-5. Set env production `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`, lalu arahkan GOWA webhook ke `/api/webhooks/gowa?secret=...`.
-6. Rancang sinkron Google Contacts untuk nomor WA terverifikasi jika nanti kontak harus tersimpan juga di phonebook bersama, bukan hanya D1.
-7. Tambah messaging outbox untuk WhatsApp/email agar integrasi GOWA dan Sendy bisa dry-run, retry, dan diaudit sebelum auto-send.
-8. Tambah backfill analytics aggregate manual per window tanggal jika ingin histori raw event lama ikut masuk chart.
+1. Tambah anti-abuse guard lanjutan untuk welcome coupon: browser/device fingerprint hash, phone hash, address hash, IP prefix hash, risk score, dan audit blocked claim.
+2. Tambah editor lengkap untuk `wheel_prizes` dan campaign default di `/admin`, termasuk tanggal ulang tahun Meyya dan probability wheel.
+3. Tambah free product voucher sungguhan: product pool admin, auto-pick produk hadiah, stok guard, dan fallback jika stok habis.
+4. Buat Cloudflare Worker maintenance untuk auto pruning bulanan data operasional yang lebih lama dari 3 tahun, dengan dry-run dan audit log.
+5. Rancang integrasi Duitku sandbox: migration payment gateway fields, create transaction, callback signature, check transaction, dan idempotency.
+6. Inventory server Oracle GOWA yang sudah pernah disetup: base URL, versi, auth, device id, session login, test endpoint `/devices`, `/send/message`, dan format payload webhook message asli.
+7. Set env production `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`, lalu arahkan GOWA webhook ke `/api/webhooks/gowa?secret=...`.
+8. Rancang sinkron Google Contacts untuk nomor WA terverifikasi jika nanti kontak harus tersimpan juga di phonebook bersama, bukan hanya D1.
+9. Tambah messaging outbox untuk WhatsApp/email agar integrasi GOWA dan Sendy bisa dry-run, retry, dan diaudit sebelum auto-send.
+10. Tambah backfill analytics aggregate manual per window tanggal jika ingin histori raw event lama ikut masuk chart.
 
 Catatan fungsi next action nomor 2:
 
@@ -34,25 +36,26 @@ Status fitur saat ini:
 - [x] Product detail sudah menampilkan review published dan form rating/textarea.
 - [x] Template pesan `order_completed` sudah mengajak customer memberi review.
 - [x] Draft review product detail tersimpan lokal agar tidak hilang saat refresh.
-- [ ] Review belum punya admin center di `/admin`.
-- [ ] Admin belum bisa membalas review customer secara public.
-- [ ] Belum ada moderation queue yang lengkap.
-- [ ] Belum ada unique guard anti duplicate review per order/product/customer.
-- [ ] Belum ada CTA review di order selesai dan profile order history.
-- [ ] Belum ada insentif review seperti micro-voucher atau undian voucher bulanan.
-- [ ] Rating average/count masih dihitung dari review yang di-fetch, belum dari aggregate semua review published.
+- [x] Review punya tab admin `/admin` Reviews untuk list, filter status, publish/hide, featured, dan balasan public.
+- [x] Admin bisa membalas review customer dan balasan tampil di product detail.
+- [x] App-level guard duplicate review per order/product/customer ditambahkan di `POST /api/reviews`.
+- [x] CTA `Tulis Review` ditambahkan di order selesai dan profile order history.
+- [x] Review valid membuat kesempatan spin hadiah review.
+- [x] Rating average/count product detail dihitung dari aggregate semua review published, bukan hanya 20 review yang di-fetch.
 - [ ] Belum ada strategi offload review lama ke R2/static JSON.
+- [ ] Belum ada metadata review size/fit/foto/consent marketing.
+- [ ] Belum ada review summary table materialized; aggregate saat ini masih query langsung ke `product_reviews`.
 
 Rencana pengadaan:
 
-- [ ] Tambah tab `/admin` Reviews/Ulasan untuk list, filter, detail drawer, publish/hide, admin reply, featured review, internal note, dan link ke order/customer.
-- [ ] Tambah endpoint admin review list/detail/update dengan audit log untuk semua action moderation.
-- [ ] Tambah public admin reply field agar customer bisa melihat balasan Meyya di product page.
-- [ ] Tambah unique constraint atau guard aplikasi untuk mencegah duplicate review pada kombinasi order, product, dan customer.
-- [ ] Tambah CTA `Tulis Review` di `/order/:id` saat order selesai dan di `/profil` riwayat order per item.
+- [x] Tambah tab `/admin` Reviews/Ulasan untuk list, filter, publish/hide, admin reply, featured review, dan konteks order/customer.
+- [x] Tambah endpoint admin review list/update dengan audit log untuk action moderation.
+- [x] Tambah public admin reply field agar customer bisa melihat balasan Meyya di product page.
+- [x] Tambah app-level guard untuk mencegah duplicate review pada kombinasi order, product, dan customer.
+- [x] Tambah CTA `Tulis Review` di `/order/:id` saat order selesai dan di `/profil` riwayat order per item.
 - [ ] Tambah metadata review ringan untuk fashion: size dibeli, fit kecil/pas/besar, quality rating, dan consent marketing.
 - [ ] Tambah badge `Verified Buyer` dan histogram rating di product detail.
-- [ ] Tambah incentive workflow: review teks valid mendapat entry undian, review dengan foto/detail size mendapat extra entry atau micro-voucher dengan minimum spend.
+- [x] Tambah incentive workflow awal: review teks valid mendapat entitlement spin wheel.
 - [ ] Tambah panel admin untuk review incentive: eligible, rewarded, voucher code, raffle period, dan export pemenang.
 - [ ] Tambah `product_review_summaries` agar rating/count/histogram tidak menghitung raw review setiap product request.
 - [ ] Tambah R2/static JSON archive untuk review published lama, sementara D1 menyimpan review terbaru, featured, pending, dan aggregate.
@@ -63,6 +66,48 @@ Catatan strategi:
 - Micro-voucher cocok jika ingin review lebih konsisten, tetapi harus pakai minimum spend, expiry pendek, dan non-stackable agar biaya terkendali.
 - Review negatif jangan otomatis disembunyikan. Balasan admin yang rapi bisa meningkatkan trust lebih baik daripada hanya menampilkan review positif.
 - Archive review lama harus melalui dry-run dan audit log; jangan hapus raw D1 sebelum export, summary, dan public rendering terverifikasi.
+
+## Batch Default Coupon, Voucher Entitlement, dan Review Spin Brainstorm 2026-05-06
+
+Dokumen detail: `docs/MEYYA_DEFAULT_COUPON_SYSTEM_STRATEGY.md`.
+
+Status fitur saat ini:
+
+- [x] Tabel `vouchers` dan `voucher_usages` sudah ada.
+- [x] Voucher bisa divalidasi di checkout dan divalidasi ulang saat order dibuat.
+- [x] Voucher birthday sudah punya window klaim dan guard 1x per tahun.
+- [x] Admin sudah punya CRUD voucher dasar.
+- [x] Profil customer sudah bisa menampilkan voucher aktif.
+- [x] Default coupon campaign seed ditambahkan untuk `MEYYAWELCOME`, `BDAYGIFT`, `MEYYABDAY`, dan `REVIEWSPIN`.
+- [x] Entitlement per user ditambahkan agar kode default/review reward hanya valid untuk user yang punya hak klaim.
+- [ ] Belum ada guard welcome coupon lintas akun/browser/phone/address.
+- [x] Review spin wheel server-side ditambahkan; first spin non-zonk lewat seed probability.
+- [x] Prize pool awal ditambahkan di `wheel_prizes`.
+- [ ] Belum ada free product voucher hasil reward.
+- [x] Checkout punya bagian `Kupon Saya` yang menampilkan kupon milik user.
+- [x] Semua apply kupon/voucher mewajibkan WhatsApp verified di server-side validation.
+
+Rencana pengadaan:
+
+- [x] Pertahankan tabel/endpoint `vouchers` sebagai redemption layer agar tidak overhaul checkout/order.
+- [x] Tambah layer `coupon_campaigns` untuk default campaign utama.
+- [x] Tambah `coupon_entitlements` agar voucher default hanya bisa dipakai oleh user yang punya hak klaim.
+- [x] Admin voucher menampilkan panel default campaign dan bisa aktif/nonaktifkan campaign.
+- [ ] Tambah setting admin tanggal ulang tahun Meyya untuk campaign `MEYYABDAY`.
+- [ ] Tambah guard welcome: login, no prior valid order, WA verified untuk benefit besar, plus risk score dari phone hash, device fingerprint hash, address hash, dan IP prefix hash.
+- [x] Tambah review spin entitlement setelah review valid dari order completed.
+- [x] Buat wheel server-side: first ever spin user guaranteed non-zonk, spin berikutnya bisa zonk sesuai probability.
+- [x] Tambah prize awal: ongkir Rp5rb tanpa minimum, ongkir Rp10rb dengan minimum, fixed small voucher, disabled free product placeholder, dan max voucher 20% transaksi terakhir dengan minimum purchase sebesar transaksi terakhir.
+- [x] Checkout menampilkan `Kupon Saya`, tetapi tetap memakai validasi voucher existing dan validasi ulang di order API.
+- [x] Tambah audit log untuk spin result dan update campaign/review moderation.
+- [ ] Tambah audit log khusus untuk blocked abuse dan entitlement revoke.
+
+Catatan strategi:
+
+- Istilah produk yang paling rapi adalah `coupon campaign` untuk skenario default, `voucher entitlement` untuk hak user, dan `voucher code` untuk kode yang dipakai di checkout.
+- Browser fingerprint jangan jadi satu-satunya blocker karena bisa berubah dan bisa salah untuk perangkat bersama; gunakan sebagai risk signal bersama phone, alamat, IP prefix, WA verified, dan order history.
+- Hadiah wheel harus selalu ditentukan server-side. Frontend wheel hanya animasi agar refresh/retry tidak mengubah hadiah.
+- First spin boleh dibuat guaranteed win, tetapi hadiah besar tetap perlu risk rendah dan sebaiknya wajib WA verified.
 
 ## Batch Admin WhatsApp Verification, Admin UX, dan Site Map 2026-05-06 02:18:00 +07:00
 

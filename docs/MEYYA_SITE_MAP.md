@@ -22,7 +22,7 @@ Dokumen ini adalah peta kerja cepat untuk memahami bagaimana Meyya.id berjalan s
 - `/cart`: `src/pages/Cart.tsx`. Keranjang persisted lokal, grouping produk/varian, validasi stok terbaru sebelum checkout.
 - `/checkout`: `src/pages/Checkout.tsx`. Alamat multi-step/saved address, ongkir, voucher, payment method, order summary, stock guard final sebelum create order.
 - `/order/:id`: `src/pages/Order.tsx`. Detail pesanan, status, payment proof, tracking, return/exchange.
-- `/admin`: `src/pages/AdminDashboard.tsx`. Shell admin tabbed panel untuk dashboard, CRM, marketing, produk, order, settings, finance, free-tier.
+- `/admin`: `src/pages/AdminDashboard.tsx`. Shell admin tabbed panel untuk dashboard, CRM, marketing, produk, voucher, review produk, order, settings, finance, free-tier.
 - `/wishlist`: `src/pages/Wishlist.tsx`. Produk favorit user.
 - `/profil`: `src/pages/Profile.tsx`. Akun, alamat, order history, vouchers, recently viewed, recommendations, phone verification.
 - `/login`: `src/pages/Auth.tsx`. Clerk auth form.
@@ -69,6 +69,7 @@ Dokumen ini adalah peta kerja cepat untuk memahami bagaimana Meyya.id berjalan s
 - `AdminProductForm`: CRUD produk, kategori, warna, ukuran, attributes, variants, SEO, HPP/profit.
 - `AdminCategoryManager`: CRUD kategori dan taxonomy flags.
 - `AdminVoucherManager`: CRUD voucher, birthday voucher, target segment/user.
+- `AdminReviewManager`: review produk, moderation status, featured review, dan balasan public admin.
 - `AdminPaymentSettings`: fee transfer/QRIS, bank accounts, expiry.
 - `AdminShippingSettings`: origin toko, couriers, region cache.
 - `AdminOrderManager`: order ops, payment confirmation, fulfillment, returns, templates.
@@ -109,7 +110,7 @@ Public/customer API:
 - `shipping/calculate.ts`: API.CO.ID shipping quote.
 - `regions/[[path]].ts`: region data proxy/cache.
 - `vouchers/index.ts`, `vouchers/validate.ts`: voucher list/validate.
-- `bundles.ts`, `reviews.ts`, `returns.ts`, `events.ts`, `upload.ts`: bundle, reviews, return request, analytics events, file upload.
+- `bundles.ts`, `reviews.ts`, `review-spins.ts`, `returns.ts`, `events.ts`, `upload.ts`: bundle, reviews, review reward spin, return request, analytics events, file upload.
 - `payment/options.ts`: customer payment options.
 - `settings/public.ts`: setting publik aman seperti nomor WhatsApp kontak resmi.
 
@@ -133,6 +134,8 @@ Admin API:
 - `admin/orders/index.ts`, `admin/orders/[id]/status.ts`, `admin/orders/[id]/confirm.ts`: order ops.
 - `admin/returns.ts`: return queue and restock.
 - `admin/vouchers.ts`, `admin/vouchers/[code].ts`: voucher CRUD.
+- `admin/coupon-campaigns.ts`: default coupon campaign settings and seed status.
+- `admin/reviews.ts`: review moderation, publish/hide, featured review, and admin public reply.
 - `admin/payment-settings.ts`, `admin/payment-bank-accounts.ts`, `admin/payment-bank-accounts/[id].ts`: payment config.
 - `admin/shipping-settings.ts`, `admin/region-cache.ts`: shipping config/cache.
 - `admin/finance.ts`: finance reports and manual transactions.
@@ -152,6 +155,7 @@ Webhooks:
 - Main schema reference: `schema.sql`.
 - Production migrations live in `migrations/`.
 - Review journey, admin review center plan, incentive ideas, and review archive/offload strategy are documented in `docs/MEYYA_REVIEW_JOURNEY_STRATEGY.md`.
+- Default coupon campaigns, voucher entitlements, review spin wheel, and anti-abuse guard strategy are documented in `docs/MEYYA_DEFAULT_COUPON_SYSTEM_STRATEGY.md`.
 - `ensureCommerceSchema`, `ensureUsersSchema`, and app setting helpers defensively create/patch tables at runtime, but production changes should still get explicit migration files.
 - Stock model: product global stock mirrors sum of active variants when variants exist; preorder bypasses stock block.
 - Order creation reserves stock at `PENDING`, consumes or releases later via status/expiry flows.

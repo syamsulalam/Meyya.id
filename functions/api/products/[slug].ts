@@ -55,14 +55,19 @@ export async function onRequestGet(context: any) {
     p.variants = hydrateVariants(variants.results || []);
 
     const reviews = await env.MEYYA_DB.prepare(`
-      SELECT rating, review_text, created_at
+      SELECT rating, review_text, admin_reply, admin_replied_at, is_featured, created_at
       FROM product_reviews
       WHERE product_id = ? AND status = 'PUBLISHED'
-      ORDER BY created_at DESC LIMIT 20
+      ORDER BY is_featured DESC, created_at DESC LIMIT 20
     `).bind(p.id).all();
     p.reviews = reviews.results || [];
-    p.review_count = p.reviews.length;
-    p.rating_average = p.reviews.length ? p.reviews.reduce((sum: number, review: any) => sum + Number(review.rating || 0), 0) / p.reviews.length : 0;
+    const reviewSummary = await env.MEYYA_DB.prepare(`
+      SELECT COUNT(*) AS review_count, AVG(rating) AS rating_average
+      FROM product_reviews
+      WHERE product_id = ? AND status = 'PUBLISHED'
+    `).bind(p.id).first();
+    p.review_count = Number(reviewSummary?.review_count || 0);
+    p.rating_average = Number(reviewSummary?.rating_average || 0);
 
     const related = await env.MEYYA_DB.prepare(`
       SELECT rp.* FROM products rp

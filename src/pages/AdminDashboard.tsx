@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { LayoutDashboard, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck, ClipboardList, ListChecks, HardDrive, Banknote } from 'lucide-react';
+import { LayoutDashboard, Box, Tags, Users, Ticket, MessageSquare, CreditCard, Truck, ClipboardList, ListChecks, HardDrive, Banknote, Star } from 'lucide-react';
 import AdminMetricsPanel from '../components/admin/AdminMetricsPanel';
 import AdminProductForm from '../components/admin/AdminProductForm';
 import AdminCategoryManager from '../components/admin/AdminCategoryManager';
@@ -14,6 +14,7 @@ import AdminOrderManager from '../components/admin/AdminOrderManager';
 import AdminDevelopmentRoadmap from '../components/admin/AdminDevelopmentRoadmap';
 import AdminFreeTierPanel from '../components/admin/AdminFreeTierPanel';
 import AdminFinancePanel from '../components/admin/AdminFinancePanel';
+import AdminReviewManager from '../components/admin/AdminReviewManager';
 import Tooltip from '../components/Tooltip';
 import { useUser } from '@clerk/react';
 
@@ -23,7 +24,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const contentRef = useRef<HTMLDivElement>(null);
   
-  type AdminTab = 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'marketing' | 'payment' | 'shipping' | 'orders' | 'roadmap' | 'free-tier' | 'finance';
+  type AdminTab = 'dashboard' | 'produk' | 'kategori' | 'crm' | 'voucher' | 'reviews' | 'marketing' | 'payment' | 'shipping' | 'orders' | 'roadmap' | 'free-tier' | 'finance';
 
   const [activeTab, setActiveTabState] = useState<AdminTab>(() => {
     return (localStorage.getItem('adminActiveTab') as any) || 'marketing';
@@ -133,6 +134,18 @@ export default function AdminDashboard() {
                     <Ticket size={20} />
                   </button>
                 </Tooltip>
+                <Tooltip content="Review Produk" position="right">
+                  <button
+                    onClick={() => setActiveTab('reviews')}
+                    className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
+                      activeTab === 'reviews'
+                        ? 'bg-ink text-white shadow-md scale-110'
+                        : 'text-gray-600 hover:bg-black/5 hover:scale-110'
+                    }`}
+                  >
+                    <Star size={20} />
+                  </button>
+                </Tooltip>
                 <Tooltip content="Pembayaran" position="right">
                   <button
                     onClick={() => setActiveTab('payment')}
@@ -216,6 +229,7 @@ export default function AdminDashboard() {
           {activeTab === 'kategori' && <AdminCategoryManager />}
           {activeTab === 'produk' && <AdminProductForm />}
           {activeTab === 'voucher' && <AdminVoucherManager />}
+          {activeTab === 'reviews' && <AdminReviewManager />}
           {activeTab === 'payment' && <AdminPaymentSettings />}
           {activeTab === 'finance' && <AdminFinancePanel />}
           {activeTab === 'orders' && <AdminOrderManager />}

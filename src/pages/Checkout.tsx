@@ -42,6 +42,7 @@ export default function Checkout() {
     refreshStockValidation,
   } = useCartStockValidation(cart);
   const { data: dbAddresses } = useSWR(clerkUser?.id ? `/api/user/addresses/${clerkUser.id}` : null, authFetcher);
+  const { data: userVouchersData, mutate: mutateUserVouchers } = useSWR(clerkUser?.id ? '/api/user/vouchers' : null, authFetcher);
   const d1SavedAddresses = React.useMemo(() => Array.isArray(dbAddresses) ? dbAddresses.map((a, idx) => ({
     id: String(a.id),
     recipientName: a.recipient_name,
@@ -93,6 +94,7 @@ export default function Checkout() {
 
   const [loading, setLoading] = useState(false);
   const [orderComplete, setOrderComplete] = useState<any>(null);
+  const userVouchers = Array.isArray(userVouchersData) ? userVouchersData : [];
   const checkoutDraftKey = clerkUser?.id ? `meyya:draft:checkout:${clerkUser.id}` : 'meyya:draft:checkout:guest';
   const clearCheckoutDraft = useDraftPersistence(
     checkoutDraftKey,
@@ -140,16 +142,17 @@ export default function Checkout() {
 
   const totalAkhir = subtotal + shippingCost + adminFee - (appliedVoucher ? appliedVoucher.discount : 0);
 
-  const handleApplyVoucher = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!voucherCode) return;
+  const applyVoucherCode = async (codeToApply?: string) => {
+    const nextCode = String(codeToApply || voucherCode || '').trim().toUpperCase();
+    if (!nextCode) return;
+    setVoucherCode(nextCode);
     
     try {
        const res = await authFetch('/api/vouchers/validate', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({
-           code: voucherCode.toUpperCase(),
+           code: nextCode,
            cart_subtotal: subtotal,
            shipping_cost: shippingCost,
            cart_items: cart.map((item) => ({
@@ -164,9 +167,9 @@ export default function Checkout() {
        
        if (!res.ok) {
           trackEvent('VOUCHER_FAILED', {
-            campaign_tag: voucherCode.toUpperCase(),
+            campaign_tag: nextCode,
             metadata: {
-              voucher_code: voucherCode.toUpperCase(),
+              voucher_code: nextCode,
               error: data.error || 'Voucher tidak valid',
               subtotal,
               shipping_cost: shippingCost,
@@ -179,6 +182,7 @@ export default function Checkout() {
        }
 
        setAppliedVoucher({ code: data.code, discount: data.discount });
+       mutateUserVouchers();
        trackEvent('VOUCHER_APPLIED', {
          campaign_tag: data.code,
          metadata: {
@@ -193,9 +197,9 @@ export default function Checkout() {
        addToast('Voucher berhasil diaplikasikan!', 'success');
     } catch (e: any) {
        trackEvent('VOUCHER_FAILED', {
-         campaign_tag: voucherCode.toUpperCase(),
+         campaign_tag: nextCode,
          metadata: {
-           voucher_code: voucherCode.toUpperCase(),
+           voucher_code: nextCode,
            error: e?.message || 'network_error',
            subtotal,
            shipping_cost: shippingCost,
@@ -204,6 +208,11 @@ export default function Checkout() {
        });
        addToast('Terjadi kesalahan jaringan.', 'error');
     }
+  };
+
+  const handleApplyVoucher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await applyVoucherCode();
   };
 
   // API Caching hooks
@@ -711,6 +720,33 @@ export default function Checkout() {
             )}
             
             {/* Promo Area */}
+            {userVouchers.length > 0 && !appliedVoucher && (
+              <div className="rounded-2xl border border-black/5 bg-white/60 p-3">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-black/45">Kupon Saya</p>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {userVouchers.slice(0, 6).map((voucher: any) => (
+                    <button
+                      key={`${voucher.id}-${voucher.code}`}
+                      type="button"
+                      onClick={() => applyVoucherCode(voucher.code)}
+                      className="min-w-[150px] rounded-xl border border-black/10 bg-white px-3 py-2 text-left text-xs transition-colors hover:bg-black/5"
+                    >
+                      <span className="block font-mono font-semibold text-ink">{voucher.code}</span>
+                      <span className="mt-1 block text-[10px] text-black/50">
+                        {voucher.type === 'PERCENTAGE'
+                          ? `${Number(voucher.value || 0)}% off`
+                          : voucher.type === 'FIXED'
+                            ? `Rp ${Number(voucher.value || 0).toLocaleString('id-ID')} off`
+                            : `Ongkir up to Rp ${Number(voucher.value || 0).toLocaleString('id-ID')}`}
+                      </span>
+                      {Number(voucher.minPurchase || 0) > 0 && (
+                        <span className="mt-0.5 block text-[10px] text-black/40">Min. Rp {Number(voucher.minPurchase || 0).toLocaleString('id-ID')}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {appliedVoucher ? (
               <div className="bg-emerald-50 text-emerald-700 p-3 rounded-xl flex items-center justify-between border border-emerald-100">
                 <span className="text-xs font-semibold">{appliedVoucher.code}</span>

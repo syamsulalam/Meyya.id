@@ -1,4 +1,11 @@
-import { ensureVoucherSchema, getBirthdayClaimStatus, hasBirthdayVoucherClaimThisYear, parseApplicableProductIds } from '../_vouchers';
+import {
+  ensureDefaultCouponEntitlementsForUser,
+  ensureVoucherSchema,
+  getBirthdayClaimStatus,
+  getWhatsappVerificationStatus,
+  hasBirthdayVoucherClaimThisYear,
+  parseApplicableProductIds
+} from '../_vouchers';
 
 export async function onRequestGet(context: any) {
   const { env, data } = context;
@@ -8,7 +15,36 @@ export async function onRequestGet(context: any) {
 
   try {
     await ensureVoucherSchema(env);
+    await ensureDefaultCouponEntitlementsForUser(env, clerkId);
+    const whatsapp = await getWhatsappVerificationStatus(env, clerkId);
     const user = await env.MEYYA_DB.prepare('SELECT birth_date FROM users WHERE clerk_id = ?').bind(clerkId).first();
+    const { results: entitlements } = await env.MEYYA_DB.prepare(`
+      SELECT
+        ce.id,
+        ce.voucher_code AS code,
+        ce.voucher_code AS name,
+        ce.campaign_key AS campaignKey,
+        ce.source_type AS sourceType,
+        ce.discount_type AS type,
+        ce.discount_value AS value,
+        ce.min_purchase AS minPurchase,
+        ce.max_discount AS maxDiscount,
+        ce.valid_from AS startDate,
+        ce.valid_until AS endDate,
+        v.target_user_role AS targetUserRole,
+        v.target_segment AS targetSegment,
+        v.birthday_claim_window_days AS birthdayClaimWindowDays,
+        v.applicable_product_ids AS applicableProductIds,
+        1 AS isEntitlement
+      FROM coupon_entitlements ce
+      JOIN vouchers v ON v.code = ce.voucher_code
+      WHERE ce.clerk_id = ?
+        AND ce.status = 'AVAILABLE'
+        AND (ce.valid_from IS NULL OR datetime(ce.valid_from) <= datetime('now'))
+        AND (ce.valid_until IS NULL OR datetime(ce.valid_until) >= datetime('now'))
+      ORDER BY ce.valid_until IS NULL ASC, ce.valid_until ASC, ce.created_at DESC
+    `).bind(clerkId).all();
+
     const { results } = await env.MEYYA_DB.prepare(`
       SELECT
         id,
@@ -29,11 +65,12 @@ export async function onRequestGet(context: any) {
         AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
         AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
         AND (target_clerk_id IS NULL OR target_clerk_id = ?)
+        AND COALESCE(requires_entitlement, 0) = 0
     `).bind(clerkId).all();
 
     const now = new Date();
     const birthdayAlreadyClaimed = await hasBirthdayVoucherClaimThisYear(env, clerkId, now);
-    const vouchers = (results || []).filter((voucher: any) => {
+    const publicVouchers = (results || []).filter((voucher: any) => {
       const targetRole = String(voucher.targetUserRole || 'ALL').toUpperCase();
       const segment = String(voucher.targetSegment || '').toUpperCase();
       const birthdayWindow = Number(voucher.birthdayClaimWindowDays || 0);
@@ -44,8 +81,16 @@ export async function onRequestGet(context: any) {
       return getBirthdayClaimStatus(user.birth_date, birthdayWindow, now).valid;
     }).map((voucher: any) => ({
       ...voucher,
+      lockedReason: whatsapp.verified ? '' : 'Verifikasi WhatsApp diperlukan untuk memakai kupon/voucher',
       applicableProductIds: parseApplicableProductIds(voucher.applicableProductIds),
     }));
+    const entitlementVouchers = (entitlements || []).map((voucher: any) => ({
+      ...voucher,
+      lockedReason: whatsapp.verified ? '' : 'Verifikasi WhatsApp diperlukan untuk memakai kupon/voucher',
+      applicableProductIds: parseApplicableProductIds(voucher.applicableProductIds),
+    }));
+
+    const vouchers = whatsapp.verified ? [...entitlementVouchers, ...publicVouchers] : [];
 
     return new Response(JSON.stringify(vouchers), { headers: { 'Content-Type': 'application/json' } });
   } catch (error: any) {

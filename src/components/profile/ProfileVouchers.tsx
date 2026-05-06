@@ -1,14 +1,21 @@
 import useSWR from 'swr';
-import { Ticket } from 'lucide-react';
+import { Gift, RotateCw, Ticket } from 'lucide-react';
 import { useState } from 'react';
-import { useAuthFetcher } from '../../hooks/useAuthFetch';
+import { useStore } from '../../store';
+import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 
 export default function ProfileVouchers() {
   const fetcher = useAuthFetcher();
-  const { data: dbVouchers, error, isLoading } = useSWR('/api/user/vouchers', fetcher);
+  const authFetch = useAuthFetch();
+  const { addToast } = useStore();
+  const { data: dbVouchers, error, isLoading, mutate } = useSWR('/api/user/vouchers', fetcher);
+  const { data: spinData, mutate: mutateSpins } = useSWR('/api/review-spins', fetcher);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [spinningId, setSpinningId] = useState<string | null>(null);
+  const [lastPrize, setLastPrize] = useState<any>(null);
 
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
+  const availableSpins = Array.isArray(spinData?.available) ? spinData.available : [];
 
   const getValidityLabel = (voucher: any) => {
     if (voucher.endDate) return `Berlaku s/d: ${new Date(voucher.endDate).toLocaleDateString('id-ID')}`;
@@ -24,9 +31,64 @@ export default function ProfileVouchers() {
      setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  const spinReviewReward = async (entitlementId: string) => {
+    setSpinningId(entitlementId);
+    setLastPrize(null);
+    try {
+      const res = await authFetch('/api/review-spins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entitlement_id: entitlementId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal memutar hadiah review');
+      setLastPrize(data.spin);
+      mutate();
+      mutateSpins();
+      addToast(data.spin?.voucher_code ? `Hadiah didapat: ${data.spin.voucher_code}` : 'Belum beruntung, coba review lagi nanti.', 'success');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    } finally {
+      setSpinningId(null);
+    }
+  };
+
   return (
     <div>
       <h3 className="text-xl font-light mb-6 border-b border-black/10 pb-4">Voucher Promo Tersedia</h3>
+
+      {(availableSpins.length > 0 || lastPrize) && (
+        <div className="mb-6 rounded-3xl border border-amber-100 bg-amber-50/70 p-4">
+          <div className="mb-3 flex items-center gap-2 text-amber-800">
+            <Gift size={18} />
+            <h4 className="text-sm font-semibold">Hadiah Review</h4>
+          </div>
+          {lastPrize && (
+            <div className="mb-3 rounded-2xl border border-amber-200 bg-white/70 px-4 py-3 text-sm text-amber-900">
+              {lastPrize.voucher_code
+                ? <>Selamat, kamu mendapat <span className="font-mono font-semibold">{lastPrize.voucher_code}</span>. Voucher sudah masuk ke daftar di bawah.</>
+                : 'Hasil spin kali ini belum mendapat voucher.'}
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {availableSpins.map((spin: any) => (
+              <div key={spin.id} className="rounded-2xl border border-amber-100 bg-white p-4">
+                <p className="text-xs font-semibold text-ink line-clamp-1">{spin.product_name || 'Review produk'}</p>
+                <p className="mt-1 text-[10px] text-black/45">Kesempatan spin dari review order {spin.order_id}</p>
+                <button
+                  type="button"
+                  onClick={() => spinReviewReward(spin.id)}
+                  disabled={spinningId === spin.id}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-white disabled:opacity-50"
+                >
+                  <RotateCw size={13} className={spinningId === spin.id ? 'animate-spin' : ''} />
+                  {spinningId === spin.id ? 'Memutar...' : 'Spin Hadiah'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       
       {isLoading && <div className="text-sm px-4 py-3 bg-yellow-50 text-yellow-600 rounded-2xl border border-yellow-200">⏳ Memuat voucher dari database...</div>}
       {error && <div className="text-sm px-4 py-3 bg-red-50 text-red-600 rounded-2xl border border-red-200">Gagal memuat voucher: {error.message}</div>}

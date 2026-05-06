@@ -18,7 +18,20 @@ export async function onRequestGet(context: any) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
     }
 
-    const items = await env.MEYYA_DB.prepare('SELECT * FROM order_items WHERE order_id = ?').bind(id).all();
+    const items = await env.MEYYA_DB.prepare(`
+      SELECT
+        oi.*,
+        p.slug AS product_slug,
+        p.image_url AS product_image_url,
+        pr.id AS review_id
+      FROM order_items oi
+      LEFT JOIN products p ON p.id = oi.product_id
+      LEFT JOIN product_reviews pr
+        ON pr.order_id = oi.order_id
+        AND pr.product_id = oi.product_id
+        AND pr.clerk_id = ?
+      WHERE oi.order_id = ?
+    `).bind(clerkId, id).all();
     
     return new Response(JSON.stringify({ ...order, items: items.results }), {
       headers: { 'Content-Type': 'application/json' },

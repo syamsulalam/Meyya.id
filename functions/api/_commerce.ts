@@ -82,6 +82,11 @@ export async function ensureCommerceSchema(env: any) {
       rating INTEGER NOT NULL,
       review_text TEXT,
       status TEXT DEFAULT 'PUBLISHED',
+      admin_reply TEXT,
+      admin_replied_at DATETIME,
+      admin_replied_by TEXT,
+      is_featured INTEGER DEFAULT 0,
+      moderation_note TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
@@ -336,6 +341,11 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'return_requests', 'decision_note', 'TEXT');
   await addColumn(env, 'return_requests', 'qc_log', 'TEXT');
   await addColumn(env, 'return_requests', 'stock_restored_at', 'DATETIME');
+  await addColumn(env, 'product_reviews', 'admin_reply', 'TEXT');
+  await addColumn(env, 'product_reviews', 'admin_replied_at', 'DATETIME');
+  await addColumn(env, 'product_reviews', 'admin_replied_by', 'TEXT');
+  await addColumn(env, 'product_reviews', 'is_featured', 'INTEGER DEFAULT 0');
+  await addColumn(env, 'product_reviews', 'moderation_note', 'TEXT');
 
   await env.MEYYA_DB.prepare(`
     INSERT OR IGNORE INTO message_templates (key, channel, title, body)

@@ -191,7 +191,7 @@ export default function ProductDetail() {
       setReviewText('');
       setReviewRating(5);
       clearReviewDraft();
-      addToast('Review berhasil dikirim.', 'success');
+      addToast(data.spin_entitlement_id ? 'Review berhasil dikirim. Kesempatan spin hadiah sudah masuk ke tab Voucher.' : 'Review berhasil dikirim.', 'success');
     } catch (error: any) {
       addToast(error.message, 'error');
     }
@@ -421,6 +421,12 @@ export default function ProductDetail() {
                     ))}
                   </div>
                   <p className="text-sm text-black/70">{review.review_text || 'Tanpa catatan tambahan.'}</p>
+                  {review.admin_reply && (
+                    <div className="mt-3 rounded-xl border border-black/5 bg-black/[0.03] p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-black/40">Balasan Meyya</p>
+                      <p className="mt-1 text-sm text-black/70">{review.admin_reply}</p>
+                    </div>
+                  )}
                 </div>
               ))}
               {product.reviews.length === 0 && <p className="text-sm text-black/50">Belum ada review untuk produk ini.</p>}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import useSWR from 'swr';
-import { CheckCircle2, Package, Copy, ArrowRight, Truck, RefreshCw, Upload, X } from 'lucide-react';
+import { CheckCircle2, Package, Copy, ArrowRight, Truck, RefreshCw, Upload, X, Star } from 'lucide-react';
 import { useStore } from '../store';
 import { useAuthFetcher } from '../hooks/useAuthFetch';
 import { useAuthFetch } from '../hooks/useAuthFetch';
@@ -250,40 +250,66 @@ export default function Order() {
         )}
 
         {(order.status === 'COMPLETED' || order.status === 'SELESAI') && (
-          <div className="text-left bg-white/50 border border-black/5 rounded-3xl p-6 mb-8">
-            <h2 className="text-xs uppercase tracking-widest font-semibold mb-3">
-              <ExplainedLabel tooltip={<ReturnExchangeTooltip />}>Retur / Exchange</ExplainedLabel>
-            </h2>
-            <p className="text-xs text-black/50 mb-3">SLA review admin maksimal 7 hari sejak request dikirim. Lampirkan foto kondisi barang/packing agar proses lebih cepat.</p>
-            <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)} rows={3} placeholder="Tuliskan alasan retur atau exchange..." className="w-full bg-white border border-black/10 rounded-xl p-3 text-sm resize-none mb-3" />
-            <div className="mb-3 rounded-2xl border border-black/5 bg-white/60 p-3">
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <p className="text-[10px] uppercase tracking-widest text-black/50">Bukti Foto ({returnEvidenceUrls.length}/6)</p>
-                <label className="inline-flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1.5 text-[10px] uppercase tracking-widest font-semibold cursor-pointer hover:bg-black/10">
-                  <Upload size={12} /> {uploadingReturnEvidence ? 'Mengunggah...' : 'Upload'}
-                  <input type="file" accept="image/*" multiple onChange={uploadReturnEvidence} disabled={uploadingReturnEvidence || returnEvidenceUrls.length >= 6} className="hidden" />
-                </label>
-              </div>
-              {returnEvidenceUrls.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {returnEvidenceUrls.map((url) => (
-                    <div key={url} className="relative aspect-square overflow-hidden rounded-xl border border-black/10 bg-black/5">
-                      <img src={url} alt="Bukti retur" className="h-full w-full object-cover" />
-                      <button type="button" onClick={() => setReturnEvidenceUrls(prev => prev.filter(item => item !== url))} className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-red-600">
-                        <X size={12} />
-                      </button>
+          <>
+            <div className="text-left bg-amber-50/60 border border-amber-100 rounded-3xl p-6 mb-8">
+              <h2 className="text-xs uppercase tracking-widest font-semibold mb-3 text-amber-900">Review Produk</h2>
+              <p className="text-xs text-amber-800/70 mb-4">Review valid dari order selesai memberi kesempatan spin hadiah. Kupon hasil spin bisa dipakai setelah nomor WhatsApp terverifikasi.</p>
+              <div className="space-y-3">
+                {(order.items || []).map((item: any) => (
+                  <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/70 border border-amber-100 px-4 py-3">
+                    <div className="text-left">
+                      <p className="text-sm font-medium line-clamp-1">{item.product_name}</p>
+                      <p className="text-[10px] text-black/45">{item.color_name || '-'} / {item.size_name || '-'}</p>
                     </div>
-                  ))}
+                    {item.review_id ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-700">
+                        <Star size={12} className="fill-emerald-500" /> Sudah
+                      </span>
+                    ) : item.product_slug ? (
+                      <Link to={`/produk/${item.product_slug}`} className="inline-flex items-center gap-1 rounded-full bg-ink px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-white">
+                        <Star size={12} /> Review
+                      </Link>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-left bg-white/50 border border-black/5 rounded-3xl p-6 mb-8">
+              <h2 className="text-xs uppercase tracking-widest font-semibold mb-3">
+                <ExplainedLabel tooltip={<ReturnExchangeTooltip />}>Retur / Exchange</ExplainedLabel>
+              </h2>
+              <p className="text-xs text-black/50 mb-3">SLA review admin maksimal 7 hari sejak request dikirim. Lampirkan foto kondisi barang/packing agar proses lebih cepat.</p>
+              <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)} rows={3} placeholder="Tuliskan alasan retur atau exchange..." className="w-full bg-white border border-black/10 rounded-xl p-3 text-sm resize-none mb-3" />
+              <div className="mb-3 rounded-2xl border border-black/5 bg-white/60 p-3">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <p className="text-[10px] uppercase tracking-widest text-black/50">Bukti Foto ({returnEvidenceUrls.length}/6)</p>
+                  <label className="inline-flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1.5 text-[10px] uppercase tracking-widest font-semibold cursor-pointer hover:bg-black/10">
+                    <Upload size={12} /> {uploadingReturnEvidence ? 'Mengunggah...' : 'Upload'}
+                    <input type="file" accept="image/*" multiple onChange={uploadReturnEvidence} disabled={uploadingReturnEvidence || returnEvidenceUrls.length >= 6} className="hidden" />
+                  </label>
                 </div>
-              ) : (
-                <p className="text-xs text-black/40">Belum ada bukti foto. Foto tidak wajib, tapi sangat membantu admin memutuskan retur/exchange.</p>
-              )}
+                {returnEvidenceUrls.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {returnEvidenceUrls.map((url) => (
+                      <div key={url} className="relative aspect-square overflow-hidden rounded-xl border border-black/10 bg-black/5">
+                        <img src={url} alt="Bukti retur" className="h-full w-full object-cover" />
+                        <button type="button" onClick={() => setReturnEvidenceUrls(prev => prev.filter(item => item !== url))} className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-red-600">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-black/40">Belum ada bukti foto. Foto tidak wajib, tapi sangat membantu admin memutuskan retur/exchange.</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => submitReturnRequest('RETURN')} className="px-4 py-2 bg-black/5 rounded-full text-xs uppercase tracking-widest font-semibold">Ajukan Retur</button>
+                <button type="button" onClick={() => submitReturnRequest('EXCHANGE')} className="px-4 py-2 bg-ink text-white rounded-full text-xs uppercase tracking-widest font-semibold">Ajukan Exchange</button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => submitReturnRequest('RETURN')} className="px-4 py-2 bg-black/5 rounded-full text-xs uppercase tracking-widest font-semibold">Ajukan Retur</button>
-              <button type="button" onClick={() => submitReturnRequest('EXCHANGE')} className="px-4 py-2 bg-ink text-white rounded-full text-xs uppercase tracking-widest font-semibold">Ajukan Exchange</button>
-            </div>
-          </div>
+          </>
         )}
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

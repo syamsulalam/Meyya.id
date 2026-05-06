@@ -4,6 +4,15 @@ Tanggal: 2026-05-06.
 
 Dokumen ini menjelaskan user journey dari beli produk sampai meninggalkan review, status fitur review yang sudah ada di Meyya.id, strategi agar customer lebih rajin review dengan biaya rendah tetapi perceived value tinggi, rencana admin review center, dan strategi offload review lama agar tetap tampil tanpa membebani D1.
 
+Update implementasi awal 2026-05-06:
+
+- CTA review sudah ditambahkan di halaman order selesai dan profile order history.
+- Review duplicate per order/product/customer diblokir di `POST /api/reviews`.
+- Review valid membuat kesempatan spin hadiah review.
+- Tab admin `Reviews` sudah tersedia untuk list review, publish/hide, featured review, dan balasan public.
+- Balasan admin tampil di product detail untuk review published.
+- Offload review lama, media review, size/fit metadata, dan summary table materialized masih menjadi fase berikutnya.
+
 ## Ringkasan
 
 Review adalah social proof yang langsung mempengaruhi conversion. Untuk Meyya, review sebaiknya tidak hanya menjadi teks bintang di halaman produk, tetapi menjadi workflow operasional:

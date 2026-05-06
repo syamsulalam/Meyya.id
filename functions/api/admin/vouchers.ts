@@ -29,7 +29,9 @@ export async function onRequestGet(context: any) {
       targetClerkId: v.target_clerk_id || '',
       targetSegment: v.target_segment || '',
       birthdayClaimWindowDays: Number(v.birthday_claim_window_days || 0),
-      applicableProductIds: parseApplicableProductIds(v.applicable_product_ids)
+      applicableProductIds: parseApplicableProductIds(v.applicable_product_ids),
+      requiresEntitlement: Number(v.requires_entitlement || 0) === 1,
+      sourceCampaignKey: v.source_campaign_key || ''
     }));
 
     return new Response(JSON.stringify(formatted), {
@@ -74,6 +76,36 @@ export async function onRequestPost(context: any) {
         birthday_claim_window_days = excluded.birthday_claim_window_days,
         applicable_product_ids = excluded.applicable_product_ids
     `).bind(code, discount_type, discount_value, min_purchase || 0, max_discount, valid_from, valid_until, usage_limit || 0, target_user_role || 'ALL', target_clerk_id || null, target_segment || null, birthdayWindow || null, applicableProductIds).run();
+
+    await env.MEYYA_DB.prepare(`
+      UPDATE coupon_campaigns
+      SET
+        discount_type = ?,
+        discount_value = ?,
+        min_purchase = ?,
+        max_discount = ?,
+        expires_in_days = CASE
+          WHEN ? IS NOT NULL THEN CAST(MAX(1, julianday(?) - julianday('now')) AS INTEGER)
+          ELSE expires_in_days
+        END,
+        birthday_claim_window_days = COALESCE(?, birthday_claim_window_days),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE key = ?
+    `).bind(
+      discount_type,
+      discount_value,
+      min_purchase || 0,
+      max_discount,
+      valid_until,
+      valid_until,
+      birthdayWindow || null,
+      code
+    ).run();
+    await env.MEYYA_DB.prepare(`
+      UPDATE vouchers
+      SET requires_entitlement = 1, source_campaign_key = ?
+      WHERE code = ? AND EXISTS (SELECT 1 FROM coupon_campaigns WHERE key = ?)
+    `).bind(code, code, code).run();
 
     await auditLog(env, data?.clerkId || null, 'UPSERT_VOUCHER', 'voucher', code, { target_user_role, target_clerk_id, target_segment, birthday_claim_window_days: birthdayWindow, applicable_product_ids: body.applicable_product_ids });
 

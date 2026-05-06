@@ -164,7 +164,9 @@ CREATE TABLE IF NOT EXISTS vouchers (
   target_clerk_id TEXT,
   target_segment TEXT,
   birthday_claim_window_days INTEGER,
-  applicable_product_ids TEXT
+  applicable_product_ids TEXT,
+  requires_entitlement INTEGER DEFAULT 0,
+  source_campaign_key TEXT
 );
 
 CREATE TABLE IF NOT EXISTS voucher_usages (
@@ -174,12 +176,100 @@ CREATE TABLE IF NOT EXISTS voucher_usages (
   order_id TEXT,
   used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   usage_type TEXT,
-  claim_year INTEGER
+  claim_year INTEGER,
+  coupon_entitlement_id TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_voucher_usages_birthday_year
 ON voucher_usages(clerk_id, claim_year)
 WHERE usage_type = 'BIRTHDAY';
+
+CREATE TABLE IF NOT EXISTS coupon_campaigns (
+  key TEXT PRIMARY KEY,
+  title TEXT,
+  description TEXT,
+  enabled INTEGER DEFAULT 1,
+  trigger_type TEXT,
+  discount_type TEXT,
+  discount_value NUMERIC DEFAULT 0,
+  min_purchase NUMERIC DEFAULT 0,
+  max_discount NUMERIC,
+  expires_in_days INTEGER DEFAULT 14,
+  usage_limit_global INTEGER DEFAULT 0,
+  usage_limit_per_user INTEGER DEFAULT 1,
+  requires_verified_wa INTEGER DEFAULT 1,
+  requires_entitlement INTEGER DEFAULT 1,
+  birthday_claim_window_days INTEGER,
+  metadata TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS coupon_entitlements (
+  id TEXT PRIMARY KEY,
+  campaign_key TEXT,
+  voucher_code TEXT,
+  clerk_id TEXT NOT NULL,
+  status TEXT DEFAULT 'AVAILABLE',
+  source_type TEXT,
+  source_id TEXT,
+  discount_type TEXT,
+  discount_value NUMERIC,
+  min_purchase NUMERIC,
+  max_discount NUMERIC,
+  valid_from DATETIME,
+  valid_until DATETIME,
+  metadata TEXT,
+  used_order_id TEXT,
+  used_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_coupon_entitlements_unique_source
+ON coupon_entitlements(clerk_id, campaign_key, source_type, source_id)
+WHERE source_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_coupon_entitlements_available
+ON coupon_entitlements(clerk_id, voucher_code, status, valid_until);
+
+CREATE TABLE IF NOT EXISTS wheel_prizes (
+  key TEXT PRIMARY KEY,
+  label TEXT,
+  enabled INTEGER DEFAULT 1,
+  voucher_code TEXT,
+  discount_type TEXT,
+  discount_value NUMERIC DEFAULT 0,
+  min_purchase NUMERIC DEFAULT 0,
+  max_discount_formula TEXT,
+  min_purchase_formula TEXT,
+  weight_first_spin INTEGER DEFAULT 0,
+  weight_repeat_spin INTEGER DEFAULT 0,
+  expires_in_days INTEGER DEFAULT 14,
+  metadata TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS review_spin_entitlements (
+  id TEXT PRIMARY KEY,
+  review_id INTEGER UNIQUE,
+  order_id TEXT,
+  product_id INTEGER,
+  clerk_id TEXT NOT NULL,
+  status TEXT DEFAULT 'AVAILABLE',
+  expires_at DATETIME,
+  spun_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS wheel_spins (
+  id TEXT PRIMARY KEY,
+  spin_entitlement_id TEXT UNIQUE,
+  clerk_id TEXT NOT NULL,
+  review_id INTEGER,
+  prize_key TEXT,
+  coupon_entitlement_id TEXT,
+  is_first_spin INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
@@ -344,6 +434,11 @@ CREATE TABLE IF NOT EXISTS product_reviews (
   rating INTEGER NOT NULL,
   review_text TEXT,
   status TEXT DEFAULT 'PUBLISHED',
+  admin_reply TEXT,
+  admin_replied_at DATETIME,
+  admin_replied_by TEXT,
+  is_featured INTEGER DEFAULT 0,
+  moderation_note TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

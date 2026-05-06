@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Tag, Trash2, Edit2, Clock, Percent, DollarSign, CheckCircle2 } from 'lucide-react';
+import { Plus, Tag, Trash2, Edit2, Clock, Percent, DollarSign, CheckCircle2, ShieldCheck } from 'lucide-react';
 import useSWR, { mutate } from 'swr';
 import { useStore } from '../../store';
 import { useAuthFetcher, useAuthFetch } from '../../hooks/useAuthFetch';
@@ -41,6 +41,7 @@ export default function AdminVoucherManager() {
   const { isLoaded, isSignedIn } = useAuth();
   const authReady = isLoaded && isSignedIn;
   const { data: dbVouchers, error, isLoading } = useSWR(authReady ? '/api/admin/vouchers' : null, fetcher);
+  const { data: couponCampaigns, mutate: mutateCampaigns } = useSWR(authReady ? '/api/admin/coupon-campaigns' : null, fetcher);
   const { data: productsData } = useSWR('/api/products', (url: string) => fetch(url).then((res) => res.json()));
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
   const products = Array.isArray(productsData) ? productsData : (productsData?.products || []);
@@ -94,6 +95,27 @@ export default function AdminVoucherManager() {
   };
 
   const [loading, setLoading] = useState(false);
+  const [savingCampaignKey, setSavingCampaignKey] = useState<string | null>(null);
+
+  const toggleCampaign = async (campaign: any) => {
+    setSavingCampaignKey(campaign.key);
+    try {
+      const res = await authFetch('/api/admin/coupon-campaigns', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: campaign.key, enabled: !Boolean(campaign.enabled) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal update campaign');
+      mutateCampaigns();
+      mutate('/api/admin/vouchers');
+      addToast(`Campaign ${campaign.key} ${campaign.enabled ? 'dinonaktifkan' : 'diaktifkan'}.`, 'success');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    } finally {
+      setSavingCampaignKey(null);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!formVoucher.code) return addToast("Kode voucher harus diisi", "error");
@@ -203,6 +225,53 @@ export default function AdminVoucherManager() {
       {!authReady && <div className="text-sm px-4 py-2 bg-yellow-50 text-yellow-600 rounded-lg border border-yellow-200">Menunggu sesi admin...</div>}
       {authReady && isLoading && <div className="text-sm px-4 py-2 bg-yellow-50 text-yellow-600 rounded-lg border border-yellow-200">Sedang memuat data dari database D1...</div>}
       {authReady && error && <div className="text-sm px-4 py-2 bg-red-50 text-red-600 rounded-lg border border-red-200">Debug (D1 Error): Gagal memuat data. {error.message}</div>}
+
+      {Array.isArray(couponCampaigns) && couponCampaigns.length > 0 && (
+        <div className="bg-white/50 p-6 md:p-8 rounded-[2rem] border border-black/5">
+          <div className="flex items-start gap-3 mb-5">
+            <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-700">
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium font-heading">Default Coupon Campaigns</h3>
+              <p className="text-sm text-black/55 mt-1">Seed campaign bawaan Meyya. Semua kupon/voucher tetap wajib WhatsApp verified saat dipakai di checkout.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {couponCampaigns.map((campaign: any) => (
+              <div key={campaign.key} className="rounded-2xl border border-black/5 bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-xs font-semibold text-ink">{campaign.key}</p>
+                    <p className="mt-1 text-sm font-medium line-clamp-1">{campaign.title}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleCampaign(campaign)}
+                    disabled={savingCampaignKey === campaign.key}
+                    className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest ${Number(campaign.enabled || 0) === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-black/5 text-black/45'} disabled:opacity-50`}
+                  >
+                    {savingCampaignKey === campaign.key ? '...' : Number(campaign.enabled || 0) === 1 ? 'Aktif' : 'Off'}
+                  </button>
+                </div>
+                <p className="mt-2 line-clamp-2 min-h-8 text-xs text-black/50">{campaign.description}</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <span className="rounded-full bg-black/5 px-2 py-1 text-[10px] uppercase tracking-widest text-black/50">{campaign.trigger_type}</span>
+                  <span className="rounded-full bg-black/5 px-2 py-1 text-[10px] uppercase tracking-widest text-black/50">{campaign.discount_type}</span>
+                  {Number(campaign.requires_verified_wa || 0) === 1 && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] uppercase tracking-widest text-emerald-700">WA verified</span>}
+                </div>
+                {campaign.discount_type !== 'SPIN' && (
+                  <p className="mt-3 text-xs text-black/60">
+                    {campaign.discount_type === 'PERCENTAGE' ? `${Number(campaign.discount_value || 0)}%` : `Rp ${Number(campaign.discount_value || 0).toLocaleString('id-ID')}`}.
+                    {' '}Min Rp {Number(campaign.min_purchase || 0).toLocaleString('id-ID')}
+                    {Number(campaign.max_discount || 0) > 0 ? `, max Rp ${Number(campaign.max_discount || 0).toLocaleString('id-ID')}` : ''}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="bg-white/60 p-6 md:p-8 rounded-[2rem] border border-black/5 shadow-sm slide-down mb-8">
