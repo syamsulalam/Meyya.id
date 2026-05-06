@@ -54,6 +54,7 @@ export async function onRequestPut(context: any) {
         expires_in_days = COALESCE(?, expires_in_days),
         usage_limit_per_user = COALESCE(?, usage_limit_per_user),
         requires_verified_wa = COALESCE(?, requires_verified_wa),
+        risk_block_threshold = COALESCE(?, risk_block_threshold),
         birthday_claim_window_days = COALESCE(?, birthday_claim_window_days),
         metadata = COALESCE(?, metadata),
         updated_at = CURRENT_TIMESTAMP
@@ -69,6 +70,7 @@ export async function onRequestPut(context: any) {
       body.expires_in_days === undefined ? null : Number(body.expires_in_days || 0),
       body.usage_limit_per_user === undefined ? null : Number(body.usage_limit_per_user || 0),
       body.requires_verified_wa === undefined ? null : (body.requires_verified_wa ? 1 : 0),
+      body.risk_block_threshold === undefined ? null : Number(body.risk_block_threshold || 0),
       body.birthday_claim_window_days === undefined ? null : Number(body.birthday_claim_window_days || 0),
       metadata === undefined ? null : metadata,
       key

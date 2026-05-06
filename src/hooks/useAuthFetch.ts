@@ -1,5 +1,6 @@
 import { useAuth } from '@clerk/react';
 import { useCallback } from 'react';
+import { getDeviceFingerprintHash } from '../lib/deviceFingerprint';
 
 export function useAuthFetch() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
@@ -20,6 +21,7 @@ export function useAuthFetch() {
 
     const headers = new Headers(options.headers);
     headers.set('Authorization', `Bearer ${token}`);
+    headers.set('X-Meyya-Device-Fingerprint', await getDeviceFingerprintHash());
     
     const response = await fetch(url, {
       ...options,
@@ -51,6 +53,7 @@ export function useAuthFetcher() {
 
     const headers = new Headers();
     headers.set('Authorization', `Bearer ${token}`);
+    headers.set('X-Meyya-Device-Fingerprint', await getDeviceFingerprintHash());
     
     const response = await fetch(url, { headers });
     if (!response.ok) {

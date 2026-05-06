@@ -13,6 +13,13 @@ Update implementasi awal 2026-05-06:
 - Checkout menampilkan `Kupon Saya`, sementara input kode manual tetap divalidasi ulang di backend.
 - Guard fingerprint/device lintas akun belum diimplementasikan; fase ini baru memakai login, order history, entitlement, dan WhatsApp verified.
 
+Update implementasi lanjutan 2026-05-06:
+
+- Guard `MEYYAWELCOME` sekarang memakai browser/device fingerprint hash dari frontend, phone hash, address hash, IP prefix hash, risk score, dan block threshold.
+- Hasil allow/block welcome claim dicatat di `coupon_claim_risk_logs`; sinyal claim yang berhasil dicatat di `coupon_claim_signals`.
+- Admin voucher sekarang punya editor default campaign untuk aktif/nonaktif, nilai diskon, minimum belanja, max discount, expiry, limit per user, risk threshold, dan tanggal/window ulang tahun Meyya.
+- Admin voucher juga punya editor `wheel_prizes` untuk label, voucher code, tipe/nilai hadiah, expiry, formula transaksi terakhir, dan bobot first/repeat spin.
+
 ## Kesimpulan Awal
 
 Secara produk, istilah yang paling rapi:

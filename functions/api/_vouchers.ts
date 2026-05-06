@@ -189,6 +189,7 @@ export async function ensureVoucherSchema(env: any) {
       usage_limit_per_user INTEGER DEFAULT 1,
       requires_verified_wa INTEGER DEFAULT 1,
       requires_entitlement INTEGER DEFAULT 1,
+      risk_block_threshold INTEGER DEFAULT 70,
       birthday_claim_window_days INTEGER,
       metadata TEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -212,6 +213,29 @@ export async function ensureVoucherSchema(env: any) {
       metadata TEXT,
       used_order_id TEXT,
       used_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS coupon_claim_signals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_key TEXT NOT NULL,
+      clerk_id TEXT NOT NULL,
+      entitlement_id TEXT,
+      signal_type TEXT NOT NULL,
+      signal_hash TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS coupon_claim_risk_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_key TEXT NOT NULL,
+      clerk_id TEXT NOT NULL,
+      risk_score INTEGER DEFAULT 0,
+      decision TEXT,
+      reasons TEXT,
+      signal_summary TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
@@ -269,6 +293,7 @@ export async function ensureVoucherSchema(env: any) {
   await addColumn(env, 'coupon_campaigns', 'usage_limit_per_user', 'INTEGER DEFAULT 1');
   await addColumn(env, 'coupon_campaigns', 'requires_verified_wa', 'INTEGER DEFAULT 1');
   await addColumn(env, 'coupon_campaigns', 'requires_entitlement', 'INTEGER DEFAULT 1');
+  await addColumn(env, 'coupon_campaigns', 'risk_block_threshold', 'INTEGER DEFAULT 70');
   await addColumn(env, 'coupon_campaigns', 'birthday_claim_window_days', 'INTEGER');
   await addColumn(env, 'coupon_entitlements', 'used_order_id', 'TEXT');
   await addColumn(env, 'coupon_entitlements', 'used_at', 'DATETIME');
@@ -286,6 +311,14 @@ export async function ensureVoucherSchema(env: any) {
   await env.MEYYA_DB.prepare(`
     CREATE INDEX IF NOT EXISTS idx_coupon_entitlements_available
     ON coupon_entitlements(clerk_id, voucher_code, status, valid_until)
+  `).run();
+  await env.MEYYA_DB.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_coupon_claim_signals_lookup
+    ON coupon_claim_signals(campaign_key, signal_type, signal_hash, created_at)
+  `).run();
+  await env.MEYYA_DB.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_coupon_claim_risk_logs_lookup
+    ON coupon_claim_risk_logs(campaign_key, clerk_id, created_at)
   `).run();
 
   await seedDefaultCouponSystem(env);
@@ -538,7 +571,7 @@ export async function issueCouponEntitlement(env: any, input: {
   return getAvailableCouponEntitlement(env, input.clerkId, input.voucherCode);
 }
 
-export async function ensureDefaultCouponEntitlementsForUser(env: any, clerkId: string) {
+export async function ensureDefaultCouponEntitlementsForUser(env: any, clerkId: string, request?: Request) {
   await ensureVoucherSchema(env);
   await ensureUsersSchema(env);
   const user = await env.MEYYA_DB.prepare('SELECT birth_date, phone_wa_verified_at FROM users WHERE clerk_id = ?').bind(clerkId).first();
@@ -560,7 +593,11 @@ export async function ensureDefaultCouponEntitlementsForUser(env: any, clerkId: 
         LIMIT 1
       `).bind(clerkId).first();
       if (existingOrder) continue;
-      await issueCampaignEntitlement(env, campaign, clerkId, 'WELCOME', 'FIRST_ORDER');
+      const guard = await evaluateWelcomeCouponRisk(env, clerkId, campaign, request);
+      await logCouponClaimRisk(env, campaign.key, clerkId, guard);
+      if (!guard.allowed) continue;
+      const entitlement = await issueCampaignEntitlement(env, campaign, clerkId, 'WELCOME', 'FIRST_ORDER', guard.signalSummary);
+      if (entitlement?.id) await recordCouponClaimSignals(env, campaign.key, clerkId, entitlement.id, guard.signalSummary);
       continue;
     }
 
@@ -581,11 +618,11 @@ export async function ensureDefaultCouponEntitlementsForUser(env: any, clerkId: 
   }
 }
 
-async function issueCampaignEntitlement(env: any, campaign: any, clerkId: string, sourceType: string, sourceId: string) {
+async function issueCampaignEntitlement(env: any, campaign: any, clerkId: string, sourceType: string, sourceId: string, extraMetadata: any = {}) {
   const now = new Date();
   const expiresInDays = Number(campaign.expires_in_days || 14);
   const validUntil = expiresInDays > 0 ? new Date(now.getTime() + expiresInDays * 86400000).toISOString() : null;
-  await issueCouponEntitlement(env, {
+  return issueCouponEntitlement(env, {
     campaignKey: String(campaign.key || '').toUpperCase(),
     voucherCode: String(campaign.key || '').toUpperCase(),
     clerkId,
@@ -597,8 +634,186 @@ async function issueCampaignEntitlement(env: any, campaign: any, clerkId: string
     maxDiscount: campaign.max_discount === null || campaign.max_discount === undefined ? null : Number(campaign.max_discount),
     validFrom: now.toISOString(),
     validUntil,
-    metadata: { generated_from_campaign: true },
+    metadata: { generated_from_campaign: true, ...extraMetadata },
   });
+}
+
+async function evaluateWelcomeCouponRisk(env: any, clerkId: string, campaign: any, request?: Request) {
+  const user = await env.MEYYA_DB.prepare(`
+    SELECT phone_wa, phone_wa_verified_at, joined_at
+    FROM users
+    WHERE clerk_id = ?
+  `).bind(clerkId).first();
+
+  const signalSummary: Record<string, string> = {};
+  const reasons: string[] = [];
+  let riskScore = 0;
+
+  const deviceHash = cleanHash(request?.headers.get('X-Meyya-Device-Fingerprint') || '');
+  if (deviceHash) {
+    signalSummary.device = deviceHash;
+    const priorDeviceUsers = await countDistinctSignalUsers(env, 'MEYYAWELCOME', 'DEVICE', deviceHash, clerkId, 180);
+    if (priorDeviceUsers > 0) {
+      riskScore += 45;
+      reasons.push(`device pernah klaim welcome oleh ${priorDeviceUsers} akun lain`);
+    }
+  } else {
+    riskScore += 35;
+    reasons.push('fingerprint browser/device tidak tersedia');
+  }
+
+  const phone = normalizePhone(user?.phone_wa || '');
+  if (phone) {
+    const phoneHash = await sha256(`phone:${phone}`);
+    signalSummary.phone = phoneHash;
+    const priorPhoneUsers = await countDistinctSignalUsers(env, 'MEYYAWELCOME', 'PHONE', phoneHash, clerkId, 730);
+    if (priorPhoneUsers > 0) {
+      riskScore += 60;
+      reasons.push('nomor WhatsApp pernah mendapat welcome coupon di akun lain');
+    }
+  } else {
+    riskScore += 30;
+    reasons.push('nomor WhatsApp belum tersimpan');
+  }
+
+  const addressHash = await getAddressHash(env, clerkId);
+  if (addressHash) {
+    signalSummary.address = addressHash;
+    const priorAddressUsers = await countDistinctSignalUsers(env, 'MEYYAWELCOME', 'ADDRESS', addressHash, clerkId, 180);
+    if (priorAddressUsers > 0) {
+      riskScore += 35;
+      reasons.push(`alamat pernah mendapat welcome coupon oleh ${priorAddressUsers} akun lain`);
+    }
+  }
+
+  const ipPrefixHash = await getIpPrefixHash(request);
+  if (ipPrefixHash) {
+    signalSummary.ip_prefix = ipPrefixHash;
+    const priorIpUsers = await countDistinctSignalUsers(env, 'MEYYAWELCOME', 'IP_PREFIX', ipPrefixHash, clerkId, 1);
+    if (priorIpUsers >= 3) {
+      riskScore += 25;
+      reasons.push(`IP prefix terlalu sering klaim welcome dalam 24 jam`);
+    }
+  }
+
+  if (user?.phone_wa_verified_at) {
+    riskScore = Math.max(0, riskScore - 20);
+  }
+
+  if (user?.joined_at) {
+    const joinedMs = new Date(user.joined_at).getTime();
+    if (Number.isFinite(joinedMs) && Date.now() - joinedMs < 24 * 60 * 60 * 1000) {
+      riskScore += 10;
+      reasons.push('akun baru kurang dari 24 jam');
+    }
+  }
+
+  const threshold = Number(campaign.risk_block_threshold || 70);
+  return {
+    allowed: riskScore < threshold,
+    riskScore,
+    threshold,
+    reasons,
+    signalSummary,
+  };
+}
+
+async function countDistinctSignalUsers(env: any, campaignKey: string, signalType: string, signalHash: string, clerkId: string, days: number) {
+  const row = await env.MEYYA_DB.prepare(`
+    SELECT COUNT(DISTINCT clerk_id) AS total
+    FROM coupon_claim_signals
+    WHERE campaign_key = ?
+      AND signal_type = ?
+      AND signal_hash = ?
+      AND clerk_id != ?
+      AND datetime(created_at) >= datetime('now', ?)
+  `).bind(campaignKey, signalType, signalHash, clerkId, `-${days} days`).first();
+  return Number(row?.total || 0);
+}
+
+async function recordCouponClaimSignals(env: any, campaignKey: string, clerkId: string, entitlementId: string, signals: Record<string, string>) {
+  const rows = [
+    ['DEVICE', signals.device],
+    ['PHONE', signals.phone],
+    ['ADDRESS', signals.address],
+    ['IP_PREFIX', signals.ip_prefix],
+  ].filter(([, value]) => value);
+  if (rows.length === 0) return;
+
+  await env.MEYYA_DB.batch(rows.map(([type, hash]) =>
+    env.MEYYA_DB.prepare(`
+      INSERT INTO coupon_claim_signals (campaign_key, clerk_id, entitlement_id, signal_type, signal_hash)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(campaignKey, clerkId, entitlementId, type, hash)
+  ));
+}
+
+async function logCouponClaimRisk(env: any, campaignKey: string, clerkId: string, guard: any) {
+  await env.MEYYA_DB.prepare(`
+    INSERT INTO coupon_claim_risk_logs (campaign_key, clerk_id, risk_score, decision, reasons, signal_summary)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(
+    campaignKey,
+    clerkId,
+    Number(guard.riskScore || 0),
+    guard.allowed ? 'ALLOW' : 'BLOCK',
+    JSON.stringify(guard.reasons || []),
+    JSON.stringify(guard.signalSummary || {})
+  ).run();
+}
+
+async function getAddressHash(env: any, clerkId: string) {
+  const address = await env.MEYYA_DB.prepare(`
+    SELECT recipient_phone, province_code, regency_code, district_code, village_code, street_address
+    FROM user_addresses
+    WHERE user_id = ?
+    ORDER BY is_default DESC, id ASC
+    LIMIT 1
+  `).bind(clerkId).first();
+  if (!address) return '';
+
+  const normalized = [
+    normalizePhone(address.recipient_phone || ''),
+    address.province_code,
+    address.regency_code,
+    address.district_code,
+    address.village_code,
+    normalizeText(address.street_address || ''),
+  ].filter(Boolean).join('|');
+  return normalized ? sha256(`address:${normalized}`) : '';
+}
+
+async function getIpPrefixHash(request?: Request) {
+  const raw = request?.headers.get('CF-Connecting-IP') || request?.headers.get('X-Forwarded-For')?.split(',')[0] || '';
+  const ip = raw.trim();
+  if (!ip) return '';
+  const prefix = ip.includes(':')
+    ? ip.split(':').slice(0, 4).join(':')
+    : ip.split('.').slice(0, 3).join('.');
+  return prefix ? sha256(`ip:${prefix}`) : '';
+}
+
+function cleanHash(value: string) {
+  const clean = String(value || '').trim().toLowerCase();
+  return /^[a-f0-9]{64}$/.test(clean) ? clean : '';
+}
+
+function normalizePhone(value: string) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('62')) return digits;
+  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+  return digits;
+}
+
+function normalizeText(value: string) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
+async function sha256(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export async function hasBirthdayVoucherClaimThisYear(env: any, clerkId: string, now: Date = new Date()) {

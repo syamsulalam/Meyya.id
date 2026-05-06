@@ -42,6 +42,7 @@ export default function AdminVoucherManager() {
   const authReady = isLoaded && isSignedIn;
   const { data: dbVouchers, error, isLoading } = useSWR(authReady ? '/api/admin/vouchers' : null, fetcher);
   const { data: couponCampaigns, mutate: mutateCampaigns } = useSWR(authReady ? '/api/admin/coupon-campaigns' : null, fetcher);
+  const { data: wheelPrizes, mutate: mutateWheelPrizes } = useSWR(authReady ? '/api/admin/wheel-prizes' : null, fetcher);
   const { data: productsData } = useSWR('/api/products', (url: string) => fetch(url).then((res) => res.json()));
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
   const products = Array.isArray(productsData) ? productsData : (productsData?.products || []);
@@ -96,6 +97,10 @@ export default function AdminVoucherManager() {
 
   const [loading, setLoading] = useState(false);
   const [savingCampaignKey, setSavingCampaignKey] = useState<string | null>(null);
+  const [editingCampaignKey, setEditingCampaignKey] = useState<string | null>(null);
+  const [campaignDraft, setCampaignDraft] = useState<any>(null);
+  const [editingPrizeKey, setEditingPrizeKey] = useState<string | null>(null);
+  const [prizeDraft, setPrizeDraft] = useState<any>(null);
 
   const toggleCampaign = async (campaign: any) => {
     setSavingCampaignKey(campaign.key);
@@ -110,6 +115,109 @@ export default function AdminVoucherManager() {
       mutateCampaigns();
       mutate('/api/admin/vouchers');
       addToast(`Campaign ${campaign.key} ${campaign.enabled ? 'dinonaktifkan' : 'diaktifkan'}.`, 'success');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    } finally {
+      setSavingCampaignKey(null);
+    }
+  };
+
+  const beginCampaignEdit = (campaign: any) => {
+    const metadata = parseJson(campaign.metadata, {});
+    setEditingCampaignKey(campaign.key);
+    setCampaignDraft({
+      ...campaign,
+      enabled: Number(campaign.enabled || 0) === 1,
+      requires_verified_wa: Number(campaign.requires_verified_wa || 0) === 1,
+      discount_value: Number(campaign.discount_value || 0),
+      min_purchase: Number(campaign.min_purchase || 0),
+      max_discount: campaign.max_discount === null || campaign.max_discount === undefined ? 0 : Number(campaign.max_discount || 0),
+      expires_in_days: Number(campaign.expires_in_days || 0),
+      usage_limit_per_user: Number(campaign.usage_limit_per_user || 0),
+      risk_block_threshold: Number(campaign.risk_block_threshold || 70),
+      birthday_claim_window_days: Number(campaign.birthday_claim_window_days || 0),
+      brand_month: Number(metadata.month || 1),
+      brand_day: Number(metadata.day || 1),
+      window_before_days: Number(metadata.window_before_days || 3),
+      window_after_days: Number(metadata.window_after_days || 7),
+    });
+  };
+
+  const saveCampaignDraft = async () => {
+    if (!campaignDraft?.key) return;
+    setSavingCampaignKey(campaignDraft.key);
+    try {
+      const metadata = campaignDraft.key === 'MEYYABDAY'
+        ? {
+            month: Number(campaignDraft.brand_month || 1),
+            day: Number(campaignDraft.brand_day || 1),
+            window_before_days: Number(campaignDraft.window_before_days || 0),
+            window_after_days: Number(campaignDraft.window_after_days || 0),
+          }
+        : parseJson(campaignDraft.metadata, {});
+      const res = await authFetch('/api/admin/coupon-campaigns', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: campaignDraft.key,
+          enabled: campaignDraft.enabled,
+          title: campaignDraft.title,
+          description: campaignDraft.description,
+          discount_type: campaignDraft.discount_type,
+          discount_value: campaignDraft.discount_value,
+          min_purchase: campaignDraft.min_purchase,
+          max_discount: Number(campaignDraft.max_discount || 0) > 0 ? Number(campaignDraft.max_discount || 0) : null,
+          expires_in_days: campaignDraft.expires_in_days,
+          usage_limit_per_user: campaignDraft.usage_limit_per_user,
+          requires_verified_wa: campaignDraft.requires_verified_wa,
+          risk_block_threshold: campaignDraft.risk_block_threshold,
+          birthday_claim_window_days: campaignDraft.birthday_claim_window_days,
+          metadata,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan campaign');
+      mutateCampaigns();
+      mutate('/api/admin/vouchers');
+      setEditingCampaignKey(null);
+      setCampaignDraft(null);
+      addToast('Campaign berhasil disimpan.', 'success');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    } finally {
+      setSavingCampaignKey(null);
+    }
+  };
+
+  const beginPrizeEdit = (prize: any) => {
+    setEditingPrizeKey(prize.key);
+    setPrizeDraft({
+      ...prize,
+      enabled: Number(prize.enabled || 0) === 1,
+      discount_value: Number(prize.discount_value || 0),
+      min_purchase: Number(prize.min_purchase || 0),
+      weight_first_spin: Number(prize.weight_first_spin || 0),
+      weight_repeat_spin: Number(prize.weight_repeat_spin || 0),
+      expires_in_days: Number(prize.expires_in_days || 0),
+    });
+  };
+
+  const savePrizeDraft = async () => {
+    if (!prizeDraft?.key) return;
+    setSavingCampaignKey(prizeDraft.key);
+    try {
+      const res = await authFetch('/api/admin/wheel-prizes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prizeDraft),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan hadiah wheel');
+      mutateWheelPrizes();
+      mutate('/api/admin/vouchers');
+      setEditingPrizeKey(null);
+      setPrizeDraft(null);
+      addToast('Hadiah wheel berhasil disimpan.', 'success');
     } catch (error: any) {
       addToast(error.message, 'error');
     } finally {
@@ -237,38 +345,165 @@ export default function AdminVoucherManager() {
               <p className="text-sm text-black/55 mt-1">Seed campaign bawaan Meyya. Semua kupon/voucher tetap wajib WhatsApp verified saat dipakai di checkout.</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-            {couponCampaigns.map((campaign: any) => (
-              <div key={campaign.key} className="rounded-2xl border border-black/5 bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-mono text-xs font-semibold text-ink">{campaign.key}</p>
-                    <p className="mt-1 text-sm font-medium line-clamp-1">{campaign.title}</p>
+          <div className="space-y-3">
+            {couponCampaigns.map((campaign: any) => {
+              const editing = editingCampaignKey === campaign.key && campaignDraft;
+              const draft = editing ? campaignDraft : campaign;
+              return (
+                <div key={campaign.key} className="rounded-2xl border border-black/5 bg-white p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-mono text-xs font-semibold text-ink">{campaign.key}</p>
+                        <span className="rounded-full bg-black/5 px-2 py-1 text-[10px] uppercase tracking-widest text-black/50">{campaign.trigger_type}</span>
+                        {Number(campaign.requires_verified_wa || 0) === 1 && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] uppercase tracking-widest text-emerald-700">WA verified</span>}
+                      </div>
+                      {editing ? (
+                        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          <input value={draft.title || ''} onChange={e => setCampaignDraft({ ...draft, title: e.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm" placeholder="Judul campaign" />
+                          <select value={draft.discount_type || 'PERCENTAGE'} onChange={e => setCampaignDraft({ ...draft, discount_type: e.target.value })} disabled={draft.key === 'REVIEWSPIN'} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm disabled:bg-black/5">
+                            <option value="PERCENTAGE">Percentage</option>
+                            <option value="FIXED">Fixed</option>
+                            <option value="FREE_SHIPPING">Free Shipping</option>
+                            <option value="SPIN">Spin</option>
+                          </select>
+                          <NumberInput value={draft.discount_value} onChange={(value: number) => setCampaignDraft({ ...draft, discount_value: value })} placeholder="Nilai diskon" />
+                          <NumberInput value={draft.min_purchase} onChange={(value: number) => setCampaignDraft({ ...draft, min_purchase: value })} placeholder="Minimum belanja" />
+                          <NumberInput value={draft.max_discount} onChange={(value: number) => setCampaignDraft({ ...draft, max_discount: value })} placeholder="Maks diskon" />
+                          <NumberInput value={draft.expires_in_days} onChange={(value: number) => setCampaignDraft({ ...draft, expires_in_days: value })} placeholder="Expired dalam hari" />
+                          <NumberInput value={draft.usage_limit_per_user} onChange={(value: number) => setCampaignDraft({ ...draft, usage_limit_per_user: value })} placeholder="Limit per user" />
+                          <NumberInput value={draft.risk_block_threshold} onChange={(value: number) => setCampaignDraft({ ...draft, risk_block_threshold: value })} placeholder="Risk block threshold" />
+                          {draft.key === 'BDAYGIFT' && (
+                            <NumberInput value={draft.birthday_claim_window_days} onChange={(value: number) => setCampaignDraft({ ...draft, birthday_claim_window_days: value })} placeholder="Window birthday" />
+                          )}
+                          {draft.key === 'MEYYABDAY' && (
+                            <>
+                              <NumberInput value={draft.brand_month} onChange={(value: number) => setCampaignDraft({ ...draft, brand_month: value })} placeholder="Bulan ulang tahun Meyya" />
+                              <NumberInput value={draft.brand_day} onChange={(value: number) => setCampaignDraft({ ...draft, brand_day: value })} placeholder="Tanggal ulang tahun Meyya" />
+                              <NumberInput value={draft.window_before_days} onChange={(value: number) => setCampaignDraft({ ...draft, window_before_days: value })} placeholder="H- window" />
+                              <NumberInput value={draft.window_after_days} onChange={(value: number) => setCampaignDraft({ ...draft, window_after_days: value })} placeholder="H+ window" />
+                            </>
+                          )}
+                          <textarea value={draft.description || ''} onChange={e => setCampaignDraft({ ...draft, description: e.target.value })} className="md:col-span-2 xl:col-span-4 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm" rows={2} placeholder="Deskripsi campaign" />
+                          <label className="flex items-center gap-2 text-xs text-black/60">
+                            <input type="checkbox" checked={!!draft.enabled} onChange={e => setCampaignDraft({ ...draft, enabled: e.target.checked })} className="accent-ink" />
+                            Aktif
+                          </label>
+                          <label className="flex items-center gap-2 text-xs text-black/60">
+                            <input type="checkbox" checked={!!draft.requires_verified_wa} onChange={e => setCampaignDraft({ ...draft, requires_verified_wa: e.target.checked })} className="accent-ink" />
+                            Wajib WA verified
+                          </label>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="mt-1 text-sm font-medium">{campaign.title}</p>
+                          <p className="mt-1 text-xs text-black/50">{campaign.description}</p>
+                          <p className="mt-2 text-xs text-black/60">
+                            {campaign.discount_type === 'SPIN' ? 'Spin reward' : `${campaign.discount_type} ${Number(campaign.discount_value || 0).toLocaleString('id-ID')}`}
+                            {' '}· Min Rp {Number(campaign.min_purchase || 0).toLocaleString('id-ID')}
+                            {Number(campaign.max_discount || 0) > 0 ? ` · Max Rp ${Number(campaign.max_discount || 0).toLocaleString('id-ID')}` : ''}
+                            {' '}· Risk block {Number(campaign.risk_block_threshold || 70)}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleCampaign(campaign)}
+                        disabled={savingCampaignKey === campaign.key}
+                        className={`rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest ${Number(campaign.enabled || 0) === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-black/5 text-black/45'} disabled:opacity-50`}
+                      >
+                        {Number(campaign.enabled || 0) === 1 ? 'Aktif' : 'Off'}
+                      </button>
+                      {editing ? (
+                        <>
+                          <button type="button" onClick={() => { setEditingCampaignKey(null); setCampaignDraft(null); }} className="rounded-full bg-black/5 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest">Batal</button>
+                          <button type="button" onClick={saveCampaignDraft} disabled={savingCampaignKey === campaign.key} className="rounded-full bg-ink px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-white disabled:opacity-50">Simpan</button>
+                        </>
+                      ) : (
+                        <button type="button" onClick={() => beginCampaignEdit(campaign)} className="rounded-full bg-black/5 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest">Edit</button>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleCampaign(campaign)}
-                    disabled={savingCampaignKey === campaign.key}
-                    className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest ${Number(campaign.enabled || 0) === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-black/5 text-black/45'} disabled:opacity-50`}
-                  >
-                    {savingCampaignKey === campaign.key ? '...' : Number(campaign.enabled || 0) === 1 ? 'Aktif' : 'Off'}
-                  </button>
                 </div>
-                <p className="mt-2 line-clamp-2 min-h-8 text-xs text-black/50">{campaign.description}</p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  <span className="rounded-full bg-black/5 px-2 py-1 text-[10px] uppercase tracking-widest text-black/50">{campaign.trigger_type}</span>
-                  <span className="rounded-full bg-black/5 px-2 py-1 text-[10px] uppercase tracking-widest text-black/50">{campaign.discount_type}</span>
-                  {Number(campaign.requires_verified_wa || 0) === 1 && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] uppercase tracking-widest text-emerald-700">WA verified</span>}
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {Array.isArray(wheelPrizes) && wheelPrizes.length > 0 && (
+        <div className="bg-white/50 p-6 md:p-8 rounded-[2rem] border border-black/5">
+          <div className="mb-5">
+            <h3 className="text-lg font-medium font-heading">Wheel of Fortune Prizes</h3>
+            <p className="text-sm text-black/55 mt-1">Atur hadiah, voucher code, expiry, dan probability untuk first spin dan spin berikutnya.</p>
+          </div>
+          <div className="space-y-3">
+            {wheelPrizes.map((prize: any) => {
+              const editing = editingPrizeKey === prize.key && prizeDraft;
+              const draft = editing ? prizeDraft : prize;
+              return (
+                <div key={prize.key} className="rounded-2xl border border-black/5 bg-white p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-mono text-xs font-semibold text-ink">{prize.key}</p>
+                        <span className={`rounded-full px-2 py-1 text-[10px] uppercase tracking-widest ${Number(prize.enabled || 0) === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-black/5 text-black/45'}`}>{Number(prize.enabled || 0) === 1 ? 'Aktif' : 'Off'}</span>
+                      </div>
+                      {editing ? (
+                        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          <input value={draft.label || ''} onChange={e => setPrizeDraft({ ...draft, label: e.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm" placeholder="Label hadiah" />
+                          <input value={draft.voucher_code || ''} onChange={e => setPrizeDraft({ ...draft, voucher_code: e.target.value.toUpperCase() })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-mono uppercase" placeholder="Kode voucher" />
+                          <select value={draft.discount_type || 'FIXED'} onChange={e => setPrizeDraft({ ...draft, discount_type: e.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm">
+                            <option value="PERCENTAGE">Percentage</option>
+                            <option value="FIXED">Fixed</option>
+                            <option value="FREE_SHIPPING">Free Shipping</option>
+                            <option value="NONE">Zonk / Coba Lagi</option>
+                          </select>
+                          <NumberInput value={draft.discount_value} onChange={(value: number) => setPrizeDraft({ ...draft, discount_value: value })} placeholder="Nilai hadiah" />
+                          <NumberInput value={draft.min_purchase} onChange={(value: number) => setPrizeDraft({ ...draft, min_purchase: value })} placeholder="Min purchase" />
+                          <NumberInput value={draft.weight_first_spin} onChange={(value: number) => setPrizeDraft({ ...draft, weight_first_spin: value })} placeholder="Bobot first spin" />
+                          <NumberInput value={draft.weight_repeat_spin} onChange={(value: number) => setPrizeDraft({ ...draft, weight_repeat_spin: value })} placeholder="Bobot repeat spin" />
+                          <NumberInput value={draft.expires_in_days} onChange={(value: number) => setPrizeDraft({ ...draft, expires_in_days: value })} placeholder="Expired hari" />
+                          <select value={draft.max_discount_formula || ''} onChange={e => setPrizeDraft({ ...draft, max_discount_formula: e.target.value || null })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm">
+                            <option value="">Tanpa max formula</option>
+                            <option value="LAST_ORDER_SUBTOTAL_20_PERCENT">Max 20% transaksi terakhir</option>
+                            <option value="LAST_ORDER_SUBTOTAL_10_PERCENT">Max 10% transaksi terakhir</option>
+                          </select>
+                          <select value={draft.min_purchase_formula || ''} onChange={e => setPrizeDraft({ ...draft, min_purchase_formula: e.target.value || null })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm">
+                            <option value="">Min manual</option>
+                            <option value="LAST_ORDER_SUBTOTAL">Min transaksi terakhir</option>
+                          </select>
+                          <label className="flex items-center gap-2 text-xs text-black/60">
+                            <input type="checkbox" checked={!!draft.enabled} onChange={e => setPrizeDraft({ ...draft, enabled: e.target.checked })} className="accent-ink" />
+                            Aktif
+                          </label>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="mt-1 text-sm font-medium">{prize.label}</p>
+                          <p className="mt-2 text-xs text-black/60">
+                            {prize.voucher_code || 'No voucher'} · {prize.discount_type} {Number(prize.discount_value || 0).toLocaleString('id-ID')}
+                            {' '}· First {Number(prize.weight_first_spin || 0)} / Repeat {Number(prize.weight_repeat_spin || 0)}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      {editing ? (
+                        <>
+                          <button type="button" onClick={() => { setEditingPrizeKey(null); setPrizeDraft(null); }} className="rounded-full bg-black/5 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest">Batal</button>
+                          <button type="button" onClick={savePrizeDraft} disabled={savingCampaignKey === prize.key} className="rounded-full bg-ink px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-white disabled:opacity-50">Simpan</button>
+                        </>
+                      ) : (
+                        <button type="button" onClick={() => beginPrizeEdit(prize)} className="rounded-full bg-black/5 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest">Edit</button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {campaign.discount_type !== 'SPIN' && (
-                  <p className="mt-3 text-xs text-black/60">
-                    {campaign.discount_type === 'PERCENTAGE' ? `${Number(campaign.discount_value || 0)}%` : `Rp ${Number(campaign.discount_value || 0).toLocaleString('id-ID')}`}.
-                    {' '}Min Rp {Number(campaign.min_purchase || 0).toLocaleString('id-ID')}
-                    {Number(campaign.max_discount || 0) > 0 ? `, max Rp ${Number(campaign.max_discount || 0).toLocaleString('id-ID')}` : ''}
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -549,4 +784,12 @@ export default function AdminVoucherManager() {
       </div>
     </div>
   );
+}
+
+function parseJson(value: any, fallback: any) {
+  try {
+    return value ? JSON.parse(String(value)) : fallback;
+  } catch {
+    return fallback;
+  }
 }

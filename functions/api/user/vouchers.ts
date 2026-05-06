@@ -8,14 +8,14 @@ import {
 } from '../_vouchers';
 
 export async function onRequestGet(context: any) {
-  const { env, data } = context;
+  const { env, request, data } = context;
   const clerkId = data?.clerkId;
 
   if (!clerkId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
   try {
     await ensureVoucherSchema(env);
-    await ensureDefaultCouponEntitlementsForUser(env, clerkId);
+    await ensureDefaultCouponEntitlementsForUser(env, clerkId, request);
     const whatsapp = await getWhatsappVerificationStatus(env, clerkId);
     const user = await env.MEYYA_DB.prepare('SELECT birth_date FROM users WHERE clerk_id = ?').bind(clerkId).first();
     const { results: entitlements } = await env.MEYYA_DB.prepare(`

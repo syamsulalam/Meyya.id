@@ -199,6 +199,7 @@ CREATE TABLE IF NOT EXISTS coupon_campaigns (
   usage_limit_per_user INTEGER DEFAULT 1,
   requires_verified_wa INTEGER DEFAULT 1,
   requires_entitlement INTEGER DEFAULT 1,
+  risk_block_threshold INTEGER DEFAULT 70,
   birthday_claim_window_days INTEGER,
   metadata TEXT,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -230,6 +231,33 @@ WHERE source_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_coupon_entitlements_available
 ON coupon_entitlements(clerk_id, voucher_code, status, valid_until);
+
+CREATE TABLE IF NOT EXISTS coupon_claim_signals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  campaign_key TEXT NOT NULL,
+  clerk_id TEXT NOT NULL,
+  entitlement_id TEXT,
+  signal_type TEXT NOT NULL,
+  signal_hash TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_coupon_claim_signals_lookup
+ON coupon_claim_signals(campaign_key, signal_type, signal_hash, created_at);
+
+CREATE TABLE IF NOT EXISTS coupon_claim_risk_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  campaign_key TEXT NOT NULL,
+  clerk_id TEXT NOT NULL,
+  risk_score INTEGER DEFAULT 0,
+  decision TEXT,
+  reasons TEXT,
+  signal_summary TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_coupon_claim_risk_logs_lookup
+ON coupon_claim_risk_logs(campaign_key, clerk_id, created_at);
 
 CREATE TABLE IF NOT EXISTS wheel_prizes (
   key TEXT PRIMARY KEY,

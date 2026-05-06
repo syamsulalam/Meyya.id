@@ -8,16 +8,15 @@ Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, c
 
 Yang paling masuk akal dikerjakan berikutnya:
 
-1. Tambah anti-abuse guard lanjutan untuk welcome coupon: browser/device fingerprint hash, phone hash, address hash, IP prefix hash, risk score, dan audit blocked claim.
-2. Tambah editor lengkap untuk `wheel_prizes` dan campaign default di `/admin`, termasuk tanggal ulang tahun Meyya dan probability wheel.
-3. Tambah free product voucher sungguhan: product pool admin, auto-pick produk hadiah, stok guard, dan fallback jika stok habis.
-4. Buat Cloudflare Worker maintenance untuk auto pruning bulanan data operasional yang lebih lama dari 3 tahun, dengan dry-run dan audit log.
-5. Rancang integrasi Duitku sandbox: migration payment gateway fields, create transaction, callback signature, check transaction, dan idempotency.
-6. Inventory server Oracle GOWA yang sudah pernah disetup: base URL, versi, auth, device id, session login, test endpoint `/devices`, `/send/message`, dan format payload webhook message asli.
-7. Set env production `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`, lalu arahkan GOWA webhook ke `/api/webhooks/gowa?secret=...`.
-8. Rancang sinkron Google Contacts untuk nomor WA terverifikasi jika nanti kontak harus tersimpan juga di phonebook bersama, bukan hanya D1.
-9. Tambah messaging outbox untuk WhatsApp/email agar integrasi GOWA dan Sendy bisa dry-run, retry, dan diaudit sebelum auto-send.
-10. Tambah backfill analytics aggregate manual per window tanggal jika ingin histori raw event lama ikut masuk chart.
+1. Tambah free product voucher sungguhan: product pool admin, auto-pick produk hadiah, stok guard, dan fallback jika stok habis.
+2. Tambah admin viewer untuk `coupon_claim_risk_logs` agar blocked welcome coupon bisa diaudit langsung dari UI.
+3. Buat Cloudflare Worker maintenance untuk auto pruning bulanan data operasional yang lebih lama dari 3 tahun, dengan dry-run dan audit log.
+4. Rancang integrasi Duitku sandbox: migration payment gateway fields, create transaction, callback signature, check transaction, dan idempotency.
+5. Inventory server Oracle GOWA yang sudah pernah disetup: base URL, versi, auth, device id, session login, test endpoint `/devices`, `/send/message`, dan format payload webhook message asli.
+6. Set env production `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`, lalu arahkan GOWA webhook ke `/api/webhooks/gowa?secret=...`.
+7. Rancang sinkron Google Contacts untuk nomor WA terverifikasi jika nanti kontak harus tersimpan juga di phonebook bersama, bukan hanya D1.
+8. Tambah messaging outbox untuk WhatsApp/email agar integrasi GOWA dan Sendy bisa dry-run, retry, dan diaudit sebelum auto-send.
+9. Tambah backfill analytics aggregate manual per window tanggal jika ingin histori raw event lama ikut masuk chart.
 
 Catatan fungsi next action nomor 2:
 
@@ -80,7 +79,7 @@ Status fitur saat ini:
 - [x] Profil customer sudah bisa menampilkan voucher aktif.
 - [x] Default coupon campaign seed ditambahkan untuk `MEYYAWELCOME`, `BDAYGIFT`, `MEYYABDAY`, dan `REVIEWSPIN`.
 - [x] Entitlement per user ditambahkan agar kode default/review reward hanya valid untuk user yang punya hak klaim.
-- [ ] Belum ada guard welcome coupon lintas akun/browser/phone/address.
+- [x] Guard welcome coupon lintas akun ditambahkan dengan browser/device fingerprint hash, phone hash, address hash, IP prefix hash, risk score, dan risk log.
 - [x] Review spin wheel server-side ditambahkan; first spin non-zonk lewat seed probability.
 - [x] Prize pool awal ditambahkan di `wheel_prizes`.
 - [ ] Belum ada free product voucher hasil reward.
@@ -93,14 +92,15 @@ Rencana pengadaan:
 - [x] Tambah layer `coupon_campaigns` untuk default campaign utama.
 - [x] Tambah `coupon_entitlements` agar voucher default hanya bisa dipakai oleh user yang punya hak klaim.
 - [x] Admin voucher menampilkan panel default campaign dan bisa aktif/nonaktifkan campaign.
-- [ ] Tambah setting admin tanggal ulang tahun Meyya untuk campaign `MEYYABDAY`.
-- [ ] Tambah guard welcome: login, no prior valid order, WA verified untuk benefit besar, plus risk score dari phone hash, device fingerprint hash, address hash, dan IP prefix hash.
+- [x] Tambah setting admin tanggal ulang tahun Meyya untuk campaign `MEYYABDAY`.
+- [x] Tambah guard welcome: login, no prior valid order, WA verified, plus risk score dari phone hash, device fingerprint hash, address hash, dan IP prefix hash.
 - [x] Tambah review spin entitlement setelah review valid dari order completed.
 - [x] Buat wheel server-side: first ever spin user guaranteed non-zonk, spin berikutnya bisa zonk sesuai probability.
 - [x] Tambah prize awal: ongkir Rp5rb tanpa minimum, ongkir Rp10rb dengan minimum, fixed small voucher, disabled free product placeholder, dan max voucher 20% transaksi terakhir dengan minimum purchase sebesar transaksi terakhir.
 - [x] Checkout menampilkan `Kupon Saya`, tetapi tetap memakai validasi voucher existing dan validasi ulang di order API.
 - [x] Tambah audit log untuk spin result dan update campaign/review moderation.
-- [ ] Tambah audit log khusus untuk blocked abuse dan entitlement revoke.
+- [x] Tambah risk log untuk allow/block welcome claim di `coupon_claim_risk_logs`.
+- [ ] Tambah admin viewer untuk risk log dan action manual override/revoke entitlement.
 
 Catatan strategi:
 

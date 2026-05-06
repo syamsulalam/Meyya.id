@@ -93,6 +93,7 @@ Shared helpers:
 - `_commerce.ts`: schema ensure, audit log, inventory reservation release, pending order expiry.
 - `_users.ts`: users schema and Clerk/user sync helpers.
 - `_vouchers.ts`: voucher schema and cart validation rules.
+- `deviceFingerprint.ts`: frontend fingerprint hash helper used as one risk signal for welcome coupon abuse guard.
 - `_analytics.ts`: event summaries and aggregate helpers.
 - `_message_templates.ts`: operational message templates.
 - `_cartValidation.ts`: shared server-side cart stock validation.
@@ -135,6 +136,7 @@ Admin API:
 - `admin/returns.ts`: return queue and restock.
 - `admin/vouchers.ts`, `admin/vouchers/[code].ts`: voucher CRUD.
 - `admin/coupon-campaigns.ts`: default coupon campaign settings and seed status.
+- `admin/wheel-prizes.ts`: review wheel prize editor API.
 - `admin/reviews.ts`: review moderation, publish/hide, featured review, and admin public reply.
 - `admin/payment-settings.ts`, `admin/payment-bank-accounts.ts`, `admin/payment-bank-accounts/[id].ts`: payment config.
 - `admin/shipping-settings.ts`, `admin/region-cache.ts`: shipping config/cache.
