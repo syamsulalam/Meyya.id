@@ -224,6 +224,22 @@ export async function ensureCommerceSchema(env: any) {
   `).run();
 
   await env.MEYYA_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS analytics_event_archives (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      object_key TEXT NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      row_count INTEGER DEFAULT 0,
+      deleted_count INTEGER DEFAULT 0,
+      bytes INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'ARCHIVED',
+      created_by TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      metadata TEXT
+    )
+  `).run();
+
+  await env.MEYYA_DB.prepare(`
     CREATE TABLE IF NOT EXISTS user_event_summaries (
       clerk_id TEXT PRIMARY KEY,
       last_event_at DATETIME,
@@ -322,6 +338,8 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'analytics_daily_metrics', 'page_path', 'TEXT DEFAULT ""');
   await addColumn(env, 'analytics_daily_metrics', 'unique_users', 'INTEGER DEFAULT 0');
   await addColumn(env, 'analytics_daily_metric_users', 'page_path', 'TEXT DEFAULT ""');
+  await addColumn(env, 'analytics_event_archives', 'deleted_count', 'INTEGER DEFAULT 0');
+  await addColumn(env, 'analytics_event_archives', 'metadata', 'TEXT');
   await addColumn(env, 'user_event_summaries', 'last_referrer', 'TEXT');
   await addColumn(env, 'user_event_summaries', 'last_cart_at', 'DATETIME');
   await addColumn(env, 'user_event_summaries', 'last_product_view_at', 'DATETIME');
@@ -331,6 +349,7 @@ export async function ensureCommerceSchema(env: any) {
   await addColumn(env, 'user_event_summaries', 'voucher_apply_count', 'INTEGER DEFAULT 0');
   await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_analytics_daily_date ON analytics_daily_metrics(metric_date)').run();
   await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_analytics_daily_event ON analytics_daily_metrics(event_type, metric_date)').run();
+  await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_analytics_archives_window ON analytics_event_archives(start_date, end_date)').run();
   await env.MEYYA_DB.prepare('CREATE INDEX IF NOT EXISTS idx_user_event_summaries_updated ON user_event_summaries(updated_at)').run();
   await addColumn(env, 'return_requests', 'evidence_urls', 'TEXT');
   await addColumn(env, 'return_requests', 'sla_due_at', 'DATETIME');

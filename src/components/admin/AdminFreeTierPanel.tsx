@@ -32,6 +32,18 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
   });
   const [isPruning, setIsPruning] = useState(false);
   const [includeAuditLogs, setIncludeAuditLogs] = useState(false);
+  const [backfillStartDate, setBackfillStartDate] = useState('');
+  const [backfillEndDate, setBackfillEndDate] = useState('');
+  const [backfillDryRun, setBackfillDryRun] = useState(true);
+  const [backfillReplace, setBackfillReplace] = useState(true);
+  const [backfillResult, setBackfillResult] = useState<any>(null);
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const [archiveStartDate, setArchiveStartDate] = useState('');
+  const [archiveEndDate, setArchiveEndDate] = useState('');
+  const [archiveDryRun, setArchiveDryRun] = useState(true);
+  const [archiveDeleteAfter, setArchiveDeleteAfter] = useState(false);
+  const [archiveResult, setArchiveResult] = useState<any>(null);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   const runPruning = async () => {
     setIsPruning(true);
@@ -50,6 +62,56 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
       addToast(error.message || 'Gagal menjalankan pruning', 'error');
     } finally {
       setIsPruning(false);
+    }
+  };
+
+  const runAnalyticsBackfill = async () => {
+    setIsBackfilling(true);
+    try {
+      const res = await authFetch('/api/admin/analytics-backfill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          start_date: backfillStartDate,
+          end_date: backfillEndDate,
+          dry_run: backfillDryRun,
+          replace: backfillReplace,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Backfill analytics gagal');
+      setBackfillResult(payload.result);
+      addToast(backfillDryRun ? 'Dry-run backfill selesai.' : 'Backfill analytics selesai.', 'success');
+      mutate();
+    } catch (error: any) {
+      addToast(error.message || 'Gagal menjalankan backfill analytics', 'error');
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
+
+  const runAnalyticsArchive = async () => {
+    setIsArchiving(true);
+    try {
+      const res = await authFetch('/api/admin/analytics-archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          start_date: archiveStartDate,
+          end_date: archiveEndDate,
+          dry_run: archiveDryRun,
+          delete_after_archive: archiveDeleteAfter,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Archive analytics gagal');
+      setArchiveResult(payload.result);
+      addToast(archiveDryRun ? 'Dry-run archive selesai.' : 'Archive raw event selesai.', 'success');
+      mutate();
+    } catch (error: any) {
+      addToast(error.message || 'Gagal archive raw event', 'error');
+    } finally {
+      setIsArchiving(false);
     }
   };
 
@@ -201,6 +263,129 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
           </button>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
+            <Activity size={16} />
+            Backfill Analytics Chart
+          </h3>
+          <p className="text-sm text-black/60 leading-relaxed mb-5">
+            Hitung ulang aggregate harian dari raw user_events untuk window tanggal tertentu. Ini dipakai kalau histori event lama perlu masuk chart admin.
+          </p>
+          <DateWindowControls
+            startDate={backfillStartDate}
+            endDate={backfillEndDate}
+            onStartDate={setBackfillStartDate}
+            onEndDate={setBackfillEndDate}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-4">
+            <label className="flex items-start gap-3 rounded-2xl bg-white/60 border border-black/5 p-4 text-sm">
+              <input type="checkbox" checked={backfillDryRun} onChange={(event) => setBackfillDryRun(event.target.checked)} className="mt-1" />
+              <span>
+                <span className="font-medium block">Dry-run dulu</span>
+                <span className="text-xs text-black/50">Cek jumlah row tanpa menulis aggregate.</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-2xl bg-white/60 border border-black/5 p-4 text-sm">
+              <input type="checkbox" checked={backfillReplace} onChange={(event) => setBackfillReplace(event.target.checked)} className="mt-1" />
+              <span>
+                <span className="font-medium block">Replace window</span>
+                <span className="text-xs text-black/50">Hapus aggregate window itu dulu agar hasil chart tidak dobel.</span>
+              </span>
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={runAnalyticsBackfill}
+            disabled={isBackfilling || !backfillStartDate || !backfillEndDate}
+            className="w-full py-3 rounded-full bg-ink text-white text-xs uppercase tracking-widest hover:bg-black/80 transition-colors disabled:opacity-50"
+          >
+            {isBackfilling ? 'Menjalankan Backfill...' : 'Jalankan Backfill'}
+          </button>
+          <OperationResult result={backfillResult} />
+        </div>
+
+        <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
+            <Archive size={16} />
+            Archive Raw Event ke R2
+          </h3>
+          <p className="text-sm text-black/60 leading-relaxed mb-5">
+            Simpan raw user_events lama sebagai JSONL di R2 sebelum dihapus dari D1. Aggregate chart tetap ada di D1, raw log lama tidak memenuhi database.
+          </p>
+          <DateWindowControls
+            startDate={archiveStartDate}
+            endDate={archiveEndDate}
+            onStartDate={setArchiveStartDate}
+            onEndDate={setArchiveEndDate}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-4">
+            <label className="flex items-start gap-3 rounded-2xl bg-white/60 border border-black/5 p-4 text-sm">
+              <input type="checkbox" checked={archiveDryRun} onChange={(event) => setArchiveDryRun(event.target.checked)} className="mt-1" />
+              <span>
+                <span className="font-medium block">Dry-run dulu</span>
+                <span className="text-xs text-black/50">Hitung row dan ukuran export tanpa upload R2.</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-2xl bg-white/60 border border-black/5 p-4 text-sm">
+              <input type="checkbox" checked={archiveDeleteAfter} onChange={(event) => setArchiveDeleteAfter(event.target.checked)} className="mt-1" />
+              <span>
+                <span className="font-medium block">Hapus setelah archive</span>
+                <span className="text-xs text-black/50">Aktifkan setelah dry-run aman dan archive sukses.</span>
+              </span>
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={runAnalyticsArchive}
+            disabled={isArchiving || !archiveStartDate || !archiveEndDate}
+            className="w-full py-3 rounded-full bg-ink text-white text-xs uppercase tracking-widest hover:bg-black/80 transition-colors disabled:opacity-50"
+          >
+            {isArchiving ? 'Menjalankan Archive...' : 'Archive Raw Event'}
+          </button>
+          <OperationResult result={archiveResult} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DateWindowControls({ startDate, endDate, onStartDate, onEndDate }: any) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <label className="text-xs uppercase tracking-widest text-black/40 font-bold">
+        Tanggal Mulai
+        <input
+          type="date"
+          value={startDate}
+          onChange={(event) => onStartDate(event.target.value)}
+          className="mt-2 w-full rounded-2xl border border-black/10 bg-white/70 px-4 py-3 text-sm normal-case tracking-normal text-ink outline-none focus:border-ink"
+        />
+      </label>
+      <label className="text-xs uppercase tracking-widest text-black/40 font-bold">
+        Tanggal Akhir
+        <input
+          type="date"
+          value={endDate}
+          onChange={(event) => onEndDate(event.target.value)}
+          className="mt-2 w-full rounded-2xl border border-black/10 bg-white/70 px-4 py-3 text-sm normal-case tracking-normal text-ink outline-none focus:border-ink"
+        />
+      </label>
+    </div>
+  );
+}
+
+function OperationResult({ result }: { result: any }) {
+  if (!result) return null;
+  const rows = Object.entries(result).filter(([, value]) => value !== null && value !== undefined);
+  return (
+    <div className="mt-4 rounded-2xl bg-black/5 p-4 text-xs text-black/60 space-y-1">
+      {rows.map(([key, value]) => (
+        <p key={key}>
+          <span className="font-mono text-black/40">{key}</span>: {formatResultValue(value)}
+        </p>
+      ))}
     </div>
   );
 }
@@ -285,6 +470,13 @@ function formatBytes(value: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} KB`;
   return `${bytes.toLocaleString('id-ID')} B`;
+}
+
+function formatResultValue(value: any) {
+  if (typeof value === 'boolean') return value ? 'ya' : 'tidak';
+  if (typeof value === 'number') return value.toLocaleString('id-ID');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
 }
 
 function d1SourceNote(data: any, scope: 'database' | 'account') {

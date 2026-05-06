@@ -29,8 +29,10 @@ export async function onRequestGet(context: any) {
         ce.discount_value AS value,
         ce.min_purchase AS minPurchase,
         ce.max_discount AS maxDiscount,
+        ce.applicable_product_ids AS entitlementApplicableProductIds,
         ce.valid_from AS startDate,
         ce.valid_until AS endDate,
+        ce.metadata AS metadata,
         v.target_user_role AS targetUserRole,
         v.target_segment AS targetSegment,
         v.birthday_claim_window_days AS birthdayClaimWindowDays,
@@ -87,7 +89,8 @@ export async function onRequestGet(context: any) {
     const entitlementVouchers = (entitlements || []).map((voucher: any) => ({
       ...voucher,
       lockedReason: whatsapp.verified ? '' : 'Verifikasi WhatsApp diperlukan untuk memakai kupon/voucher',
-      applicableProductIds: parseApplicableProductIds(voucher.applicableProductIds),
+      metadata: parseJson(voucher.metadata, {}),
+      applicableProductIds: parseApplicableProductIds(voucher.entitlementApplicableProductIds || voucher.applicableProductIds),
     }));
 
     const vouchers = whatsapp.verified ? [...entitlementVouchers, ...publicVouchers] : [];
@@ -95,5 +98,13 @@ export async function onRequestGet(context: any) {
     return new Response(JSON.stringify(vouchers), { headers: { 'Content-Type': 'application/json' } });
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+}
+
+function parseJson(value: any, fallback: any) {
+  try {
+    return value ? JSON.parse(String(value)) : fallback;
+  } catch {
+    return fallback;
   }
 }

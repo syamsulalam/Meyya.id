@@ -81,20 +81,31 @@ export async function onRequestPost(context: any) {
 
     const priorSpin = await env.MEYYA_DB.prepare('SELECT id FROM wheel_spins WHERE clerk_id = ? LIMIT 1').bind(clerkId).first();
     const isFirstSpin = !priorSpin;
-    const prize = await choosePrize(env, isFirstSpin);
+    const lastOrder = await env.MEYYA_DB.prepare(`
+      SELECT subtotal, total_paid
+      FROM orders
+      WHERE clerk_id = ? AND status IN ('COMPLETED', 'SELESAI')
+      ORDER BY completed_at DESC, created_at DESC
+      LIMIT 1
+    `).bind(clerkId).first();
+    const lastSubtotal = Math.max(0, Number(lastOrder?.subtotal || lastOrder?.total_paid || 0));
+    let prize = await choosePrize(env, isFirstSpin);
     if (!prize) return json({ error: 'Konfigurasi hadiah wheel belum tersedia' }, 500);
+    let giftProduct: any = null;
+    if (prize.key === 'FREE_PRODUCT_10_LAST_ORDER') {
+      giftProduct = await pickFreeGiftProduct(env, prize, lastSubtotal);
+      if (!giftProduct) {
+        prize = await getFallbackPrize(env);
+        if (!prize) return json({ error: 'Produk hadiah sedang habis dan fallback hadiah belum aktif.' }, 409);
+      }
+    }
 
     let couponEntitlement: any = null;
     if (prize.voucher_code) {
-      const lastOrder = await env.MEYYA_DB.prepare(`
-        SELECT subtotal, total_paid
-        FROM orders
-        WHERE clerk_id = ? AND status IN ('COMPLETED', 'SELESAI')
-        ORDER BY completed_at DESC, created_at DESC
-        LIMIT 1
-      `).bind(clerkId).first();
-      const lastSubtotal = Math.max(0, Number(lastOrder?.subtotal || lastOrder?.total_paid || 0));
-      const values = buildPrizeValues(prize, lastSubtotal);
+      if (prize.key === 'FREE_PRODUCT_10_LAST_ORDER') {
+        giftProduct = giftProduct || await pickFreeGiftProduct(env, prize, lastSubtotal);
+      }
+      const values = buildPrizeValues(prize, lastSubtotal, giftProduct);
       couponEntitlement = await issueCouponEntitlement(env, {
         campaignKey: 'REVIEWSPIN',
         voucherCode: prize.voucher_code,
@@ -105,12 +116,21 @@ export async function onRequestPost(context: any) {
         discountValue: values.discountValue,
         minPurchase: values.minPurchase,
         maxDiscount: values.maxDiscount,
+        applicableProductIds: values.applicableProductIds,
         validFrom: new Date().toISOString(),
         validUntil: values.validUntil,
         metadata: {
           prize_key: prize.key,
           last_order_subtotal: lastSubtotal,
           label: prize.label,
+          gift_product: giftProduct ? {
+            id: giftProduct.id,
+            name: giftProduct.name,
+            slug: giftProduct.slug,
+            image_url: giftProduct.image_url,
+            price: giftProduct.base_price,
+            weight: giftProduct.weight,
+          } : null,
         },
       });
     }
@@ -142,12 +162,54 @@ export async function onRequestPost(context: any) {
         prize_label: prize.label,
         voucher_code: couponEntitlement?.voucher_code || null,
         coupon_entitlement_id: couponEntitlement?.id || null,
+        gift_product: giftProduct ? {
+          id: giftProduct.id,
+          name: giftProduct.name,
+          slug: giftProduct.slug,
+          image_url: giftProduct.image_url,
+          price: giftProduct.base_price,
+          weight: giftProduct.weight,
+        } : null,
         is_first_spin: isFirstSpin ? 1 : 0,
       },
     });
   } catch (error: any) {
     return json({ error: error.message }, 500);
   }
+}
+
+async function getFallbackPrize(env: any) {
+  return env.MEYYA_DB.prepare(`
+    SELECT *
+    FROM wheel_prizes
+    WHERE key = 'SHIP5_NO_MIN' AND enabled = 1
+    LIMIT 1
+  `).first();
+}
+
+async function pickFreeGiftProduct(env: any, prize: any, lastSubtotal: number) {
+  const metadata = parseJson(prize.metadata, {});
+  const poolIds = Array.isArray(metadata.product_pool_ids)
+    ? metadata.product_pool_ids.map(Number).filter(Number.isFinite)
+    : [];
+  if (poolIds.length === 0) return null;
+
+  const cap = Math.floor(lastSubtotal * 0.1);
+  if (cap <= 0) return null;
+  const placeholders = poolIds.map(() => '?').join(',');
+  const { results } = await env.MEYYA_DB.prepare(`
+    SELECT id, name, slug, image_url, base_price, weight, stock
+    FROM products
+    WHERE id IN (${placeholders})
+      AND deleted_at IS NULL
+      AND is_active = 1
+      AND is_preorder != 1
+      AND stock > 0
+      AND base_price <= ?
+    ORDER BY stock DESC, base_price DESC, id ASC
+    LIMIT 1
+  `).bind(...poolIds, cap).all();
+  return results?.[0] || null;
 }
 
 async function choosePrize(env: any, isFirstSpin: boolean) {
@@ -171,7 +233,7 @@ async function choosePrize(env: any, isFirstSpin: boolean) {
   return prizes[prizes.length - 1] || null;
 }
 
-function buildPrizeValues(prize: any, lastSubtotal: number) {
+function buildPrizeValues(prize: any, lastSubtotal: number, giftProduct?: any) {
   const discountType = String(prize.discount_type || 'FIXED').toUpperCase();
   let discountValue = Number(prize.discount_value || 0);
   let minPurchase = Number(prize.min_purchase || 0);
@@ -187,10 +249,24 @@ function buildPrizeValues(prize: any, lastSubtotal: number) {
     maxDiscount = Math.floor(lastSubtotal * 0.1);
     if (discountType === 'FIXED') discountValue = maxDiscount;
   }
+  const applicableProductIds: number[] = [];
+  if (giftProduct) {
+    discountValue = Number(giftProduct.base_price || 0);
+    maxDiscount = Number(giftProduct.base_price || 0);
+    applicableProductIds.push(Number(giftProduct.id));
+  }
 
   const expiresInDays = Number(prize.expires_in_days || 14);
   const validUntil = expiresInDays > 0 ? new Date(Date.now() + expiresInDays * 86400000).toISOString() : null;
-  return { discountType, discountValue, minPurchase, maxDiscount, validUntil };
+  return { discountType, discountValue, minPurchase, maxDiscount, validUntil, applicableProductIds };
+}
+
+function parseJson(value: any, fallback: any) {
+  try {
+    return value ? JSON.parse(String(value)) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function json(payload: any, status = 200) {

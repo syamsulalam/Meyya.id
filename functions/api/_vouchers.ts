@@ -208,6 +208,7 @@ export async function ensureVoucherSchema(env: any) {
       discount_value NUMERIC,
       min_purchase NUMERIC,
       max_discount NUMERIC,
+      applicable_product_ids TEXT,
       valid_from DATETIME,
       valid_until DATETIME,
       metadata TEXT,
@@ -297,6 +298,7 @@ export async function ensureVoucherSchema(env: any) {
   await addColumn(env, 'coupon_campaigns', 'birthday_claim_window_days', 'INTEGER');
   await addColumn(env, 'coupon_entitlements', 'used_order_id', 'TEXT');
   await addColumn(env, 'coupon_entitlements', 'used_at', 'DATETIME');
+  await addColumn(env, 'coupon_entitlements', 'applicable_product_ids', 'TEXT');
   await addColumn(env, 'review_spin_entitlements', 'product_id', 'INTEGER');
   await env.MEYYA_DB.prepare(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_voucher_usages_birthday_year
@@ -394,6 +396,7 @@ export async function validateVoucherForCart(env: any, voucher: any, options: {
       discount_value: entitlement.discount_value ?? effectiveVoucher.discount_value,
       min_purchase: entitlement.min_purchase ?? effectiveVoucher.min_purchase,
       max_discount: entitlement.max_discount ?? effectiveVoucher.max_discount,
+      applicable_product_ids: entitlement.applicable_product_ids || effectiveVoucher.applicable_product_ids,
       valid_from: entitlement.valid_from || effectiveVoucher.valid_from,
       valid_until: entitlement.valid_until || effectiveVoucher.valid_until,
     };
@@ -533,6 +536,7 @@ export async function issueCouponEntitlement(env: any, input: {
   validFrom?: string | null;
   validUntil?: string | null;
   metadata?: any;
+  applicableProductIds?: number[];
 }) {
   await ensureVoucherSchema(env);
   const id = crypto.randomUUID();
@@ -549,9 +553,9 @@ export async function issueCouponEntitlement(env: any, input: {
   await env.MEYYA_DB.prepare(`
     INSERT INTO coupon_entitlements (
       id, campaign_key, voucher_code, clerk_id, status, source_type, source_id,
-      discount_type, discount_value, min_purchase, max_discount, valid_from, valid_until, metadata
+      discount_type, discount_value, min_purchase, max_discount, applicable_product_ids, valid_from, valid_until, metadata
     )
-    VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
     input.campaignKey,
@@ -563,6 +567,7 @@ export async function issueCouponEntitlement(env: any, input: {
     Number(input.discountValue || 0),
     input.minPurchase ?? 0,
     input.maxDiscount ?? null,
+    input.applicableProductIds && input.applicableProductIds.length > 0 ? JSON.stringify(Array.from(new Set(input.applicableProductIds.map(Number).filter(Number.isFinite)))) : null,
     input.validFrom || new Date().toISOString(),
     input.validUntil || null,
     JSON.stringify(input.metadata || {})

@@ -109,6 +109,119 @@ export async function updateAnalyticsAggregates(env: any, clerkId: string | null
   }
 }
 
+export async function backfillAnalyticsAggregates(env: any, options: {
+  startDate: string;
+  endDate: string;
+  replace?: boolean;
+  dryRun?: boolean;
+}) {
+  const startDate = normalizeDate(options.startDate);
+  const endDate = normalizeDate(options.endDate);
+  if (!startDate || !endDate || startDate > endDate) {
+    throw new Error('Window tanggal backfill tidak valid');
+  }
+
+  const eventCount = await env.MEYYA_DB.prepare(`
+    SELECT COUNT(*) AS total
+    FROM user_events
+    WHERE date(created_at) BETWEEN ? AND ?
+  `).bind(startDate, endDate).first();
+
+  const metricGroups = await env.MEYYA_DB.prepare(`
+    SELECT
+      date(created_at) AS metric_date,
+      event_type,
+      COALESCE(source, '') AS source,
+      COALESCE(medium, '') AS medium,
+      COALESCE(campaign, '') AS campaign,
+      COALESCE(device_type, '') AS device_type,
+      COALESCE(page_path, '') AS page_path,
+      COUNT(*) AS event_count,
+      COUNT(DISTINCT clerk_id) AS unique_users
+    FROM user_events
+    WHERE date(created_at) BETWEEN ? AND ?
+    GROUP BY metric_date, event_type, source, medium, campaign, device_type, page_path
+  `).bind(startDate, endDate).all();
+
+  const userGroups = await env.MEYYA_DB.prepare(`
+    SELECT DISTINCT
+      date(created_at) AS metric_date,
+      event_type,
+      COALESCE(source, '') AS source,
+      COALESCE(medium, '') AS medium,
+      COALESCE(campaign, '') AS campaign,
+      COALESCE(device_type, '') AS device_type,
+      COALESCE(page_path, '') AS page_path,
+      clerk_id
+    FROM user_events
+    WHERE date(created_at) BETWEEN ? AND ?
+      AND clerk_id IS NOT NULL
+      AND clerk_id != ''
+  `).bind(startDate, endDate).all();
+
+  if (options.dryRun) {
+    return {
+      dryRun: true,
+      startDate,
+      endDate,
+      userEvents: Number(eventCount?.total || 0),
+      metricGroups: metricGroups.results?.length || 0,
+      uniqueUserRows: userGroups.results?.length || 0,
+      userSummariesSkipped: true,
+    };
+  }
+
+  if (options.replace) {
+    await env.MEYYA_DB.batch([
+      env.MEYYA_DB.prepare('DELETE FROM analytics_daily_metrics WHERE metric_date BETWEEN ? AND ?').bind(startDate, endDate),
+      env.MEYYA_DB.prepare('DELETE FROM analytics_daily_metric_users WHERE metric_date BETWEEN ? AND ?').bind(startDate, endDate),
+    ]);
+  }
+
+  const metricStatements = (metricGroups.results || []).map((row: any) => env.MEYYA_DB.prepare(`
+    INSERT INTO analytics_daily_metrics (
+      metric_date, event_type, source, medium, campaign, device_type, page_path, event_count, unique_users, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(metric_date, event_type, source, medium, campaign, device_type, page_path)
+    DO UPDATE SET
+      event_count = excluded.event_count,
+      unique_users = excluded.unique_users,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(row.metric_date, row.event_type, row.source, row.medium, row.campaign, row.device_type, row.page_path, Number(row.event_count || 0), Number(row.unique_users || 0)));
+
+  const userStatements = (userGroups.results || []).map((row: any) => env.MEYYA_DB.prepare(`
+    INSERT OR IGNORE INTO analytics_daily_metric_users (
+      metric_date, event_type, source, medium, campaign, device_type, page_path, clerk_id
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(row.metric_date, row.event_type, row.source, row.medium, row.campaign, row.device_type, row.page_path, row.clerk_id));
+
+  await batchInChunks(env, [...metricStatements, ...userStatements], 75);
+
+  return {
+    dryRun: false,
+    startDate,
+    endDate,
+    userEvents: Number(eventCount?.total || 0),
+    metricGroups: metricGroups.results?.length || 0,
+    uniqueUserRows: userGroups.results?.length || 0,
+    userSummariesSkipped: true,
+    replaced: Boolean(options.replace),
+  };
+}
+
+async function batchInChunks(env: any, statements: any[], chunkSize: number) {
+  for (let index = 0; index < statements.length; index += chunkSize) {
+    await env.MEYYA_DB.batch(statements.slice(index, index + chunkSize));
+  }
+}
+
+function normalizeDate(value: string) {
+  const text = String(value || '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+}
+
 async function updateUserEventSummary(env: any, clerkId: string, eventType: string, analytics: AnalyticsFields) {
   const isCart = eventType === 'CART_UPDATED';
   const isProductView = eventType === 'PRODUCT_VIEW';

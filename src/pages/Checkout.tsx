@@ -142,10 +142,12 @@ export default function Checkout() {
 
   const totalAkhir = subtotal + shippingCost + adminFee - (appliedVoucher ? appliedVoucher.discount : 0);
 
-  const applyVoucherCode = async (codeToApply?: string) => {
+  const applyVoucherCode = async (codeToApply?: string, cartOverride?: any[]) => {
     const nextCode = String(codeToApply || voucherCode || '').trim().toUpperCase();
     if (!nextCode) return;
     setVoucherCode(nextCode);
+    const voucherCart = Array.isArray(cartOverride) ? cartOverride : cart;
+    const voucherSubtotal = voucherCart.reduce((acc, item) => acc + (Number(item.price || 0) * Number(item.quantity || 1)), 0);
     
     try {
        const res = await authFetch('/api/vouchers/validate', {
@@ -153,9 +155,9 @@ export default function Checkout() {
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({
            code: nextCode,
-           cart_subtotal: subtotal,
+           cart_subtotal: voucherSubtotal,
            shipping_cost: shippingCost,
-           cart_items: cart.map((item) => ({
+           cart_items: voucherCart.map((item) => ({
              product_id: item.product_id,
              quantity: item.quantity,
              price: item.price,
@@ -171,7 +173,7 @@ export default function Checkout() {
             metadata: {
               voucher_code: nextCode,
               error: data.error || 'Voucher tidak valid',
-              subtotal,
+              subtotal: voucherSubtotal,
               shipping_cost: shippingCost,
               source: 'checkout',
             },
@@ -188,9 +190,9 @@ export default function Checkout() {
          metadata: {
            voucher_code: data.code,
            discount: data.discount,
-           subtotal,
+           subtotal: voucherSubtotal,
            shipping_cost: shippingCost,
-           item_count: cart.reduce((acc, item) => acc + item.quantity, 0),
+           item_count: voucherCart.reduce((acc, item) => acc + Number(item.quantity || 1), 0),
            source: 'checkout',
          },
        });
@@ -201,7 +203,7 @@ export default function Checkout() {
          metadata: {
            voucher_code: nextCode,
            error: e?.message || 'network_error',
-           subtotal,
+           subtotal: voucherSubtotal,
            shipping_cost: shippingCost,
            source: 'checkout',
          },
@@ -213,6 +215,27 @@ export default function Checkout() {
   const handleApplyVoucher = async (e: React.FormEvent) => {
     e.preventDefault();
     await applyVoucherCode();
+  };
+
+  const addGiftProductAndApply = async (voucher: any) => {
+    const gift = voucher?.metadata?.gift_product;
+    let nextCart = cart;
+    if (gift?.id && !cart.some((item) => Number(item.product_id) === Number(gift.id))) {
+      const giftItem = {
+        product_id: Number(gift.id),
+        product_name: gift.name || 'Produk Hadiah',
+        color: 'Hadiah',
+        size: 'Default',
+        quantity: 1,
+        price: Number(gift.price || 0),
+        weight: Number(gift.weight || 250),
+        image_url: gift.image_url || '',
+      };
+      addToCart(giftItem);
+      nextCart = [...cart, giftItem];
+      addToast('Produk hadiah ditambahkan ke keranjang.', 'success');
+    }
+    await applyVoucherCode(voucher.code, nextCart);
   };
 
   // API Caching hooks
@@ -728,10 +751,13 @@ export default function Checkout() {
                     <button
                       key={`${voucher.id}-${voucher.code}`}
                       type="button"
-                      onClick={() => applyVoucherCode(voucher.code)}
-                      className="min-w-[150px] rounded-xl border border-black/10 bg-white px-3 py-2 text-left text-xs transition-colors hover:bg-black/5"
+                      onClick={() => voucher?.metadata?.gift_product ? addGiftProductAndApply(voucher) : applyVoucherCode(voucher.code)}
+                      className="min-w-[170px] rounded-xl border border-black/10 bg-white px-3 py-2 text-left text-xs transition-colors hover:bg-black/5"
                     >
                       <span className="block font-mono font-semibold text-ink">{voucher.code}</span>
+                      {voucher?.metadata?.gift_product && (
+                        <span className="mt-1 block text-[10px] font-semibold text-amber-700">Hadiah: {voucher.metadata.gift_product.name}</span>
+                      )}
                       <span className="mt-1 block text-[10px] text-black/50">
                         {voucher.type === 'PERCENTAGE'
                           ? `${Number(voucher.value || 0)}% off`

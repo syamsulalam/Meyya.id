@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS coupon_entitlements (
   discount_value NUMERIC,
   min_purchase NUMERIC,
   max_discount NUMERIC,
+  applicable_product_ids TEXT,
   valid_from DATETIME,
   valid_until DATETIME,
   metadata TEXT,

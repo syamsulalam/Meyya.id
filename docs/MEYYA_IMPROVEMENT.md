@@ -8,21 +8,37 @@ Dokumen ini hanya berisi temuan yang masih relevan setelah rangkaian fix auth, c
 
 Yang paling masuk akal dikerjakan berikutnya:
 
-1. Tambah free product voucher sungguhan: product pool admin, auto-pick produk hadiah, stok guard, dan fallback jika stok habis.
-2. Tambah admin viewer untuk `coupon_claim_risk_logs` agar blocked welcome coupon bisa diaudit langsung dari UI.
-3. Buat Cloudflare Worker maintenance untuk auto pruning bulanan data operasional yang lebih lama dari 3 tahun, dengan dry-run dan audit log.
-4. Rancang integrasi Duitku sandbox: migration payment gateway fields, create transaction, callback signature, check transaction, dan idempotency.
-5. Inventory server Oracle GOWA yang sudah pernah disetup: base URL, versi, auth, device id, session login, test endpoint `/devices`, `/send/message`, dan format payload webhook message asli.
-6. Set env production `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`, lalu arahkan GOWA webhook ke `/api/webhooks/gowa?secret=...`.
-7. Rancang sinkron Google Contacts untuk nomor WA terverifikasi jika nanti kontak harus tersimpan juga di phonebook bersama, bukan hanya D1.
-8. Tambah messaging outbox untuk WhatsApp/email agar integrasi GOWA dan Sendy bisa dry-run, retry, dan diaudit sebelum auto-send.
-9. Tambah backfill analytics aggregate manual per window tanggal jika ingin histori raw event lama ikut masuk chart.
+1. Buat Cloudflare Worker maintenance untuk auto pruning bulanan data operasional yang lebih lama dari 3 tahun, dengan dry-run, R2 archive, dan audit log.
+2. Rancang integrasi Duitku sandbox: migration payment gateway fields, create transaction, callback signature, check transaction, dan idempotency.
+3. Inventory server Oracle GOWA yang sudah pernah disetup: base URL, versi, auth, device id, session login, test endpoint `/devices`, `/send/message`, dan format payload webhook message asli.
+4. Set env production `MEYYA_SUPPORT_WHATSAPP` dan `GOWA_WEBHOOK_SECRET`, lalu arahkan GOWA webhook ke `/api/webhooks/gowa?secret=...`.
+5. Rancang sinkron Google Contacts untuk nomor WA terverifikasi jika nanti kontak harus tersimpan juga di phonebook bersama, bukan hanya D1.
+6. Tambah messaging outbox untuk WhatsApp/email agar integrasi GOWA dan Sendy bisa dry-run, retry, dan diaudit sebelum auto-send.
 
-Catatan fungsi next action nomor 2:
+Catatan fungsi messaging outbox:
 
 - Template pesan sekarang sudah rapi dan tervalidasi, tetapi masih dipakai manual untuk disalin/dibuka ke WhatsApp Web.
 - Menghubungkan ke provider resmi WhatsApp/email akan membuat pesan operasional bisa dikirim otomatis atau semi-otomatis, misalnya reminder pembayaran, order shipped, completed, birthday, dan abandoned cart.
 - Manfaat utamanya: delivery tercatat, status terkirim/gagal bisa diaudit, pengiriman bisa dijadwalkan, dan admin tidak perlu copy-paste pesan satu per satu.
+
+## Batch Entitlement Override dan Analytics Maintenance 2026-05-06
+
+Checklist:
+
+- [x] Admin bisa issue manual entitlement dari risk log false positive atau customer service exception.
+- [x] Admin bisa revoke entitlement welcome aktif langsung dari viewer risk log.
+- [x] Action override/revoke memakai endpoint admin terpisah dan masuk audit log.
+- [x] Endpoint `/api/admin/analytics-backfill` ditambahkan untuk backfill aggregate chart per window tanggal dari raw `user_events`.
+- [x] Tab Free Tier punya kontrol backfill analytics dengan mode dry-run dan replace window agar chart tidak dobel.
+- [x] Endpoint `/api/admin/analytics-archive` ditambahkan untuk export raw `user_events` lama ke R2 sebagai JSONL.
+- [x] Archive raw event punya dry-run, batas maksimal 10.000 row per window, optional delete-after-archive, audit log, dan manifest `analytics_event_archives`.
+- [x] Free Tier menampilkan tabel `analytics_event_archives` agar histori archive bisa ikut dipantau di ukuran D1.
+
+Catatan strategi:
+
+- Backfill hanya menulis `analytics_daily_metrics` dan `analytics_daily_metric_users`; `user_event_summaries` sengaja tidak di-backfill agar count customer summary tidak berisiko dobel saat window dijalankan ulang.
+- Workflow aman untuk raw event lama: jalankan backfill chart dulu, archive ke R2 dengan dry-run, archive real tanpa delete untuk verifikasi object, lalu jalankan archive dengan delete-after-archive untuk window kecil yang sudah aman.
+- Pruning manual lama masih ada, tetapi untuk raw analytics event sebaiknya gunakan archive R2 lebih dulu supaya D1 tidak menyimpan histori mentah terlalu panjang.
 
 ## Batch Review Journey dan Review Growth Brainstorm 2026-05-06
 
@@ -82,7 +98,7 @@ Status fitur saat ini:
 - [x] Guard welcome coupon lintas akun ditambahkan dengan browser/device fingerprint hash, phone hash, address hash, IP prefix hash, risk score, dan risk log.
 - [x] Review spin wheel server-side ditambahkan; first spin non-zonk lewat seed probability.
 - [x] Prize pool awal ditambahkan di `wheel_prizes`.
-- [ ] Belum ada free product voucher hasil reward.
+- [x] Free product reward sudah bisa memakai product pool admin, auto-pick produk hadiah saat spin, entitlement personal per produk, dan fallback ke hadiah ongkir jika stok/pool tidak eligible.
 - [x] Checkout punya bagian `Kupon Saya` yang menampilkan kupon milik user.
 - [x] Semua apply kupon/voucher mewajibkan WhatsApp verified di server-side validation.
 
@@ -96,11 +112,12 @@ Rencana pengadaan:
 - [x] Tambah guard welcome: login, no prior valid order, WA verified, plus risk score dari phone hash, device fingerprint hash, address hash, dan IP prefix hash.
 - [x] Tambah review spin entitlement setelah review valid dari order completed.
 - [x] Buat wheel server-side: first ever spin user guaranteed non-zonk, spin berikutnya bisa zonk sesuai probability.
-- [x] Tambah prize awal: ongkir Rp5rb tanpa minimum, ongkir Rp10rb dengan minimum, fixed small voucher, disabled free product placeholder, dan max voucher 20% transaksi terakhir dengan minimum purchase sebesar transaksi terakhir.
+- [x] Tambah prize awal: ongkir Rp5rb tanpa minimum, ongkir Rp10rb dengan minimum, fixed small voucher, free product dari pool sampai 10% transaksi terakhir, dan max voucher 20% transaksi terakhir dengan minimum purchase sebesar transaksi terakhir.
 - [x] Checkout menampilkan `Kupon Saya`, tetapi tetap memakai validasi voucher existing dan validasi ulang di order API.
 - [x] Tambah audit log untuk spin result dan update campaign/review moderation.
 - [x] Tambah risk log untuk allow/block welcome claim di `coupon_claim_risk_logs`.
-- [ ] Tambah admin viewer untuk risk log dan action manual override/revoke entitlement.
+- [x] Tambah admin viewer untuk blocked welcome claim dari `coupon_claim_risk_logs`.
+- [x] Tambah action manual override/revoke entitlement dari risk log dan customer service.
 
 Catatan strategi:
 

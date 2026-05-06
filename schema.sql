@@ -217,6 +217,7 @@ CREATE TABLE IF NOT EXISTS coupon_entitlements (
   discount_value NUMERIC,
   min_purchase NUMERIC,
   max_discount NUMERIC,
+  applicable_product_ids TEXT,
   valid_from DATETIME,
   valid_until DATETIME,
   metadata TEXT,
@@ -414,6 +415,20 @@ CREATE TABLE IF NOT EXISTS analytics_daily_metric_users (
   PRIMARY KEY(metric_date, event_type, source, medium, campaign, device_type, page_path, clerk_id)
 );
 
+CREATE TABLE IF NOT EXISTS analytics_event_archives (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  object_key TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  row_count INTEGER DEFAULT 0,
+  deleted_count INTEGER DEFAULT 0,
+  bytes INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'ARCHIVED',
+  created_by TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  metadata TEXT
+);
+
 CREATE TABLE IF NOT EXISTS user_event_summaries (
   clerk_id TEXT PRIMARY KEY,
   last_event_at DATETIME,
@@ -571,6 +586,8 @@ CREATE INDEX IF NOT EXISTS idx_analytics_daily_date
   ON analytics_daily_metrics(metric_date);
 CREATE INDEX IF NOT EXISTS idx_analytics_daily_event
   ON analytics_daily_metrics(event_type, metric_date);
+CREATE INDEX IF NOT EXISTS idx_analytics_archives_window
+  ON analytics_event_archives(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_user_event_summaries_updated
   ON user_event_summaries(updated_at);
 

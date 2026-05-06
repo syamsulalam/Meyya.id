@@ -68,14 +68,14 @@ Dokumen ini adalah peta kerja cepat untuk memahami bagaimana Meyya.id berjalan s
 - `AdminMarketingPanel`: WhatsApp Marketing CRM, campaign target, analytics chart, nomor global verifikasi Meyya.
 - `AdminProductForm`: CRUD produk, kategori, warna, ukuran, attributes, variants, SEO, HPP/profit.
 - `AdminCategoryManager`: CRUD kategori dan taxonomy flags.
-- `AdminVoucherManager`: CRUD voucher, birthday voucher, target segment/user.
+- `AdminVoucherManager`: CRUD voucher, birthday voucher, target segment/user, default coupon campaign, wheel prize, risk log, dan entitlement override/revoke.
 - `AdminReviewManager`: review produk, moderation status, featured review, dan balasan public admin.
 - `AdminPaymentSettings`: fee transfer/QRIS, bank accounts, expiry.
 - `AdminShippingSettings`: origin toko, couriers, region cache.
 - `AdminOrderManager`: order ops, payment confirmation, fulfillment, returns, templates.
 - `AdminFinancePanel`: finance statement, manual transaction, closing period.
 - `AdminDevelopmentRoadmap`: roadmap/status panel dari `src/data/developmentRoadmap.ts`.
-- `AdminFreeTierPanel`: Clerk/D1/R2 usage, table stats, safe pruning.
+- `AdminFreeTierPanel`: Clerk/D1/R2 usage, table stats, safe pruning, backfill analytics aggregate, dan archive raw event ke R2.
 
 ## State and Hooks
 
@@ -94,7 +94,7 @@ Shared helpers:
 - `_users.ts`: users schema and Clerk/user sync helpers.
 - `_vouchers.ts`: voucher schema and cart validation rules.
 - `deviceFingerprint.ts`: frontend fingerprint hash helper used as one risk signal for welcome coupon abuse guard.
-- `_analytics.ts`: event summaries and aggregate helpers.
+- `_analytics.ts`: event summaries, aggregate helpers, dan manual backfill aggregate.
 - `_message_templates.ts`: operational message templates.
 - `_cartValidation.ts`: shared server-side cart stock validation.
 - `_appSettings.ts`: key-value app settings, support WhatsApp lookup, phone normalization.
@@ -131,12 +131,16 @@ Admin API:
 - `admin/users/[clerk_id]/orders.ts`: selected customer order history.
 - `admin/metrics.ts`: dashboard metrics.
 - `admin/analytics.ts`: analytics trend/funnel.
+- `admin/analytics-backfill.ts`: manual backfill aggregate chart dari raw `user_events` per window tanggal.
+- `admin/analytics-archive.ts`: archive raw `user_events` lama ke R2 JSONL dan optional delete dari D1.
 - `admin/events.ts`: admin-created campaign touch.
 - `admin/orders/index.ts`, `admin/orders/[id]/status.ts`, `admin/orders/[id]/confirm.ts`: order ops.
 - `admin/returns.ts`: return queue and restock.
 - `admin/vouchers.ts`, `admin/vouchers/[code].ts`: voucher CRUD.
 - `admin/coupon-campaigns.ts`: default coupon campaign settings and seed status.
 - `admin/wheel-prizes.ts`: review wheel prize editor API.
+- `admin/coupon-risk-logs.ts`: blocked welcome coupon risk log viewer data.
+- `admin/coupon-entitlements.ts`: manual issue/revoke entitlement untuk false positive risk log atau customer service exception.
 - `admin/reviews.ts`: review moderation, publish/hide, featured review, and admin public reply.
 - `admin/payment-settings.ts`, `admin/payment-bank-accounts.ts`, `admin/payment-bank-accounts/[id].ts`: payment config.
 - `admin/shipping-settings.ts`, `admin/region-cache.ts`: shipping config/cache.
@@ -163,6 +167,7 @@ Webhooks:
 - Order creation reserves stock at `PENDING`, consumes or releases later via status/expiry flows.
 - Cart is local persisted state; stock freshness must be checked against server before checkout.
 - Analytics are event-based; CRM abandoned cart uses `user_cart_snapshots`.
+- Raw analytics event lama bisa di-offload ke R2 lewat `admin/analytics-archive.ts`; chart tetap memakai aggregate D1 dari `analytics_daily_metrics`.
 
 ## Important Operational Edge Cases
 
@@ -175,4 +180,5 @@ Webhooks:
 - Marketing WhatsApp targets can include unverified numbers if a phone exists in D1; the UI labels verified/unverified and leaves the send decision to admin.
 - API.CO.ID free tier for Regional and Expedition Cost is tracked by external miss counts; cache hits should not be counted as external usage.
 - Free-tier pruning must stay conservative: never delete orders, users, addresses, inventory, voucher usage, finance, or returns.
+- Untuk raw `user_events` lama, jalankan backfill aggregate lalu archive ke R2 sebelum delete agar chart tetap punya histori tanpa membesarkan D1.
 - Admin route access depends on Clerk public metadata role or D1 role sync; missing Clerk secret/publishable key breaks protected APIs.

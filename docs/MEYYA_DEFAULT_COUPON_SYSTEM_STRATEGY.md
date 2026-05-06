@@ -20,6 +20,22 @@ Update implementasi lanjutan 2026-05-06:
 - Admin voucher sekarang punya editor default campaign untuk aktif/nonaktif, nilai diskon, minimum belanja, max discount, expiry, limit per user, risk threshold, dan tanggal/window ulang tahun Meyya.
 - Admin voucher juga punya editor `wheel_prizes` untuk label, voucher code, tipe/nilai hadiah, expiry, formula transaksi terakhir, dan bobot first/repeat spin.
 
+Update implementasi free product 2026-05-06:
+
+- Prize `FREE_PRODUCT_10_LAST_ORDER` bisa memakai product pool dari admin.
+- Saat spin, server memilih produk aktif, non-preorder, stok tersedia, dan harga maksimal 10% transaksi terakhir.
+- Jika product pool kosong atau stok/harga tidak eligible, server fallback ke hadiah ongkir kecil.
+- Entitlement hadiah menyimpan `gift_product` dan `applicable_product_ids`, sehingga voucher hanya memberi diskon untuk produk hadiah tersebut.
+- Checkout `Kupon Saya` bisa menambahkan produk hadiah ke cart sebelum apply voucher.
+- Admin voucher menampilkan blocked welcome risk log dari `coupon_claim_risk_logs`.
+
+Update implementasi override admin 2026-05-06:
+
+- Viewer risk log sekarang menampilkan entitlement welcome aktif jika ada.
+- Admin bisa issue manual `MEYYAWELCOME` entitlement untuk kasus false positive atau customer service exception.
+- Admin bisa revoke entitlement yang masih available langsung dari risk log.
+- Semua override/revoke masuk audit log dan menyimpan alasan di metadata entitlement.
+
 ## Kesimpulan Awal
 
 Secara produk, istilah yang paling rapi:

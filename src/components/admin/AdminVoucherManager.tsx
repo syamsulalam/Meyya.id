@@ -43,6 +43,7 @@ export default function AdminVoucherManager() {
   const { data: dbVouchers, error, isLoading } = useSWR(authReady ? '/api/admin/vouchers' : null, fetcher);
   const { data: couponCampaigns, mutate: mutateCampaigns } = useSWR(authReady ? '/api/admin/coupon-campaigns' : null, fetcher);
   const { data: wheelPrizes, mutate: mutateWheelPrizes } = useSWR(authReady ? '/api/admin/wheel-prizes' : null, fetcher);
+  const { data: riskLogs } = useSWR(authReady ? '/api/admin/coupon-risk-logs?decision=BLOCK' : null, fetcher);
   const { data: productsData } = useSWR('/api/products', (url: string) => fetch(url).then((res) => res.json()));
   const vouchers = Array.isArray(dbVouchers) ? dbVouchers : [];
   const products = Array.isArray(productsData) ? productsData : (productsData?.products || []);
@@ -101,6 +102,9 @@ export default function AdminVoucherManager() {
   const [campaignDraft, setCampaignDraft] = useState<any>(null);
   const [editingPrizeKey, setEditingPrizeKey] = useState<string | null>(null);
   const [prizeDraft, setPrizeDraft] = useState<any>(null);
+  const [manualEntitlementClerkId, setManualEntitlementClerkId] = useState('');
+  const [manualEntitlementReason, setManualEntitlementReason] = useState('');
+  const [issuingManualEntitlement, setIssuingManualEntitlement] = useState(false);
 
   const toggleCampaign = async (campaign: any) => {
     setSavingCampaignKey(campaign.key);
@@ -190,6 +194,7 @@ export default function AdminVoucherManager() {
   };
 
   const beginPrizeEdit = (prize: any) => {
+    const metadata = parseJson(prize.metadata, {});
     setEditingPrizeKey(prize.key);
     setPrizeDraft({
       ...prize,
@@ -199,6 +204,7 @@ export default function AdminVoucherManager() {
       weight_first_spin: Number(prize.weight_first_spin || 0),
       weight_repeat_spin: Number(prize.weight_repeat_spin || 0),
       expires_in_days: Number(prize.expires_in_days || 0),
+      product_pool_ids: Array.isArray(metadata.product_pool_ids) ? metadata.product_pool_ids.map(Number) : [],
     });
   };
 
@@ -209,7 +215,13 @@ export default function AdminVoucherManager() {
       const res = await authFetch('/api/admin/wheel-prizes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(prizeDraft),
+        body: JSON.stringify({
+          ...prizeDraft,
+          metadata: {
+            ...parseJson(prizeDraft.metadata, {}),
+            product_pool_ids: prizeDraft.product_pool_ids || [],
+          },
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Gagal menyimpan hadiah wheel');
@@ -222,6 +234,81 @@ export default function AdminVoucherManager() {
       addToast(error.message, 'error');
     } finally {
       setSavingCampaignKey(null);
+    }
+  };
+
+  const issueWelcomeOverride = async (log: any) => {
+    try {
+      const res = await authFetch('/api/admin/coupon-entitlements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ISSUE',
+          campaign_key: 'MEYYAWELCOME',
+          clerk_id: log.clerk_id,
+          source_type: 'ADMIN_OVERRIDE',
+          source_id: `RISKLOG-${log.id}`,
+          reason: 'Manual override dari risk log welcome coupon',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal issue entitlement');
+      addToast('Welcome coupon berhasil diberikan manual.', 'success');
+      mutate('/api/admin/coupon-risk-logs?decision=BLOCK');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    }
+  };
+
+  const issueManualWelcomeOverride = async () => {
+    const clerkId = manualEntitlementClerkId.trim();
+    if (!clerkId) return addToast('Clerk ID customer wajib diisi.', 'error');
+    setIssuingManualEntitlement(true);
+    try {
+      const res = await authFetch('/api/admin/coupon-entitlements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ISSUE',
+          campaign_key: 'MEYYAWELCOME',
+          clerk_id: clerkId,
+          source_type: 'ADMIN_OVERRIDE',
+          source_id: `MANUAL-${Date.now()}`,
+          reason: manualEntitlementReason || 'Manual customer service exception',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal issue entitlement');
+      setManualEntitlementClerkId('');
+      setManualEntitlementReason('');
+      addToast('Welcome coupon manual berhasil diberikan.', 'success');
+      mutate('/api/admin/coupon-risk-logs?decision=BLOCK');
+      mutate('/api/admin/vouchers');
+    } catch (error: any) {
+      addToast(error.message, 'error');
+    } finally {
+      setIssuingManualEntitlement(false);
+    }
+  };
+
+  const revokeEntitlement = async (entitlementId: string) => {
+    try {
+      const res = await authFetch('/api/admin/coupon-entitlements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REVOKE',
+          entitlement_id: entitlementId,
+          reason: 'Revoked dari risk log admin viewer',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal revoke entitlement');
+      addToast('Entitlement berhasil dicabut.', 'success');
+      mutate('/api/admin/coupon-risk-logs?decision=BLOCK');
+      mutate('/api/admin/vouchers');
+    } catch (error: any) {
+      addToast(error.message, 'error');
     }
   };
 
@@ -479,6 +566,34 @@ export default function AdminVoucherManager() {
                             <input type="checkbox" checked={!!draft.enabled} onChange={e => setPrizeDraft({ ...draft, enabled: e.target.checked })} className="accent-ink" />
                             Aktif
                           </label>
+                          {draft.key === 'FREE_PRODUCT_10_LAST_ORDER' && (
+                            <div className="md:col-span-2 xl:col-span-4 rounded-2xl border border-black/5 bg-black/[0.02] p-3">
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-black/45">Product Pool Hadiah</p>
+                              <div className="grid max-h-56 grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2">
+                                {products.map((product: any) => {
+                                  const pool = Array.isArray(draft.product_pool_ids) ? draft.product_pool_ids.map(Number) : [];
+                                  const selected = pool.includes(Number(product.id));
+                                  return (
+                                    <button
+                                      key={product.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setPrizeDraft({
+                                          ...draft,
+                                          product_pool_ids: selected ? pool.filter((id: number) => id !== Number(product.id)) : [...pool, Number(product.id)],
+                                        });
+                                      }}
+                                      className={`rounded-xl border px-3 py-2 text-left text-xs ${selected ? 'border-ink bg-ink text-white' : 'border-black/10 bg-white text-ink hover:bg-black/5'}`}
+                                    >
+                                      <span className="block line-clamp-1 font-medium">{product.name}</span>
+                                      <span className={`block text-[10px] ${selected ? 'text-white/70' : 'text-black/45'}`}>Rp {Number(product.base_price || 0).toLocaleString('id-ID')} · Stok {Number(product.stock || 0)}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <p className="mt-2 text-[10px] text-black/45">Server akan memilih produk aktif, non-preorder, stok tersedia, dan harga maksimal 10% transaksi terakhir customer.</p>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <>
@@ -507,6 +622,99 @@ export default function AdminVoucherManager() {
           </div>
         </div>
       )}
+
+      {Array.isArray(riskLogs) && (
+        <div className="bg-white/50 p-6 md:p-8 rounded-[2rem] border border-black/5">
+          <div className="mb-5">
+            <h3 className="text-lg font-medium font-heading">Welcome Coupon Risk Logs</h3>
+            <p className="text-sm text-black/55 mt-1">Audit klaim MEYYAWELCOME yang diblokir oleh risk guard.</p>
+          </div>
+          {riskLogs.length === 0 ? (
+            <div className="rounded-2xl border border-black/5 bg-white/60 px-4 py-6 text-center text-sm text-black/45">Belum ada blocked claim.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-black/10 text-[10px] uppercase tracking-widest text-black/40">
+                    <th className="pb-3 pr-4 font-medium">Waktu</th>
+                    <th className="pb-3 px-4 font-medium">Customer</th>
+                    <th className="pb-3 px-4 font-medium">Score</th>
+                    <th className="pb-3 px-4 font-medium">Alasan</th>
+                    <th className="pb-3 pl-4 font-medium text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {riskLogs.map((log: any) => (
+                    <tr key={log.id} className="border-b border-black/5 last:border-0">
+                      <td className="py-3 pr-4 text-xs text-black/50">{new Date(log.created_at).toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-4">
+                        <p className="text-xs font-medium">{log.customer_name || log.email || log.clerk_id}</p>
+                        <p className="mt-0.5 text-[10px] text-black/40">{log.phone_wa || 'No WA'} {log.phone_wa_verified_at ? '· verified' : ''}</p>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">{Number(log.risk_score || 0)}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap gap-1.5">
+                          {(Array.isArray(log.reasons) ? log.reasons : []).map((reason: string) => (
+                            <span key={reason} className="rounded-full bg-black/5 px-2 py-1 text-[10px] text-black/55">{reason}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-3 pl-4 text-right">
+                        {log.active_welcome_entitlement_id ? (
+                          <button type="button" onClick={() => revokeEntitlement(log.active_welcome_entitlement_id)} className="rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-700">
+                            Revoke
+                          </button>
+                        ) : (
+                          <button type="button" onClick={() => issueWelcomeOverride(log)} className="rounded-full bg-ink px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-white">
+                            Override
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="bg-white/50 p-6 md:p-8 rounded-[2rem] border border-black/5">
+        <div className="mb-5">
+          <h3 className="text-lg font-medium font-heading">Manual Entitlement Override</h3>
+          <p className="text-sm text-black/55 mt-1">Berikan MEYYAWELCOME manual untuk exception customer service meski tidak ada row risk log.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+          <label className="text-[10px] uppercase tracking-widest text-black/45 font-semibold">
+            <ExplainedLabel tooltip={<ClerkIdTooltip />}>Clerk ID Customer</ExplainedLabel>
+            <input
+              value={manualEntitlementClerkId}
+              onChange={(event) => setManualEntitlementClerkId(event.target.value)}
+              placeholder="user_xxx"
+              className="mt-2 w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm normal-case tracking-normal focus:outline-none focus:border-ink"
+            />
+          </label>
+          <label className="text-[10px] uppercase tracking-widest text-black/45 font-semibold">
+            Alasan Override
+            <input
+              value={manualEntitlementReason}
+              onChange={(event) => setManualEntitlementReason(event.target.value)}
+              placeholder="False positive / CS exception"
+              className="mt-2 w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm normal-case tracking-normal focus:outline-none focus:border-ink"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={issueManualWelcomeOverride}
+            disabled={issuingManualEntitlement || !manualEntitlementClerkId.trim()}
+            className="rounded-full bg-ink px-5 py-3 text-xs font-semibold uppercase tracking-widest text-white hover:bg-black/80 disabled:opacity-50"
+          >
+            {issuingManualEntitlement ? 'Issue...' : 'Issue Welcome'}
+          </button>
+        </div>
+      </div>
 
       {showForm && (
         <div className="bg-white/60 p-6 md:p-8 rounded-[2rem] border border-black/5 shadow-sm slide-down mb-8">
