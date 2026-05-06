@@ -6,9 +6,15 @@ import { useAuthFetcher, useAuthFetch } from '../../hooks/useAuthFetch';
 import { useAuth } from '@clerk/react';
 import {
   ClerkIdTooltip,
+  CouponRiskLogTooltip,
+  DefaultCouponCampaignTooltip,
   ExplainedLabel,
+  ManualEntitlementTooltip,
+  ReviewSpinWheelTooltip,
+  RiskScoreTooltip,
   SegmentTooltip,
   VoucherTooltip,
+  WhatsAppVerificationTooltip,
 } from '../term-tooltips';
 
 type VoucherType = 'PERCENTAGE' | 'FIXED' | 'FREE_SHIPPING';
@@ -428,7 +434,9 @@ export default function AdminVoucherManager() {
               <ShieldCheck size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-medium font-heading">Default Coupon Campaigns</h3>
+              <h3 className="text-lg font-medium font-heading">
+                <ExplainedLabel tooltip={<DefaultCouponCampaignTooltip />}>Default Coupon Campaigns</ExplainedLabel>
+              </h3>
               <p className="text-sm text-black/55 mt-1">Seed campaign bawaan Meyya. Semua kupon/voucher tetap wajib WhatsApp verified saat dipakai di checkout.</p>
             </div>
           </div>
@@ -459,7 +467,12 @@ export default function AdminVoucherManager() {
                           <NumberInput value={draft.max_discount} onChange={(value: number) => setCampaignDraft({ ...draft, max_discount: value })} placeholder="Maks diskon" />
                           <NumberInput value={draft.expires_in_days} onChange={(value: number) => setCampaignDraft({ ...draft, expires_in_days: value })} placeholder="Expired dalam hari" />
                           <NumberInput value={draft.usage_limit_per_user} onChange={(value: number) => setCampaignDraft({ ...draft, usage_limit_per_user: value })} placeholder="Limit per user" />
-                          <NumberInput value={draft.risk_block_threshold} onChange={(value: number) => setCampaignDraft({ ...draft, risk_block_threshold: value })} placeholder="Risk block threshold" />
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-semibold uppercase tracking-widest text-black/45">
+                              <ExplainedLabel tooltip={<RiskScoreTooltip />}>Risk block threshold</ExplainedLabel>
+                            </span>
+                            <NumberInput value={draft.risk_block_threshold} onChange={(value: number) => setCampaignDraft({ ...draft, risk_block_threshold: value })} placeholder="Risk block threshold" />
+                          </label>
                           {draft.key === 'BDAYGIFT' && (
                             <NumberInput value={draft.birthday_claim_window_days} onChange={(value: number) => setCampaignDraft({ ...draft, birthday_claim_window_days: value })} placeholder="Window birthday" />
                           )}
@@ -478,7 +491,7 @@ export default function AdminVoucherManager() {
                           </label>
                           <label className="flex items-center gap-2 text-xs text-black/60">
                             <input type="checkbox" checked={!!draft.requires_verified_wa} onChange={e => setCampaignDraft({ ...draft, requires_verified_wa: e.target.checked })} className="accent-ink" />
-                            Wajib WA verified
+                            <ExplainedLabel tooltip={<WhatsAppVerificationTooltip />}>Wajib WA verified</ExplainedLabel>
                           </label>
                         </div>
                       ) : (
@@ -489,7 +502,7 @@ export default function AdminVoucherManager() {
                             {campaign.discount_type === 'SPIN' ? 'Spin reward' : `${campaign.discount_type} ${Number(campaign.discount_value || 0).toLocaleString('id-ID')}`}
                             {' '}· Min Rp {Number(campaign.min_purchase || 0).toLocaleString('id-ID')}
                             {Number(campaign.max_discount || 0) > 0 ? ` · Max Rp ${Number(campaign.max_discount || 0).toLocaleString('id-ID')}` : ''}
-                            {' '}· Risk block {Number(campaign.risk_block_threshold || 70)}
+                            {' '}· <ExplainedLabel tooltip={<RiskScoreTooltip />}>Risk block {Number(campaign.risk_block_threshold || 70)}</ExplainedLabel>
                           </p>
                         </>
                       )}
@@ -523,7 +536,9 @@ export default function AdminVoucherManager() {
       {Array.isArray(wheelPrizes) && wheelPrizes.length > 0 && (
         <div className="bg-white/50 p-6 md:p-8 rounded-[2rem] border border-black/5">
           <div className="mb-5">
-            <h3 className="text-lg font-medium font-heading">Wheel of Fortune Prizes</h3>
+            <h3 className="text-lg font-medium font-heading">
+              <ExplainedLabel tooltip={<ReviewSpinWheelTooltip />}>Wheel of Fortune Prizes</ExplainedLabel>
+            </h3>
             <p className="text-sm text-black/55 mt-1">Atur hadiah, voucher code, expiry, dan probability untuk first spin dan spin berikutnya.</p>
           </div>
           <div className="space-y-3">
@@ -626,7 +641,9 @@ export default function AdminVoucherManager() {
       {Array.isArray(riskLogs) && (
         <div className="bg-white/50 p-6 md:p-8 rounded-[2rem] border border-black/5">
           <div className="mb-5">
-            <h3 className="text-lg font-medium font-heading">Welcome Coupon Risk Logs</h3>
+            <h3 className="text-lg font-medium font-heading">
+              <ExplainedLabel tooltip={<CouponRiskLogTooltip />}>Welcome Coupon Risk Logs</ExplainedLabel>
+            </h3>
             <p className="text-sm text-black/55 mt-1">Audit klaim MEYYAWELCOME yang diblokir oleh risk guard.</p>
           </div>
           {riskLogs.length === 0 ? (
@@ -638,9 +655,9 @@ export default function AdminVoucherManager() {
                   <tr className="border-b border-black/10 text-[10px] uppercase tracking-widest text-black/40">
                     <th className="pb-3 pr-4 font-medium">Waktu</th>
                     <th className="pb-3 px-4 font-medium">Customer</th>
-                    <th className="pb-3 px-4 font-medium">Score</th>
+                    <th className="pb-3 px-4 font-medium"><ExplainedLabel tooltip={<RiskScoreTooltip />}>Score</ExplainedLabel></th>
                     <th className="pb-3 px-4 font-medium">Alasan</th>
-                    <th className="pb-3 pl-4 font-medium text-right">Aksi</th>
+                    <th className="pb-3 pl-4 font-medium text-right"><ExplainedLabel tooltip={<ManualEntitlementTooltip />}>Aksi</ExplainedLabel></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -683,7 +700,9 @@ export default function AdminVoucherManager() {
 
       <div className="bg-white/50 p-6 md:p-8 rounded-[2rem] border border-black/5">
         <div className="mb-5">
-          <h3 className="text-lg font-medium font-heading">Manual Entitlement Override</h3>
+          <h3 className="text-lg font-medium font-heading">
+            <ExplainedLabel tooltip={<ManualEntitlementTooltip />}>Manual Entitlement Override</ExplainedLabel>
+          </h3>
           <p className="text-sm text-black/55 mt-1">Berikan MEYYAWELCOME manual untuk exception customer service meski tidak ada row risk log.</p>
         </div>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
@@ -697,7 +716,7 @@ export default function AdminVoucherManager() {
             />
           </label>
           <label className="text-[10px] uppercase tracking-widest text-black/45 font-semibold">
-            Alasan Override
+            <ExplainedLabel tooltip={<ManualEntitlementTooltip />}>Alasan Override</ExplainedLabel>
             <input
               value={manualEntitlementReason}
               onChange={(event) => setManualEntitlementReason(event.target.value)}

@@ -5,12 +5,16 @@ import { useAuth } from '@clerk/react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
 import {
+  AnalyticsArchiveTooltip,
+  AnalyticsBackfillTooltip,
   ClerkUsersTooltip,
   ApiCoIdFreeTierTooltip,
   D1StorageTooltip,
+  DryRunTooltip,
   ExplainedLabel,
   FreeTierGuardTooltip,
   R2StorageTooltip,
+  ReplaceWindowTooltip,
   SafePruningTooltip,
 } from '../term-tooltips';
 
@@ -268,7 +272,7 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
         <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
           <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
             <Activity size={16} />
-            Backfill Analytics Chart
+            <ExplainedLabel tooltip={<AnalyticsBackfillTooltip />}>Backfill Analytics Chart</ExplainedLabel>
           </h3>
           <p className="text-sm text-black/60 leading-relaxed mb-5">
             Hitung ulang aggregate harian dari raw user_events untuk window tanggal tertentu. Ini dipakai kalau histori event lama perlu masuk chart admin.
@@ -283,14 +287,14 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
             <label className="flex items-start gap-3 rounded-2xl bg-white/60 border border-black/5 p-4 text-sm">
               <input type="checkbox" checked={backfillDryRun} onChange={(event) => setBackfillDryRun(event.target.checked)} className="mt-1" />
               <span>
-                <span className="font-medium block">Dry-run dulu</span>
+                <span className="font-medium block"><ExplainedLabel tooltip={<DryRunTooltip />}>Dry-run dulu</ExplainedLabel></span>
                 <span className="text-xs text-black/50">Cek jumlah row tanpa menulis aggregate.</span>
               </span>
             </label>
             <label className="flex items-start gap-3 rounded-2xl bg-white/60 border border-black/5 p-4 text-sm">
               <input type="checkbox" checked={backfillReplace} onChange={(event) => setBackfillReplace(event.target.checked)} className="mt-1" />
               <span>
-                <span className="font-medium block">Replace window</span>
+                <span className="font-medium block"><ExplainedLabel tooltip={<ReplaceWindowTooltip />}>Replace window</ExplainedLabel></span>
                 <span className="text-xs text-black/50">Hapus aggregate window itu dulu agar hasil chart tidak dobel.</span>
               </span>
             </label>
@@ -309,7 +313,7 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
         <div className="bg-white/40 border border-black/5 rounded-3xl p-6">
           <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
             <Archive size={16} />
-            Archive Raw Event ke R2
+            <ExplainedLabel tooltip={<AnalyticsArchiveTooltip />}>Archive Raw Event ke R2</ExplainedLabel>
           </h3>
           <p className="text-sm text-black/60 leading-relaxed mb-5">
             Simpan raw user_events lama sebagai JSONL di R2 sebelum dihapus dari D1. Aggregate chart tetap ada di D1, raw log lama tidak memenuhi database.
@@ -324,14 +328,14 @@ export default function AdminFreeTierPanel({ compact = false, onNavigate }: Free
             <label className="flex items-start gap-3 rounded-2xl bg-white/60 border border-black/5 p-4 text-sm">
               <input type="checkbox" checked={archiveDryRun} onChange={(event) => setArchiveDryRun(event.target.checked)} className="mt-1" />
               <span>
-                <span className="font-medium block">Dry-run dulu</span>
+                <span className="font-medium block"><ExplainedLabel tooltip={<DryRunTooltip />}>Dry-run dulu</ExplainedLabel></span>
                 <span className="text-xs text-black/50">Hitung row dan ukuran export tanpa upload R2.</span>
               </span>
             </label>
             <label className="flex items-start gap-3 rounded-2xl bg-white/60 border border-black/5 p-4 text-sm">
               <input type="checkbox" checked={archiveDeleteAfter} onChange={(event) => setArchiveDeleteAfter(event.target.checked)} className="mt-1" />
               <span>
-                <span className="font-medium block">Hapus setelah archive</span>
+                <span className="font-medium block"><ExplainedLabel tooltip={<AnalyticsArchiveTooltip />}>Hapus setelah archive</ExplainedLabel></span>
                 <span className="text-xs text-black/50">Aktifkan setelah dry-run aman dan archive sukses.</span>
               </span>
             </label>

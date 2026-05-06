@@ -187,6 +187,26 @@ export const VoucherTooltip = (props: TermTooltipProps) => (
   <TermHint {...props} content="Kode promo yang memberi diskon nominal, persen, atau gratis ongkir sesuai aturan minimal belanja, kuota, dan target pelanggan." />
 );
 
+export const DefaultCouponCampaignTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Campaign promo bawaan yang bisa menerbitkan voucher otomatis, misalnya welcome coupon, birthday gift, atau review reward." />
+);
+
+export const ReviewSpinWheelTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Hadiah acak setelah customer memberi review. Bobot first/repeat spin menentukan peluang hadiah untuk spin pertama dan berikutnya." />
+);
+
+export const CouponRiskLogTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Catatan klaim welcome coupon yang diblokir guard anti-abuse karena sinyal risiko seperti akun, perangkat, atau nomor yang mencurigakan." />
+);
+
+export const ManualEntitlementTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Pemberian atau pencabutan hak voucher secara manual untuk kasus customer service, misalnya false positive dari risk guard." />
+);
+
+export const RiskScoreTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Skor risiko klaim promo. Jika mencapai threshold block, sistem menahan entitlement sampai admin melakukan override manual." />
+);
+
 export const UniqueCodeTooltip = (props: TermTooltipProps) => (
   <TermHint {...props} content="Kode unik transfer ditambahkan saat order dibuat agar nominal transfer lebih mudah dicocokkan dengan pesanan." />
 );
@@ -257,4 +277,32 @@ export const SafePruningTooltip = (props: TermTooltipProps) => (
 
 export const ApiCoIdFreeTierTooltip = (props: TermTooltipProps) => (
   <TermHint {...props} content="API.CO.ID memberi free tier 3.000 hit/bulan per produk yang dipakai Meyya: regional dan ongkir. Panel ini menghitung request yang benar-benar keluar dari server Meyya ke API.CO.ID." />
+);
+
+export const ReviewModerationTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Panel untuk publish, hide, membalas, dan memilih review customer yang layak tampil di halaman produk." />
+);
+
+export const FeaturedReviewTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Review pilihan yang diberi prioritas tampil sebagai social proof di halaman produk." />
+);
+
+export const AdminReplyTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Balasan resmi Meyya yang tampil publik bersama review customer di halaman produk." />
+);
+
+export const AnalyticsBackfillTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Menghitung ulang aggregate analytics harian dari raw user_events agar chart admin punya histori yang lengkap." />
+);
+
+export const AnalyticsArchiveTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Memindahkan raw user_events lama ke R2 sebagai arsip JSONL sebelum D1 dipangkas, sementara aggregate chart tetap disimpan." />
+);
+
+export const DryRunTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Simulasi operasi tanpa menulis, upload, atau menghapus data. Pakai ini untuk cek dampak sebelum menjalankan aksi final." />
+);
+
+export const ReplaceWindowTooltip = (props: TermTooltipProps) => (
+  <TermHint {...props} content="Menghapus aggregate pada rentang tanggal yang dipilih sebelum backfill ulang supaya angka chart tidak dobel." />
 );

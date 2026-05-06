@@ -3,6 +3,12 @@ import useSWR, { mutate } from 'swr';
 import { EyeOff, MessageSquareReply, Star } from 'lucide-react';
 import { useAuthFetch, useAuthFetcher } from '../../hooks/useAuthFetch';
 import { useStore } from '../../store';
+import {
+  AdminReplyTooltip,
+  ExplainedLabel,
+  FeaturedReviewTooltip,
+  ReviewModerationTooltip,
+} from '../term-tooltips';
 
 export default function AdminReviewManager() {
   const fetcher = useAuthFetcher();
@@ -33,12 +39,15 @@ export default function AdminReviewManager() {
     <div className="space-y-6 slide-up">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-2xl font-light font-heading text-ink">Review Produk</h2>
+          <h2 className="text-2xl font-light font-heading text-ink">
+            <ExplainedLabel tooltip={<ReviewModerationTooltip />}>Review Produk</ExplainedLabel>
+          </h2>
           <p className="mt-1 text-sm text-black/55">Moderasi ulasan, balas customer, dan pilih review featured untuk product page.</p>
         </div>
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
+          aria-label="Filter status review"
           className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm"
         >
           <option value="">Semua status</option>
@@ -65,7 +74,11 @@ export default function AdminReviewManager() {
                 <div className="min-w-0">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-black/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-black/50">{review.status}</span>
-                    {Number(review.is_featured || 0) === 1 && <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-amber-700">Featured</span>}
+                    {Number(review.is_featured || 0) === 1 && (
+                      <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-amber-700">
+                        <ExplainedLabel tooltip={<FeaturedReviewTooltip />}>Featured</ExplainedLabel>
+                      </span>
+                    )}
                     <span className="font-mono text-[10px] text-black/35">{new Date(review.created_at).toLocaleString('id-ID')}</span>
                   </div>
                   <h3 className="text-sm font-semibold text-ink">{review.product_name || `Produk #${review.product_id}`}</h3>
@@ -84,21 +97,21 @@ export default function AdminReviewManager() {
                     onClick={() => updateReview(review.id, { status: review.status === 'PUBLISHED' ? 'HIDDEN' : 'PUBLISHED' })}
                     className="inline-flex items-center gap-1.5 rounded-full bg-black/5 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink hover:bg-black/10"
                   >
-                    <EyeOff size={13} /> {review.status === 'PUBLISHED' ? 'Hide' : 'Publish'}
+                    <EyeOff size={13} /> <ExplainedLabel tooltip={<ReviewModerationTooltip />}>{review.status === 'PUBLISHED' ? 'Hide' : 'Publish'}</ExplainedLabel>
                   </button>
                   <button
                     type="button"
                     onClick={() => updateReview(review.id, { is_featured: Number(review.is_featured || 0) !== 1 })}
                     className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-amber-800 hover:bg-amber-100"
                   >
-                    <Star size={13} /> {Number(review.is_featured || 0) === 1 ? 'Unfeature' : 'Feature'}
+                    <Star size={13} /> <ExplainedLabel tooltip={<FeaturedReviewTooltip />}>{Number(review.is_featured || 0) === 1 ? 'Unfeature' : 'Feature'}</ExplainedLabel>
                   </button>
                 </div>
               </div>
 
               <div className="mt-4 rounded-2xl border border-black/5 bg-white/70 p-4">
                 <label className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-black/45">
-                  <MessageSquareReply size={13} /> Balasan Meyya
+                  <MessageSquareReply size={13} /> <ExplainedLabel tooltip={<AdminReplyTooltip />}>Balasan Meyya</ExplainedLabel>
                 </label>
                 <textarea
                   value={draft}
